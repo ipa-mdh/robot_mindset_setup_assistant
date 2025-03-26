@@ -1,0 +1,36 @@
+package_name: robot_mindset_setup_assistant
+environment: debian
+
+dockerfile:
+    base:
+        from: "debian:12"
+        tag: "robot_mindset_setup_assistant_base:1.0"
+        cmd: ["bash"]
+        build: True
+        build_arguments:
+            secret: id=gitcreds,src=$HOME/.git-credentials
+    devcontainer:
+        from: "robot_mindset_setup_assistant_base:1.0"
+        tag: "robot_mindset_setup_assistant_devcontainer:1.0"
+        cmd: ["bash"]
+        build: False
+    run:
+        from: "robot_mindset_setup_assistant_base:1.0"
+        tag: "robot_mindset_setup_assistant_run:1.0"
+        cmd: ["bash", "-c", "roslaunch robot_mindset_setup_assistant node"]
+        build: True
+        build_arguments:
+            secret: id=gitcreds,src=$HOME/.git-credentials
+
+devcontainer:
+    vscode:
+        extensions: ["ms-python.python",
+                    "ms-vscode.cpptools-extension-pack",
+                    "ms-vscode.cmake-tools",
+                    "redhat.vscode-xml",
+                    "mhutchie.git-graph",
+                    "ms-azuretools.vscode-docker",
+                    "mtsmfm.vscode-stl-viewer"]
+    feature:
+        packages: "ssh,curl,nano,python3-pip,git"
+        desktop_lite: False
