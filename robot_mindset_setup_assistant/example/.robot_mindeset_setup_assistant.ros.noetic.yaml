@@ -1,0 +1,76 @@
+# === Robot Mindset Setup Assistant === 
+# This file is used to configure the setup assistant for the robot_ur package.
+# It contains information about the package, capabilities, and launch configurations.
+
+# This YAML file acts as both the template and the data source for generating a final
+# configuration. It uses Jinja2 syntax (e.g., {{ package.name }}) to allow referencing
+# values defined earlier in the file.
+# The file is first loaded as a dictionary using yaml.safe_load(), then passed to a
+# Jinja2 template created from the same file. The template is rendered with this dictionary
+# as context, and the result is parsed again into the final YAML structure.
+
+package:
+  name: sim2real_gap
+  description: A package to examine the sim2real gap."
+  version: "0.0.1"
+  maintainer: robot_mindset
+  maintainer_email: robot_mindset@robot_mindset.com
+  license:
+    value: MIT
+    options: [BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3]
+  language:
+    value: python
+    options: [cpp, python]
+  type: ros.noetic # ros.noetic, ros.humble, (debian)
+  dependencies:
+    apt: []
+    pip: []
+    ros:
+      - std_msgs
+      - roscpp
+      - rospy
+    git: []
+
+spark:
+  capabilities:
+    - type: "robot"
+  interfaces:
+    - name: "interface_topic_string_in"
+      direction: "in"
+      msgs: "std_msgs/String"
+      type: "topic"
+      description: "A string interface for the robot."
+    - name: "set_conroller"
+      direction: "in"
+      msgs: "std_msgs/String"
+      type: "topic"
+      description: "A string interface for the robot."
+
+link_serve:
+  joint_state_publisher: 
+    topic: "joint_states"
+
+single_serve:
+  moveit: true
+  robot_state_publisher: true
+
+multi_serve:
+  launch:
+    arguements:
+      - name: "instance_config_folder"
+        description: "Location of the instance config folder."
+        default: "$(find {{ args.package.name }})/instance_config"
+
+launch:
+  default_for_all:
+    arguments:
+      - name: "namespace"
+        description: "Namespace for the {{ args.package.name }} nodes."
+        default: "{{ args.package.name }}"
+      - name: "simulation"
+        description: "Flag to start the application as a simulation or not."
+        default: "false"
+      - name: "simulation_with_gazebo"
+        description: "Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored."
+        default: "false"
+    

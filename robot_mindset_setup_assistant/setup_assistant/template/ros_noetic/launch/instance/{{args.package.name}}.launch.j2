@@ -1,0 +1,17 @@
+<launch>
+    <!-- Default arguments -->
+{% if args.launch.default_for_all.arguments %}{% for arg in args.launch.default_for_all.arguments %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+{% endfor %}{% endif %}
+
+    <!-- Specific arguments -->
+{% if args.multi_serve.launch.arguments  %}{% for arg in args.multi_serve.launch.arguments %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+{% endfor %}{% endif %}
+
+    <!-- Place your launch file conetent here. -->
+</launch>

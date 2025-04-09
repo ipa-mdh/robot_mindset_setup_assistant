@@ -1,0 +1,24 @@
+<!-- This file is auto-generated. -->
+
+<!-- Multi_serve starts the nodes that are to be started for each instance
+with the corresponding instance configurations. -->
+
+<launch>
+    <!-- Default arguments -->
+{% if args.launch.default_for_all.arguments %}{% for arg in args.launch.default_for_all.arguments %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+{% endfor %}{% endif %}
+
+    <!-- Specific arguments -->
+{% if args.multi_serve.launch.arguements  %}{% for arg in args.multi_serve.launch.arguements %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+{% endfor %}{% endif %}
+
+    <!--  Place the main part in the instance/{{ args.package_name }}.launch file. -->
+    <include file="$(find {{ args.package_name }})/launch/instance/{{ args.package_name }}.launch" pass_all_args="true"/>
+
+</launch>
