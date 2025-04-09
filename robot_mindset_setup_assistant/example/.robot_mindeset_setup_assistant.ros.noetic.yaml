@@ -13,8 +13,8 @@ package:
   name: sim2real_gap
   description: A package to examine the sim2real gap."
   version: "0.0.1"
-  maintainer: robot_mindset
-  maintainer_email: robot_mindset@robot_mindset.com
+  maintainer: Robot Mindset
+  maintainer_email: robot.mindset@robot-mindset.com
   license:
     value: MIT
     options: [BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3]
