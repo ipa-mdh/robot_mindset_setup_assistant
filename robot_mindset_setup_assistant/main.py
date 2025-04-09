@@ -3,16 +3,8 @@ from loguru import logger
 import yaml
 import shutil
 
-from setup_assistant.create_pkg_ros_noetic import main as create_pkg_ros_noetic
+from setup_assistant.load_config import get_config
 from setup_assistant.create_pkg import main as create_pkg
-# from setup_assistant.create_pkg_ros_humble import main as create_pkg_ros_humble
-
-def load_config(config_path):
-    """
-    Load the configuration from a YAML file.
-    """
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
 
 if __name__ == "__main__":
     working_dir = Path("/workspace/src")
@@ -32,7 +24,7 @@ if __name__ == "__main__":
         exit(1)
         
     # Load the configuration
-    config = load_config(config_path)
+    config = get_config(config_path)
     
     # create_pkg_ros_noetic(package_name, working_dir, config, template_folder=template_folder)
     package_path = create_pkg(working_dir, config)

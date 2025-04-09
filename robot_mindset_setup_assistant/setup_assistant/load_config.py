@@ -10,9 +10,9 @@ def get_config(path:Path):
             raw = f.read()
             data_org = yaml.safe_load(raw)
             template = Template(raw)
-            rendered = template.render(**data_org)
-            logger.info("Rendered template:")
-            logger.info(rendered)
+            rendered = template.render(args=data_org)
+            logger.debug("Rendered template:")
+            logger.debug(rendered)
             
             processed = yaml.safe_load(rendered)
 

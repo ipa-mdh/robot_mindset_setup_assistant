@@ -3,7 +3,7 @@
 # It contains information about the package, capabilities, and launch configurations.
 
 # This YAML file acts as both the template and the data source for generating a final
-# configuration. It uses Jinja2 syntax (e.g., {{ package.name }}) to allow referencing
+# configuration. It uses Jinja2 syntax (e.g., {{ args.package.name }}) to allow referencing
 # values defined earlier in the file.
 # The file is first loaded as a dictionary using yaml.safe_load(), then passed to a
 # Jinja2 template created from the same file. The template is rendered with this dictionary
