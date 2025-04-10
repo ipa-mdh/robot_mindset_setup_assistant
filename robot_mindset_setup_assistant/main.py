@@ -5,6 +5,7 @@ import shutil
 
 from setup_assistant.load_config import get_config
 from setup_assistant.create_pkg import main as create_pkg
+from setup_assistant.apply_dev_setup import main as apply_dev_setup
 
 if __name__ == "__main__":
     working_dir = Path("/workspace/src")
@@ -32,3 +33,6 @@ if __name__ == "__main__":
     # copy config to working dir
     config_file = package_path / ".robot_mindeset_setup_assistant.yaml"
     shutil.copy(config_path, config_file)
+
+    # dev-setup
+    apply_dev_setup(package_path)
