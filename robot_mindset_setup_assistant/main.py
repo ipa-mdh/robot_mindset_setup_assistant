@@ -1,11 +1,9 @@
 from pathlib import Path
 from loguru import logger
-import yaml
-import shutil
 
-from setup_assistant.load_config import get_config
-from setup_assistant.create_pkg import main as create_pkg
-from setup_assistant.apply_dev_setup import main as apply_dev_setup
+
+from setup_assistant.create_pkg import RosNoeticPackage
+
 
 if __name__ == "__main__":
     working_dir = Path("/workspace/src")
@@ -23,16 +21,5 @@ if __name__ == "__main__":
     if not config_path.exists():
         logger.error(f"Configuration file {config_path} does not exist.")
         exit(1)
-        
-    # Load the configuration
-    config = get_config(config_path)
-    
-    # create_pkg_ros_noetic(package_name, working_dir, config, template_folder=template_folder)
-    package_path = create_pkg(working_dir, config)
-    
-    # copy config to working dir
-    config_file = package_path / ".robot_mindeset_setup_assistant.yaml"
-    shutil.copy(config_path, config_file)
 
-    # dev-setup
-    apply_dev_setup(package_path)
+    pkg = RosNoeticPackage(working_dir, config_path)

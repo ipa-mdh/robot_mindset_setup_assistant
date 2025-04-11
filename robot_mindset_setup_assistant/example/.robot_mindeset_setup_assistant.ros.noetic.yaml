@@ -29,7 +29,10 @@ package:
       - std_msgs
       - roscpp
       - rospy
-    git: []
+    git: 
+      - name: sim2real_gap
+        url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
+        version: main
 
 spark:
   capabilities:
@@ -51,6 +54,7 @@ link_serve:
     topic: "joint_states"
 
 single_serve:
+  mtc_generator: true
   moveit: true
   robot_state_publisher: true
 

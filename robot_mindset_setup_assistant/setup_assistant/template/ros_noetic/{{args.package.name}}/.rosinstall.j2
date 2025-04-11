@@ -1,5 +1,8 @@
+{% if args.package.dependencies.git  -%}
 repositories:
-  robot_composer:
+{%- for dep in args.package.dependencies.git %}
+  {{ dep.name }}:
     type: git
-    url: https://gitlab.cc-asp.fraunhofer.de/multirobot/robot-composer.git
-    version: master
+    url: {{dep.url}}
+    version: {{dep.version}}
+{%- endfor %}{% endif %}
