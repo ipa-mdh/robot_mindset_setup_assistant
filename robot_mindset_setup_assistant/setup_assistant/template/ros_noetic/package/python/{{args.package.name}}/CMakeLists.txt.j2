@@ -7,8 +7,11 @@ project({{ args.package.name }})
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS{% if args.package.dependencies.ros  %}{% for dep in args.package.dependencies.ros %}
-{{ dep }}{% endfor %}{% endif %}
+find_package(catkin REQUIRED COMPONENTS
+  rospy
+{%- if args.package.dependencies.ros  %}{% for dep in args.package.dependencies.ros %}
+{{ dep }}
+{%- endfor %}{% endif %}
 )
 
 ## System dependencies are found with CMake's conventions

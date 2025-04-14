@@ -18,9 +18,7 @@ package:
   license:
     value: MIT
     options: [BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3]
-  language:
-    value: python
-    options: [cpp, python]
+  language: python # python, cpp
   environment: ros.noetic # ros.noetic, ros.humble, (debian)
   dependencies:
     apt: []
