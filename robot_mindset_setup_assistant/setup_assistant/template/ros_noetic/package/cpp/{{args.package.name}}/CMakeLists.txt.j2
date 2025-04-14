@@ -13,6 +13,12 @@ find_package(catkin REQUIRED COMPONENTS
 {%- endfor %}{% endif %}
 )
 
+{%- if args.package.dependencies.packages  %}
+{%- for dep in args.package.dependencies.packages %}
+find_package({{ dep.name }} REQUIRED)
+{%- endfor %}
+{%- endif %}
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -151,6 +157,19 @@ set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX ""
 target_link_libraries(${PROJECT_NAME}_node
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
+  {%- if args.package.dependencies.packages  %}
+  {%- for dep in args.package.dependencies.packages %}
+  {{ dep.name }}
+  {%- endfor %}
+  {%- endif %}
+)
+
+target_link_libraries(${PROJECT_NAME}
+  {%- if args.package.dependencies.packages  %}
+  {%- for dep in args.package.dependencies.packages %}
+  {{ dep.target_link }}
+  {%- endfor %}
+  {%- endif %}
 )
 
 #############
@@ -191,6 +210,11 @@ install(DIRECTORY include/${PROJECT_NAME}/
 # Install launch files
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+# Install example files
+install(DIRECTORY example/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/example
 )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)

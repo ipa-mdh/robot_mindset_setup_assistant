@@ -23,7 +23,7 @@ package:
   dependencies:
     apt:
       - python3-catkin-tools
-      - libfmt-dev
+      - libspdlog-dev
     pip: []
     ros:
       - std_msgs
@@ -32,6 +32,9 @@ package:
       # - name: sim2real_gap
       #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
       #   version: main
+    packages:
+      - name: spdlog # https://github.com/gabime/spdlog
+        target_link: spdlog::spdlog
 
 spark:
   capabilities:

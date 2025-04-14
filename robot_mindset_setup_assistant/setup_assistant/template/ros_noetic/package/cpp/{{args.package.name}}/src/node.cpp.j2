@@ -47,11 +47,14 @@ int main(int argc, char** argv)
 
     {{args.package.name}}::LogicModule logic;
 
+    
     ros::Rate rate(1.0);
     while (ros::ok()) {
         std::string message = logic.greet("ROS User");
         // std::string message = "Hello, ROS User!";
         ROS_INFO_STREAM(message);
+        logic.spdlog_test(12.3456789);
+
         rate.sleep();
     }
 

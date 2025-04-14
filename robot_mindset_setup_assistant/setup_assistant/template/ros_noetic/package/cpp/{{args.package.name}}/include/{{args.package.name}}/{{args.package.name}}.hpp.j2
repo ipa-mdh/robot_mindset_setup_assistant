@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <spdlog/spdlog.h>
 
 namespace {{args.package.name}} {
 
@@ -8,6 +9,7 @@ class LogicModule {
 public:
     LogicModule();
     std::string greet(const std::string& name) const;
+    void spdlog_test(double number) const;
 };
 
 }
