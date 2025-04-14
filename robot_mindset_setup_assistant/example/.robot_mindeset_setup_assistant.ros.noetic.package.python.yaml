@@ -25,7 +25,6 @@ package:
     pip: []
     ros:
       - std_msgs
-      - roscpp
       - rospy
     git: 
       - name: sim2real_gap

@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parent_dir = current_file_path.parent
     
     # Load the configuration from the YAML file.
-    config_path = parent_dir / Path("example/.robot_mindeset_setup_assistant.ros.noetic.yaml")
+    config_path = parent_dir / Path("example/.robot_mindeset_setup_assistant.ros.noetic.package.cpp.yaml")
     if not config_path.exists():
         logger.error(f"Configuration file {config_path} does not exist.")
         exit(1)

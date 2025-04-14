@@ -5,7 +5,7 @@ with the corresponding instance configurations. -->
 
 <launch>
     <!-- Default arguments -->
-    <arg  name="namespace}}"
+    <arg  name="namespace"
         default="{{ args.package.name }}"
             doc="Namespace for the {{ args.package.name }} nodes." />
     <arg  name="simulation"
@@ -16,6 +16,10 @@ with the corresponding instance configurations. -->
             doc="Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored." />
 
     <!-- Specific arguments -->
+    <arg name="instance_config_folder"
+    default="$(find {{ args.package.name }})/example/instance_config/$(arg namespace)"
+        doc="Location of the instance config folder." />
+
 {%- if args.multi_serve  %}{%- if args.multi_serve.launch  %}{%- if args.multi_serve.launch.arguements  %}
 {%- for arg in args.multi_serve.launch.arguements %}
     <arg   name="{{ arg.name }}"
@@ -25,7 +29,7 @@ with the corresponding instance configurations. -->
 
     <!--  Place the main part in the instance/{{ args.package_name }}.launch file. -->
     <group ns="{{ args.package.name }}">
-        <include file="$(find {{ args.package_name }})/launch/instance/{{ args.package_name }}.launch" pass_all_args="true"/>
+        <include file="$(find {{ args.package.name }})/launch/instance/{{ args.package.name }}.launch" pass_all_args="true"/>
     </group>
 
 </launch>

@@ -1,0 +1,11 @@
+#include "{{args.package.name}}/{{args.package.name}}.hpp"
+
+namespace {{args.package.name}} {
+
+LogicModule::LogicModule() {}
+
+std::string LogicModule::greet(const std::string& name) const {
+    return "Hello, " + name + "! This is a non-ROS module.";
+}
+
+}

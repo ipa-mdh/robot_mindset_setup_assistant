@@ -10,7 +10,7 @@
         default="true"
             doc="Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored." />
 
-            {%- if args.single_serve  %}{%- if args.single_serve.launch  %}{%- if args.single_serve.launch.arguements  %}
+    {%- if args.single_serve  %}{%- if args.single_serve.launch  %}{%- if args.single_serve.launch.arguements  %}
     <!-- Specific arguments: single serve -->
     {%- for arg in args.single_serve.launch.arguements %}
     <arg   name="{{ arg.name }}"
@@ -36,10 +36,10 @@
 
     <!-- call all the launch files -->
 
-    <include file="$(find {{ args.package_name }})/example/launch/single_serve.launch" pass_all_args="true"/>
+    <include file="$(find {{ args.package.name }})/example/launch/single_serve.launch" pass_all_args="true"/>
 
-    <include file="$(find {{ args.package_name }})/example/launch/link_serve.launch" pass_all_args="true"/>
+    <include file="$(find {{ args.package.name }})/example/launch/link_serve.launch" pass_all_args="true"/>
 
-    <include file="$(find {{ args.package_name }})/launch/multi_serve.launch" pass_all_args="true"/>
+    <include file="$(find {{ args.package.name }})/launch/multi_serve.launch" pass_all_args="true"/>
 
 </launch>

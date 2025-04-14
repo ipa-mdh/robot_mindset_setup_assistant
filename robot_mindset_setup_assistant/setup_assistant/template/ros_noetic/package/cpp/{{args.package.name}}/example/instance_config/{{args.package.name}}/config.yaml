@@ -1,1 +1,2 @@
-hello: spark
+config:
+  hello: spark

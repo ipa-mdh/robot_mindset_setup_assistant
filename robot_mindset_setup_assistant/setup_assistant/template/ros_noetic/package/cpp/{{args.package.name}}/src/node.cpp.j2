@@ -1,0 +1,20 @@
+#include <ros/ros.h>
+#include "{{args.package.name}}/{{args.package.name}}.hpp"
+
+int main(int argc, char** argv)
+{
+    ros::init(argc, argv, "{{ args.package.name }}_node");
+    ros::NodeHandle nh;
+
+    {{args.package.name}}::LogicModule logic;
+
+    ros::Rate rate(1.0);
+    while (ros::ok()) {
+        std::string message = logic.greet("ROS User");
+        // std::string message = "Hello, ROS User!";
+        ROS_INFO_STREAM(message);
+        rate.sleep();
+    }
+
+    return 0;
+}
