@@ -21,7 +21,8 @@ package:
   language: python # python, cpp
   environment: ros.noetic # ros.noetic, ros.humble, (debian)
   dependencies:
-    apt: []
+    apt:
+      - python3-catkin-tools
     pip: []
     ros:
       - std_msgs

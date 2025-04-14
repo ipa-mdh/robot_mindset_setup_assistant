@@ -22,15 +22,16 @@ package:
   environment: ros.noetic # ros.noetic, ros.humble, (debian)
   dependencies:
     apt:
+      - python3-catkin-tools
       - libfmt-dev
     pip: []
     ros:
       - std_msgs
       - roscpp
-    git: 
-      - name: sim2real_gap
-        url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
-        version: main
+    git: []
+      # - name: sim2real_gap
+      #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
+      #   version: main
 
 spark:
   capabilities:

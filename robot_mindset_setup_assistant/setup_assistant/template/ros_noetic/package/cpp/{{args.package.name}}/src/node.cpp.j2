@@ -1,10 +1,49 @@
 #include <ros/ros.h>
 #include "{{args.package.name}}/{{args.package.name}}.hpp"
 
+/// @brief Funtion to get all private parameters of a node
+/// @param nh_private 
+/// @return private_params
+std::vector<std::string> get_private_parameters(ros::NodeHandle nh_private)
+{
+    std::vector<std::string> all_params;
+    std::vector<std::string> private_params;
+
+    nh_private.getParamNames(all_params);
+
+    std::string node_ns = nh_private.getNamespace();  // e.g., /my_ns/my_node
+    // ROS_INFO_STREAM("Private namespace: " << node_ns);
+    for (const auto& param : all_params)
+    {
+        // ROS_INFO_STREAM("param: " << param);
+        if (param.find(node_ns + "/") == 0)  // check if it's in the private scope
+        {
+            // ROS_INFO_STREAM("Private param: " << param);
+            private_params.push_back(param);
+        }
+    }
+
+    return private_params;
+}
+
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "{{ args.package.name }}_node");
     ros::NodeHandle nh;
+    ros::NodeHandle nh_private("~");
+
+    // Get private parameters
+    std::vector<std::string> params = get_private_parameters(nh_private);
+    
+    for (const auto& param : params)
+    {
+        std::string value;
+        if (nh_private.getParam(param, value)) {
+            ROS_INFO_STREAM("Private parameter: " << param << " = " << value);
+        } else {
+            ROS_WARN_STREAM("Failed to get private parameter: " << param);
+        }
+    }
 
     {{args.package.name}}::LogicModule logic;
 
