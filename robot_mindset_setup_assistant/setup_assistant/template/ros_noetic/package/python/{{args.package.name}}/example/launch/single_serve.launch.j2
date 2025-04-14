@@ -1,0 +1,21 @@
+<launch>
+    <!-- Default arguments -->
+    <arg  name="namespace}}"
+        default="{{ args.package.name }}"
+            doc="Namespace for the {{ args.package.name }} nodes." />
+    <arg  name="simulation"
+        default="true"
+            doc="Flag to start the application as a simulation or not." />
+    <arg  name="simulation_with_gazebo"
+        default="true"
+            doc="Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored." />
+
+    {%- if args.single_serve  %}{%- if args.single_serve.launch  %}{%- if args.single_serve.launch.arguements  %}
+    <!-- Specific arguments -->
+    {%- for arg in args.single_serve.launch.arguements %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+    {% endfor %}{% endif %}{% endif %}{% endif %}
+
+</launch>

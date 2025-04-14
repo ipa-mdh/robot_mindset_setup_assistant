@@ -65,7 +65,7 @@ def get_template_folder(environment: str):
         return string.replace(".", "_")
 
     # check if template directory exists
-    template_root = parent_dir / Path("template") / dot_to_underscore(environment)
+    template_root = parent_dir / Path("template") / dot_to_underscore(environment) / "package/python"
     if not template_root.exists():
         logger.error(f"Template directory {template_root} does not exist.")
         raise ValueError(f"Unknown environment: {environment}")
@@ -94,9 +94,13 @@ class RosNoeticPackage(GitFlowRepo):
         def wrapper(self, *args, **kwargs):
             feature_name = func.__name__
             self.start_feature(feature_name)
-            result = func(self, *args, **kwargs)
-            self.add_all_commit(f"Finished {feature_name}")
-            self.finish_feature(feature_name)
+            try:
+                result = func(self, *args, **kwargs)
+                self.add_all_commit(f"Finished {feature_name}")
+            except Exception as e:
+                logger.error(f"Error in feature {feature_name}. Stash changes: {e}")
+            finally:
+                self.finish_feature(feature_name)
             return result
         return wrapper
 
@@ -121,7 +125,7 @@ class RosNoeticPackage(GitFlowRepo):
         """
         Apply the dev setup to the package.
         """
-        add_dev_setup(self, self.working_dir)
+        add_dev_setup(self, self.working_dir, environment=self.context["package"]["environment"], package_name=self.package_name)
         
         
                 

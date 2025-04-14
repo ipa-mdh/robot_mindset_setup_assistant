@@ -123,6 +123,10 @@ class GitFlowRepo:
         self.repo.git.add(['*'])
         self.repo.index.commit(message)
         
+    def stash(self):
+        logger.info("Stashing changes")
+        run(["git", "stash", "--include-untracked"], cwd=self.repo_path)
+        
 # 🧪 Example Usage
 if __name__ == "__main__":
     flow = GitFlowRepo("/workspace/example")

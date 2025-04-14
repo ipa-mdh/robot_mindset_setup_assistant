@@ -1,0 +1,4 @@
+from loguru import logger
+
+def test(message = "Hello, World!"):
+    logger.info(f"This is a test log message from src/{{args.package.name}}/{{args.package.name}}: {message}")

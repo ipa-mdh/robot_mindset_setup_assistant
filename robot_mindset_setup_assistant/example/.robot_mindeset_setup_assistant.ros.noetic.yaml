@@ -59,22 +59,10 @@ single_serve:
   robot_state_publisher: true
 
 multi_serve:
-  launch:
-    arguements:
-      - name: "instance_config_folder"
-        description: "Location of the instance config folder."
-        default: "$(find {{ args.package.name }})/instance_config"
+  # launch:
+  #   arguements:
+  #     - name: "instance_config_folder"
+  #       description: "Location of the instance config folder."
+  #       default: "$(find {{ args.package.name }})/example/instance_config"
 
-launch:
-  default_for_all:
-    arguments:
-      - name: "namespace"
-        description: "Namespace for the {{ args.package.name }} nodes."
-        default: "{{ args.package.name }}"
-      - name: "simulation"
-        description: "Flag to start the application as a simulation or not."
-        default: "false"
-      - name: "simulation_with_gazebo"
-        description: "Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored."
-        default: "false"
     
