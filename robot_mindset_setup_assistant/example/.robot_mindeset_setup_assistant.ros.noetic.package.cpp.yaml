@@ -65,7 +65,7 @@ ros:
       description: "A service interface2."
     - name: "interface_topic_string_in2"
       direction: "in"
-      msgs: "std_msgs/String"
+      msgs: "std_msgs/Float64"
       type: "topic"
       description: "A ROS Topic interface.2"
     # - name: "set_controller"

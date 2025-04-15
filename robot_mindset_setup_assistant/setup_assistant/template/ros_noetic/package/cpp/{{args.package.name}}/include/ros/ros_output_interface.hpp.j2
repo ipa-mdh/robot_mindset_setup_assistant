@@ -2,32 +2,6 @@
 
 #include <string>
 
-{#- Initialize an empty list to collect unique message types #}
-{%- set unique_msgs = [] %}
-{%- set ns = namespace(add_actionlib=false) -%}
-
-{%- for interface in args.ros.interfaces if interface.direction == "out" %}
-    {#- Check if the message type is already in the list #}
-    {%- if interface.msgs not in unique_msgs -%}
-        {#- If not, add it to the list #}
-        {%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
-    {%- endif -%}
-
-    {#- Check if the interface is an action and set the flag #}
-    {%- if interface.type == "action" -%}
-        {%- set ns.add_actionlib = true -%}
-    {%- endif -%}
-{%- endfor %}
-
-// Include message headers based on the Robot Rindest Setup Assistant configuration
-{%- if ns.add_actionlib %}
-#include <actionlib/client/simple_action_server.h>
-{% endif %}
-
-{%- for msgs in unique_msgs|sort %}
-#include "{{ msgs }}.h"
-{%- endfor %}
-
 namespace {{ args.package.name }} {
 
 // Interface for the inbound direction (receiving messages)
