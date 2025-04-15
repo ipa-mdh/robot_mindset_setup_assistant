@@ -3,6 +3,11 @@ import yaml
 from jinja2 import Template
 from loguru import logger
 
+# def get_unique_ros_messages(context: dict):
+#     # if the list package/ros/interfaces exist
+#     if 
+    
+
 def get_config(path:Path):
     processed = {}
     if path.exists():

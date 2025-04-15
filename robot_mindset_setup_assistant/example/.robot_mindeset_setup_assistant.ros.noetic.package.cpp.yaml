@@ -32,24 +32,41 @@ package:
       # - name: sim2real_gap
       #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
       #   version: main
-    packages:
+    packages: # CMakeLists.txt modifications
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
 
-spark:
-  capabilities:
-    - type: "robot"
+ros:
   interfaces:
     - name: "interface_topic_string_in"
       direction: "in"
       msgs: "std_msgs/String"
       type: "topic"
-      description: "A string interface for the robot."
-    - name: "set_conroller"
-      direction: "in"
+      description: "A string interface."
+    - name: "interface_topic_string_out"
+      direction: "out"
       msgs: "std_msgs/String"
       type: "topic"
-      description: "A string interface for the robot."
+      description: "A string interface."
+    # - name: "set_controller"
+    #   direction: "in"
+    #   msgs: "my_msgs/controller_config"
+    #   type: "topic"
+    #   description: "A string interface for the robot."
+    # - name: "get_controller"
+    #   direction: "out"
+    #   msgs: "my_msgs/controller_config"
+    #   type: "topic"
+    #   description: "A string interface for the robot."
+    # - name: "action_interface"
+    #   direction: "in"
+    #   msgs: "my_msgs/action_conig"
+    #   type: "action"
+    #   description: "An action interface for the robot."
+
+spark:
+  capabilities:
+    - type: "data_processing"
 
 link_serve:
   joint_state_publisher: 

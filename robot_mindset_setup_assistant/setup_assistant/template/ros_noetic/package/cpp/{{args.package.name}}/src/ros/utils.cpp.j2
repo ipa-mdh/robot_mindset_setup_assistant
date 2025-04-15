@@ -1,0 +1,57 @@
+#include "ros/utils.hpp"
+
+namespace {{args.package.name}} {
+
+/// @brief Funtion to get all private parameters of a node
+/// @param nh_private 
+/// @return private_params
+std::vector<std::string> get_private_parameters(ros::NodeHandle nh_private)
+{
+    std::vector<std::string> all_params;
+    std::vector<std::string> private_params;
+
+    nh_private.getParamNames(all_params);
+
+    std::string node_ns = nh_private.getNamespace();  // e.g., /my_ns/my_node
+    // ROS_INFO_STREAM("Private namespace: " << node_ns);
+    for (const auto& param : all_params)
+    {
+        // ROS_INFO_STREAM("param: " << param);
+        if (param.find(node_ns + "/") == 0)  // check if it's in the private scope
+        {
+            // ROS_INFO_STREAM("Private param: " << param);
+            private_params.push_back(param);
+        }
+    }
+
+    return private_params;
+}
+
+/// @brief Funktion to set a private parameter
+/// @param nh_private 
+/// @param param_name 
+/// @param param_value 
+/// @return True if the parameter was set successfully, false otherwise
+bool set_private_parameter(ros::NodeHandle nh_private, const std::string& param_name, const std::string& param_value) {
+    // Check if the parameter name is valid
+    if (param_name.empty() || param_value.empty()) {
+        ROS_ERROR_STREAM("Invalid parameter name or value");
+        return false;
+    }
+
+    // Set the parameter
+    nh_private.setParam(param_name, param_value);
+
+    // Check if the parameter was set successfully
+    std::string value;
+    if (nh_private.getParam(param_name, value)) {
+        ROS_INFO_STREAM("Private parameter set: " << param_name << " = " << value);
+        return true;
+    } else {
+        ROS_ERROR_STREAM("Failed to set private parameter: " << param_name);
+        return false;
+    }
+
+}
+
+}

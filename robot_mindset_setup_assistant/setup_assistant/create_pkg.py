@@ -101,7 +101,7 @@ class RosNoeticPackage(GitFlowRepo):
                 result = func(self, *args, **kwargs)
                 self.add_all_commit(f"Finished {feature_name}")
             except Exception as e:
-                logger.error(f"Error in feature {feature_name}. Stash changes: {e}")
+                logger.error(f"Error in feature {feature_name}: {e}")
             finally:
                 self.finish_feature(feature_name)
             return result
