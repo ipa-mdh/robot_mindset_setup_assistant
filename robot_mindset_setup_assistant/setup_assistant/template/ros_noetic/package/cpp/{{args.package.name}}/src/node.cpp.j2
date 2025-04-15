@@ -5,6 +5,8 @@
 
 int main(int argc, char** argv)
 {
+    spdlog::set_level(spdlog::level::info); 
+
     ros::init(argc, argv, "{{ args.package.name }}_node");
     sim2real_gap::ROSNode node;
 

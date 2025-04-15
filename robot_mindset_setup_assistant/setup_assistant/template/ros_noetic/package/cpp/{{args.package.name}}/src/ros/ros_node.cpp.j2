@@ -28,6 +28,23 @@ void ROSNode::init()
     // Initialize node handles
     nh_ = ros::NodeHandle();
     nh_private_ = ros::NodeHandle("~");
+
+    // Initialize private parameters
+    std::vector<RosParam> params = get_private_parameters();
+
+    // get log_level from params
+    std::string log_level;
+    for (const auto& param : params)
+    {
+        // find config/log_level in a longer stirng
+        if (param.name.find("config/log_level") != std::string::npos)
+        {
+            log_level = param.value;
+            break;
+        }
+    }
+    // set log level
+    logic_module_.set_logger_level(log_level);
 }
 
 void ROSNode::init_ros_interface_subscribers()
@@ -44,7 +61,7 @@ void ROSNode::init_ros_interface_publishers()
     // Initialize publishers
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
-    pub_{{ interface.name }}_ =  nh_.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}", 10);
+    pub_{{ interface.name }}_ =  nh_private_.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}", 10);
     {%- endfor %}
 }
 void ROSNode::init_ros_interface_services()
@@ -52,7 +69,7 @@ void ROSNode::init_ros_interface_services()
     // Initialize service
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     // {{ interface.description }}
-    service_{{ interface.name }}_ =  nh_.advertiseService("{{ interface.name }}", &ROSNode::callback_srv_{{ interface.name }}_, this);
+    service_{{ interface.name }}_ =  nh_private_.advertiseService("{{ interface.name }}", &ROSNode::callback_srv_{{ interface.name }}_, this);
     {%- endfor %}
 }
 void ROSNode::init_ros_interface_clients()
@@ -172,13 +189,13 @@ std::vector<RosParam> ROSNode::get_private_parameters()
     nh_private_.getParamNames(all_params);
 
     std::string node_ns = nh_private_.getNamespace();  // e.g., /my_ns/my_node
-    // ROS_INFO_STREAM("Private namespace: " << node_ns);
+    // ROS_DEBUG_STREAM("Private namespace: " << node_ns);
     for (const auto& param : all_params)
     {
-        // ROS_INFO_STREAM("param: " << param);
+        // ROS_DEBUG_STREAM("param: " << param);
         if (param.find(node_ns + "/") == 0)  // check if it's in the private scope
         {
-            // ROS_INFO_STREAM("Private param: " << param);
+            // ROS_DEBUG_STREAM("Private param: " << param);
             RosParam buffer;
             buffer.name = param;
             // Get the parameter value
@@ -217,30 +234,6 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
 }
 
 // /****************** Callback Functions ******************/
-    
-// // Topic subscriber callbacks
-// void ROSNode::callback_interface_topic_string_in_(const std_msgs::String::ConstPtr &msg)
-// {
-//     ROS_INFO("Received on topic interface_topic_string_in : %s", msg->data.c_str());
-
-//     // Process the message
-//     std::string data = msg->data;
-//     std::string result = logic_module_.greet(data);
-// }
-// // Service server callbacks
-
-// // Action server callbacks
-
-// /****************** Interface Functions ******************/
-// // Topic publisher
-// void ROSNode::interface_topic_string_out_(const std::string& msg)
-// {
-//     // Create a String message
-//     std_msgs::String msg_out;
-//     msg_out.data = msg;
-//     // Publish the message
-//     pub_interface_topic_string_out_.publish(msg_out);
-// }
 
 // === Topic publisher ===
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
@@ -433,32 +426,32 @@ void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('
 void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg)
 {
     {%- if interface.msgs == "std_msgs/String" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %s", msg->data.c_str());
+    ROS_DEBUG("Received on topic {{ interface.name }} : %s", msg->data.c_str());
     {%- elif interface.msgs == "std_msgs/Float64" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %f", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %f", msg->data);
     {%- elif interface.msgs == "std_msgs/Float32" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %f", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %f", msg->data);
     {%- elif interface.msgs == "std_msgs/Int32" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %d", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %d", msg->data);
     {%- elif interface.msgs == "std_msgs/Int64" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %ld", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %ld", msg->data);
     {%- elif interface.msgs == "std_msgs/UInt32" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %u", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %u", msg->data);
     {%- elif interface.msgs == "std_msgs/UInt64" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %lu", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %lu", msg->data);
     {%- elif interface.msgs == "std_msgs/Int8" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %d", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %d", msg->data);
     {%- elif interface.msgs == "std_msgs/UInt8" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %u", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %u", msg->data);
     {%- elif interface.msgs == "std_msgs/Bool" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %s", msg->data ? "true" : "false");
+    ROS_DEBUG("Received on topic {{ interface.name }} : %s", msg->data ? "true" : "false");
     {%- elif interface.msgs == "std_msgs/Byte" %}
-    ROS_INFO("Received on topic {{ interface.name }} : %u", msg->data);
+    ROS_DEBUG("Received on topic {{ interface.name }} : %u", msg->data);
     {%- elif interface.msgs == "std_msgs/Empty" %}
-    ROS_INFO("Received on topic {{ interface.name }}");
+    ROS_DEBUG("Received on topic {{ interface.name }}");
     {%- else %}
     // For other message types, implemetnation is required
-    // ROS_INFO("Received on topic {{ interface.name }} : %s", msg->data.c_str());
+    // ROS_DEBUG("Received on topic {{ interface.name }} : %s", msg->data.c_str());
     {%- endif %}
     // Process the message
     {%- if interface.msgs == "std_msgs/String" %}
@@ -509,7 +502,7 @@ void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('
 bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res)
 {
     {%- if interface.msgs == "std_srvs/SetBool" %}
-    ROS_INFO("Received service {{ interface.name }} : %s", req.data ? "true" : "false");
+    ROS_DEBUG("Received service {{ interface.name }} : %s", req.data ? "true" : "false");
     // Process the request
     bool reg_data = req.data;
     bool res_sucess;
@@ -519,7 +512,7 @@ bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0]
     res.message = res_msg;
     return  res_sucess;
     {%- elif interface.msgs == "std_srvs/Trigger" %}
-    ROS_INFO("Received service {{ interface.name }}");
+    ROS_DEBUG("Received service {{ interface.name }}");
     // Process the request
     bool res_sucess;
     std::string res_msg;
@@ -528,7 +521,7 @@ bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0]
     res.message = res_msg;
     return  res_sucess;
     {%- elif interface.msgs == "std_srvs/Empty" %}
-    ROS_INFO("Received service {{ interface.name }}");
+    ROS_DEBUG("Received service {{ interface.name }}");
     // Process the request
     logic_module_.process_srv_{{interface.name}}();
     // No response needed
@@ -536,7 +529,7 @@ bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0]
     {%- else %}
     // For other message types, implemetnation is required
     // Message type: {{ interface.msgs }}
-    // ROS_INFO("Received service {{ interface.name }}");
+    // ROS_DEBUG("Received service {{ interface.name }}");
     return true;
     {%- endif %}
 }

@@ -12,6 +12,9 @@ class LogicModule : public LogicModuleInputInterface, public LogicModuleOutputIn
 {
 public:
     LogicModule();
+    void set_logger_level(std::string level_str);
+
+    // test functions
     std::string greet(const std::string& name) const;
     void spdlog_test(double number) const;
 };

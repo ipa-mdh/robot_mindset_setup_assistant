@@ -44,7 +44,7 @@ protected:
   
     // Service server callbacks
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-    virtual bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, typename {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
+    virtual bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
     {%- endfor %}
 
     // Action server callbacks

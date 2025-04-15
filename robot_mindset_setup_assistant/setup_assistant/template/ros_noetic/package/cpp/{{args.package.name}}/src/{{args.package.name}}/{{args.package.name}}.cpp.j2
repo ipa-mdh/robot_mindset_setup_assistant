@@ -21,18 +21,43 @@ void LogicModule::spdlog_test(double number) const {
     spdlog::info("Support for floats {:03.2f}", 1.23456);
     spdlog::info("Positional args are {1} {0}..", "too", "supported");
     spdlog::info("{:>8} aligned, {:<8} aligned", "right", "left");
+}
 
-    // Runtime log levels
-    spdlog::set_level(spdlog::level::info);  // Set global log level to info
-    spdlog::debug("This message should not be displayed!");
-    spdlog::set_level(spdlog::level::trace);  // Set specific logger's log level
-    spdlog::debug("This message should be displayed..");
-
-    // Customize msg format for all loggers
-    spdlog::set_pattern("[%H:%M:%S %z] [%^%L%$] [thread %t] %v");
-    spdlog::info("This an info message with custom format");
-    spdlog::set_pattern("%+");  // back to default format
-    spdlog::set_level(spdlog::level::info);
+void LogicModule::set_logger_level(std::string level_str)
+{
+    // to lower case
+    std::transform(level_str.begin(), level_str.end(), level_str.begin(), ::tolower);
+    // Set the logger level based on the provided string
+    if (level_str == "debug")
+    {
+        spdlog::set_level(spdlog::level::debug);
+        spdlog::info("Log level set to debug");
+    }
+    else if (level_str == "info")
+    {
+        spdlog::set_level(spdlog::level::info);
+        spdlog::info("Log level set to info");
+    }
+    else if (level_str == "warn")
+    {
+        spdlog::set_level(spdlog::level::warn);
+        spdlog::info("Log level set to warn");
+    }
+    else if (level_str == "error")
+    {
+        spdlog::set_level(spdlog::level::err);       // spdlog::err is equivalent to error
+        spdlog::info("Log level set to error");
+    }
+    else if (level_str == "fatal")
+    {
+        spdlog::set_level(spdlog::level::critical);  // Mapping fatal to critical
+        spdlog::info("Log level set to critical");
+    }
+    else
+    {
+        spdlog::set_level(spdlog::level::info);      // Default fallback level
+        spdlog::warn("Invalid log level provided ({}). Defaulting to info level.", level_str);
+    }
 }
 
 }
