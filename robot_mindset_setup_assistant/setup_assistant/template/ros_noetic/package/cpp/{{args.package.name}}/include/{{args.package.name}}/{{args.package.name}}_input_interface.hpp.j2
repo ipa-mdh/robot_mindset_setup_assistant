@@ -1,0 +1,45 @@
+#pragma once
+
+#include <string>
+#include <spdlog/spdlog.h>
+
+namespace {{ args.package.name }} {
+
+class LogicModuleInterface {
+public:
+    virtual ~LogicModuleInterface() = default;
+    
+    // === Interface functions ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_msgs/String" %}
+    virtual void process_sub_{{interface.name}}(const std::string&) {}
+    {%- elif interface.msgs == "std_msgs/Float64" %}
+    virtual void process_sub_{{interface.name}}(double) {}
+    {%- elif interface.msgs == "std_msgs/Float32" %}
+    virtual void process_sub_{{interface.name}}(float) {}
+    {%- elif interface.msgs == "std_msgs/Int32" %}
+    virtual void process_sub_{{interface.name}}(int32_t) {}
+    {%- elif interface.msgs == "std_msgs/Int64" %}
+    virtual void process_sub_{{interface.name}}(int64_t) {}
+    {%- elif interface.msgs == "std_msgs/UInt32" %}
+    virtual void process_sub_{{interface.name}}(uint32_t) {}
+    {%- elif interface.msgs == "std_msgs/UInt64" %}
+    virtual void process_sub_{{interface.name}}(uint64_t) {}
+    {%- elif interface.msgs == "std_msgs/Int8" %}
+    virtual void process_sub_{{interface.name}}(int8_t) {}
+    {%- elif interface.msgs == "std_msgs/UInt8" %}
+    virtual void process_sub_{{interface.name}}(uint8_t) {}
+    {%- elif interface.msgs == "std_msgs/Bool" %}
+    virtual void process_sub_{{interface.name}}(bool) {}
+    {%- elif interface.msgs == "std_msgs/Byte" %}
+    virtual void process_sub_{{interface.name}}(uint8_t) {}
+    {%- elif interface.msgs == "std_msgs/Empty" %}
+    virtual void process_sub_{{interface.name}}() {}
+    {%- else %}
+    // For other message types, implemetnation is required
+    // virtual void process_sub_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg);
+    {%- endif %}
+{%- endfor %}
+
+}

@@ -89,7 +89,7 @@ private:
 
     // === Action server callbacks ===
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-    virtual void callback_act_{{ interface.name }}_(const typename {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
+    virtual void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
 {%- endfor %}
 };
 
