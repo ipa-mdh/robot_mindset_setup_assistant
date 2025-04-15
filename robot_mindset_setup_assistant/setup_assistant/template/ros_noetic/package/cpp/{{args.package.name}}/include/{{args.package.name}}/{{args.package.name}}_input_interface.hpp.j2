@@ -10,6 +10,7 @@ public:
     virtual ~LogicModuleInterface() = default;
     
     // === Interface functions ===
+    // handle ROS subscriptions
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
@@ -41,5 +42,27 @@ public:
     // virtual void process_sub_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg);
     {%- endif %}
 {%- endfor %}
+
+    // === Service call ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_srvs/SetBool" %}
+    virtual void process_srv_{{interface.name}}(bool, bool&, std::string&) {}
+    {%- elif interface.msgs == "std_srvs/Trigger" %}
+    virtual void process_srv_{{interface.name}}(bool&, std::string&) {}
+    {%- elif interface.msgs == "std_srvs/Empty" %}
+    virtual void process_srv_{{interface.name}}() {}
+    {%- else %}
+    // For other message types, implemetnation is required
+    // virtual void process_srv_{{interface.name}}({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &res);
+    {%- endif %}
+{%- endfor %}
+
+    // === Action server callbacks ===
+    {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    // {{ interface.description }}
+    virtual void process_act_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
+    {%- endfor %}
+
 
 }
