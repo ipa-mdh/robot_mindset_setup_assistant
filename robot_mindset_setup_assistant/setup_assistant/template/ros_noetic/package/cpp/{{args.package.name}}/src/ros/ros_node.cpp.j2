@@ -282,7 +282,11 @@ bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ i
 
 // === Action server callbacks ===
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
-void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
+void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
+{
+    // Process the goal
+    // logic_module_.process_act_{{interface.name}}(goal);
+}
 {%- endfor %}
 
 }
