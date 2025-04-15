@@ -1,0 +1,96 @@
+#pragma once
+
+#include <string>
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- for interface in args.ros.interfaces if interface.direction == "out" %}
+    {#- Check if the message type is already in the list #}
+    {%- if interface.msgs not in unique_msgs -%}
+        {#- If not, add it to the list #}
+        {%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+    {%- endif -%}
+
+    {#- Check if the interface is an action and set the flag #}
+    {%- if interface.type == "action" -%}
+        {%- set ns.add_actionlib = true -%}
+    {%- endif -%}
+{%- endfor %}
+
+// Include message headers based on the Robot Rindest Setup Assistant configuration
+{%- if ns.add_actionlib %}
+#include <actionlib/client/simple_action_server.h>
+{% endif %}
+
+{%- for msgs in unique_msgs|sort %}
+#include "{{ msgs }}.h"
+{%- endfor %}
+
+namespace {{ args.package.name }} {
+
+// Interface for the inbound direction (receiving messages)
+class RosOutputInterface {
+public:
+    virtual ~RosOutputInterface() = default;
+
+private:
+    /****************** Interface Functions ******************/
+    // === Topic publisher ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_msgs/String" %}
+    virtual void interface_pub_{{ interface.name }}_(const std::string &msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Float64" %}
+    virtual void interface_pub_{{ interface.name }}_(double msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Float32" %}
+    virtual void interface_pub_{{ interface.name }}_(float msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Int32" %}
+    virtual void interface_pub_{{ interface.name }}_(int32_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Int64" %}
+    virtual void interface_pub_{{ interface.name }}_(int64_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/UInt32" %}
+    virtual void interface_pub_{{ interface.name }}_(uint32_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/UInt64" %}
+    virtual void interface_pub_{{ interface.name }}_(uint64_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Int8" %}
+    virtual void interface_pub_{{ interface.name }}_(int8_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/UInt8" %}
+    virtual void interface_pub_{{ interface.name }}_(uint8_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Bool" %}
+    virtual void interface_pub_{{ interface.name }}_(bool msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Byte" %}
+    virtual void interface_pub_{{ interface.name }}_(uint8_t msg) = 0;
+    {%- elif interface.msgs == "std_msgs/Empty" %}
+    virtual void interface_pub_{{ interface.name }}_() = 0;
+    {%- else %}
+    // For other message types, implemetnation is required
+    // virtual void interface_pub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) = 0;
+    {%- endif %}
+{%- endfor %}
+  
+    // === Service call ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_srvs/SetBool" %}
+    virtual bool interface_srv_{{ interface.name }}_(bool req, bool &res) = 0;
+    {%- elif interface.msgs == "std_srvs/Trigger" %}
+    virtual bool interface_srv_{{ interface.name }}_(bool req, bool &res) = 0;
+    {%- elif interface.msgs == "std_srvs/Empty" %}
+    virtual bool interface_srv_{{ interface.name }}_() = 0;
+    {%- elif interface.msgs == "std_srvs/SetBool" %}
+    virtual bool interface_srv_{{ interface.name }}_(bool req, bool &res) = 0;
+    {%- else %}
+    // For other message types, implemetnation is required
+    //virtual bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
+    {%- endif %}
+{%- endfor %}
+
+    // === Action server callbacks ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    virtual void callback_act_{{ interface.name }}_(const typename {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
+{%- endfor %}
+};
+
+}

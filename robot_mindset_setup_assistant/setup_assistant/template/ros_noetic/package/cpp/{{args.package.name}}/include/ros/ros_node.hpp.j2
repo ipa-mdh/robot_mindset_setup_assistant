@@ -1,0 +1,100 @@
+/*
+ * This file is auto-generated using Jinja2.
+ * It creates a ROS node with the specified topics, services, and actions.
+ */
+
+ #pragma once
+ #include <string>
+ #include <ros/ros.h>
+ 
+ #include "ros/ros_input_interface.hpp"
+ #include "ros/ros_output_interface.hpp"
+ 
+ #include "{{ args.package.name }}/{{ args.package.name }}.hpp"
+ 
+ namespace {{ args.package.name }} {
+ 
+  struct RosParam {
+    std::string name;
+    std::string value;
+  };
+
+  class ROSNode : public RosInputInterface, public RosOutputInterface
+  {
+  public:
+    ROSNode();
+    ~ROSNode();
+
+    std::vector<RosParam> get_private_parameters();
+
+    bool set_private_parameter(const std::string& param_name, const std::string& param_value);
+  
+  private:
+    ros::NodeHandle nh_;  
+    ros::NodeHandle nh_private_;
+
+    /****************** ROS Node Initialization ******************/
+    void init();
+    void init_ros_interface_subscribers();
+    void init_ros_interface_publishers();
+    void init_ros_interface_services();
+    void init_ros_interface_actions();
+    void init_logic_module();
+    
+    /****************** Callback Functions ******************/
+  
+    // Topic subscriber callbacks
+    void callback_interface_topic_string_in_(const std_msgs::String::ConstPtr &msg) override;
+    // Service server callbacks
+  
+    // Action server callbacks
+  
+    /****************** Interface Functions ******************/
+    // Topic publisher
+    void interface_topic_string_out_(const std::string& msg) override;
+
+    /****************** Private Members ******************/
+    // Logic module instance
+    LogicModule logic_module_;
+  
+    /****************** Interface Members ******************/
+    // === Initialize publishers and subscribers ===
+{%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
+  if interface.type == "topic" %}
+  {%- if interface.direction == "in" %}
+    // Topic subscriber for: {{ interface.description }}
+    ros::Subscriber sub_{{ interface.name }};
+  {%- elif interface.direction == "out" %}
+    // Topic publisher for: {{ interface.description }}
+    ros::Publisher pub_{{ interface.name }};
+  {%- endif %}
+{%- endfor %}
+
+    // === Initialize services ===
+{%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
+  if interface.type == "service" %}
+  {%- if interface.direction == "out" %}
+    // Service server for: {{ interface.description }}
+    ros::ServiceServer srv_{{ interface.name }};
+  {%- elif interface.direction == "in" %}
+    // Service client for: {{ interface.description }}
+    ros::ServiceClient cli_{{ interface.name }};
+  {%- endif %}
+{%- endfor %}
+
+    // === Initialize actions ===
+{%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
+  if interface.type == "action" %}
+  {%- if interface.direction == "out" %}
+    // Action server for: {{ interface.description }}
+  {%- elif interface.direction == "in" %}
+    // Action client for: {{ interface.description }}
+  {%- endif %}
+{%- endfor %}
+   
+    // Service interfaces: servers and clients
+  
+    // Action interfaces: servers and clients (using dynamic allocation)
+  };
+ 
+ }
