@@ -35,7 +35,7 @@ void ROSNode::init_ros_interface_subscribers()
     // Initialize subscribers
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     // {{ interface.description }}
-    sub_{{ interface.name }} = nh.subscribe("{{ interface.name }}", 10, &ROSNode::callback_sub_{{ interface.name }}, this);
+    sub_{{ interface.name }}_ =  nh_.subscribe("{{ interface.name }}", 10, &ROSNode::callback_sub_{{ interface.name }}_, this);
     {%- endfor %}
 
 }
@@ -44,23 +44,23 @@ void ROSNode::init_ros_interface_publishers()
     // Initialize publishers
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
-    pub_{{ interface.name }} = nh.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}", 10);
+    pub_{{ interface.name }}_ =  nh_.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}", 10);
     {%- endfor %}
 }
 void ROSNode::init_ros_interface_services()
 {
     // Initialize service
-    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     // {{ interface.description }}
-    srvice_{{ interface.name }} = nh.advertiseService("{{ interface.name }}", &ROSNode::callback_srv_{{ interface.name }}, this);
+    service_{{ interface.name }}_ =  nh_.advertiseService("{{ interface.name }}", &ROSNode::callback_srv_{{ interface.name }}_, this);
     {%- endfor %}
 }
 void ROSNode::init_ros_interface_clients()
 {
     // Initialize clients
-    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
-    client_{{ interface.name }} = nh.serviceClient<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}");
+    client_{{ interface.name }}_ =  nh_.serviceClient<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}");
     {%- endfor %}
 }
 void ROSNode::init_ros_interface_action_services()
@@ -75,11 +75,89 @@ void ROSNode::init_logic_module()
 {
     // Initialize ROS interface
     // Set external callbacks for interfaces
-    logic_module_.set_callback_interface_topic_string_in(
+    {% for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    // Set external callbacks for interfaces
+    {% if interface.msgs == "std_msgs/String" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
         [this](const std::string& msg) {
-        this->interface_topic_string_out_(msg);
-    }
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
     );
+    {% elif interface.msgs == "std_msgs/Float64" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](double msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Float32" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](float msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Int32" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](int32_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Int64" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](int64_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/UInt32" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](uint32_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/UInt64" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](uint64_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Int8" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](int8_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/UInt8" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](uint8_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Bool" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](bool msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Byte" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this](uint8_t msg) {
+        this->interface_pub_{{ interface.name }}_(msg);
+        }
+    );
+    {% elif interface.msgs == "std_msgs/Empty" %}
+    logic_module_.set_pub_callback_{{ interface.name }}(
+        [this]() {
+        this->interface_pub_{{ interface.name }}();
+        }
+    );
+    {% else %}
+    // For other message types, implemetnation is required
+    // logic_module_.set_pub_callback_{{ interface.name }}(
+    //     [this](const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) {
+    //     this->interface_pub_{{ interface.name }}_(msg);
+    //      }
+    // );
+    {% endif %}
+    {% endfor %}
 }
 
 /****************** Parameter Functions ******************/
@@ -164,11 +242,195 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
 //     pub_interface_topic_string_out_.publish(msg_out);
 // }
 
+// === Topic publisher ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+// {{ interface.description }}
+{%- if interface.msgs == "std_msgs/String" %}
+void ROSNode::interface_pub_{{ interface.name }}_(const std::string &msg)
+{
+    // Create a String message
+    std_msgs::String msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Float64" %}
+void ROSNode::interface_pub_{{ interface.name }}_(double msg)
+{
+    // Create a Float64 message
+    std_msgs::Float64 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Float32" %}
+void ROSNode::interface_pub_{{ interface.name }}_(float msg)
+{
+    // Create a Float32 message
+    std_msgs::Float32 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Int32" %}
+void ROSNode::interface_pub_{{ interface.name }}_(int32_t msg)
+{
+    // Create a Int32 message
+    std_msgs::Int32 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Int64" %}
+void interface_pub_{{ interface.name }}_(int64_t msg)
+{
+    // Create a Int64 message
+    std_msgs::Int64 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/UInt32" %}
+void ROSNode::interface_pub_{{ interface.name }}_(uint32_t msg)
+{
+    // Create a UInt32 message
+    std_msgs::UInt32 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/UInt64" %}
+void ROSNode::interface_pub_{{ interface.name }}_(uint64_t msg)
+{
+    // Create a UInt64 message
+    std_msgs::UInt64 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Int8" %}
+void ROSNode::interface_pub_{{ interface.name }}_(int8_t msg)
+{
+    // Create a Int8 message
+    std_msgs::Int8 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/UInt8" %} 
+void ROSNode::interface_pub_{{ interface.name }}_(uint8_t msg)
+{
+    // Create a UInt8 message
+    std_msgs::UInt8 msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Bool" %}
+void ROSNode::interface_pub_{{ interface.name }}_(bool msg)
+{
+    // Create a Bool message
+    std_msgs::Bool msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Byte" %}
+void ROSNode::interface_pub_{{ interface.name }}_(uint8_t msg)
+{
+    // Create a Byte message
+    std_msgs::Byte msg_out;
+    msg_out.data = msg;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- elif interface.msgs == "std_msgs/Empty" %}
+void ROSNode::interface_pub_{{ interface.name }}_()
+{
+    // Create a Empty message
+    std_msgs::Empty msg_out;
+    // Publish the message
+    pub_{{ interface.name }}_.publish(msg_out);
+}
+{%- else %}
+// For other message types, implemetnation is required
+// void interface_pub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg)
+// {
+    // Publish the message
+    // pub_{{ interface.name }}_.publish(msg);
+// }
+{%- endif %}
+{%- endfor %}
+
+// === Service call ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+// {{ interface.description }}
+{%- if interface.msgs == "std_srvs/SetBool" %}
+bool ROSNode::interface_srv_{{ interface.name }}_(bool req, bool &res) {
+    // Create a SetBool message
+    std_srvs::SetBool srv;
+    srv.request.data = req;
+    // Call the service
+    if (client_{{ interface.name }}_.call(srv)) {
+        res = srv.response.success;
+        return true;
+    } else {
+        ROS_ERROR("Failed to call service {{ interface.name }}");
+        return false;
+    }
+}
+{%- elif interface.msgs == "std_srvs/Trigger" %}
+bool ROSNode::interface_srv_{{ interface.name }}_(bool req, bool &res)
+{
+    // Create a Trigger message
+    std_srvs::Trigger srv;
+    srv.request.data = req;
+    // Call the service
+    if (client_{{ interface.name }}_.call(srv)) {
+        res = srv.response.success;
+        return true;
+    } else {
+        ROS_ERROR("Failed to call service {{ interface.name }}");
+        return false;
+    }
+}
+{%- elif interface.msgs == "std_srvs/Empty" %}
+bool ROSNode::interface_srv_{{ interface.name }}_()
+{
+    // Create a Empty message
+    std_srvs::Empty srv;
+    // Call the service
+    if (client_{{ interface.name }}_.call(srv)) {
+        return true;
+    } else {
+        ROS_ERROR("Failed to call service {{ interface.name }}");
+        return false;
+    }
+}
+{%- else %}
+// For other message types, implemetnation is required
+//bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
+{%- endif %}
+{%- endfor %}
+
+// === Action server callbacks ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
+{
+    // Create a new goal
+    {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Goal goal_out;
+    // Set the goal
+    goal_out = *goal;
+    // Process the goal
+    logic_module_.process_act_{{interface.name}}(goal_out);
+}
+{%- endfor %}
+
 
 /****************** Callback Functions ******************/
 // === Subscriber callbacks ===
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
-void callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg)
+void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg)
 {
     {%- if interface.msgs == "std_msgs/String" %}
     ROS_INFO("Received on topic {{ interface.name }} : %s", msg->data.c_str());
@@ -244,14 +506,14 @@ void callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}
 
 // === Service server callbacks ===
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res)
+bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res)
 {
     {%- if interface.msgs == "std_srvs/SetBool" %}
     ROS_INFO("Received service {{ interface.name }} : %s", req.data ? "true" : "false");
     // Process the request
     bool reg_data = req.data;
     bool res_sucess;
-    string res_msg;
+    std::string res_msg;
     logic_module_.process_srv_{{interface.name}}(reg_data, res_sucess, res_msg);
     res.success = res_sucess;
     res.message = res_msg;
@@ -260,7 +522,7 @@ bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ i
     ROS_INFO("Received service {{ interface.name }}");
     // Process the request
     bool res_sucess;
-    string res_msg;
+    std::string res_msg;
     logic_module_.process_srv_{{interface.name}}(res_sucess, res_msg);
     res.success = res_sucess;
     res.message = res_msg;

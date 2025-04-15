@@ -9,7 +9,7 @@ class RosOutputInterface {
 public:
     virtual ~RosOutputInterface() = default;
 
-private:
+protected:
     /****************** Interface Functions ******************/
     // === Topic publisher ===
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}

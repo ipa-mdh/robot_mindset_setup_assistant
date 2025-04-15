@@ -53,31 +53,31 @@
       if interface.type == "topic" %}
     {%- if interface.direction == "in" %}
     // Topic subscriber for: {{ interface.description }}
-    ros::Subscriber sub_{{ interface.name }};
+    ros::Subscriber sub_{{ interface.name }}_;
     {%- elif interface.direction == "out" %}
     // Topic publisher for: {{ interface.description }}
-    ros::Publisher pub_{{ interface.name }};
+    ros::Publisher pub_{{ interface.name }}_;
     {%- endif %}
     {%- endfor %}
 
     // === Initialize services ===
     {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "service" %}
-    {%- if interface.direction == "out" %}
+    {%- if interface.direction == "in" %}
     // Service server for: {{ interface.description }}
-    ros::ServiceServer srv_{{ interface.name }};
-    {%- elif interface.direction == "in" %}
+    ros::ServiceServer service_{{ interface.name }}_;
+    {%- elif interface.direction == "out" %}
     // Service client for: {{ interface.description }}
-    ros::ServiceClient cli_{{ interface.name }};
+    ros::ServiceClient client_{{ interface.name }}_;
     {%- endif %}
     {%- endfor %}
 
     // === Initialize actions ===
     {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "action" %}
-    {%- if interface.direction == "out" %}
+    {%- if interface.direction == "in" %}
     // Action server for: {{ interface.description }}
-    {%- elif interface.direction == "in" %}
+    {%- elif interface.direction == "out" %}
     // Action client for: {{ interface.description }}
     {%- endif %}
     {%- endfor %}

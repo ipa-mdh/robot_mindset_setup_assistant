@@ -5,9 +5,9 @@
 
 namespace {{ args.package.name }} {
 
-class LogicModuleInterface {
+class LogicModuleOutputInterface {
 public:
-    virtual ~LogicModuleInterface() = default;
+    virtual ~LogicModuleOutputInterface() = default;
     
     // === Setter for the callback interface function ===
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}

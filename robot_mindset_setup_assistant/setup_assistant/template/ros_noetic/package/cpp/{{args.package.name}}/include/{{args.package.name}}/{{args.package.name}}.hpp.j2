@@ -3,11 +3,13 @@
 #include <string>
 #include <spdlog/spdlog.h>
 
-#include "{{args.package.name}}/{{args.package.name}}_interface.hpp"
+#include "{{args.package.name}}/{{args.package.name}}_input_interface.hpp"
+#include "{{args.package.name}}/{{args.package.name}}_output_interface.hpp"
 
 namespace {{args.package.name}} {
 
-class LogicModule : public LogicModuleInterface {
+class LogicModule : public LogicModuleInputInterface, public LogicModuleOutputInterface
+{
 public:
     LogicModule();
     std::string greet(const std::string& name) const;

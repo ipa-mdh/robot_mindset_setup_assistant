@@ -5,9 +5,9 @@
 
 namespace {{ args.package.name }} {
 
-class LogicModuleInterface {
+class LogicModuleInputInterface {
 public:
-    virtual ~LogicModuleInterface() = default;
+    virtual ~LogicModuleInputInterface() = default;
     
     // === Interface functions ===
     // handle ROS subscriptions
@@ -64,5 +64,5 @@ public:
     virtual void process_act_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
     {%- endfor %}
 
-
+};
 }

@@ -35,7 +35,7 @@ class RosInputInterface {
 public:
     virtual ~RosInputInterface() = default;
 
-private:
+protected:
     /****************** Callback Functions ******************/
     // Topic subscriber callbacks
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}

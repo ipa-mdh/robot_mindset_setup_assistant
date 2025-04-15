@@ -1,42 +1,26 @@
 #include <ros/ros.h>
+
+#include "ros/ros_node.hpp"
 #include "{{args.package.name}}/{{args.package.name}}.hpp"
-#include "ros/ROSNode.hpp"
-#include "ros/utils.hpp"
 
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "{{ args.package.name }}_node");
-    ros::NodeHandle nh;
-    ros::NodeHandle nh_private("~");
-    {{ args.package.name }}::ROSNode node(nh);
+    sim2real_gap::ROSNode node;
 
     // Get private parameters
-    std::vector<std::string> params = {{ args.package.name }}::get_private_parameters(nh_private);
+    std::vector<sim2real_gap::RosParam> params = node.get_private_parameters();
     
     for (const auto& param : params)
     {
-        std::string value;
-        if (nh_private.getParam(param, value)) {
-            ROS_INFO_STREAM("Private parameter: " << param << " = " << value);
-        } else {
-            ROS_WARN_STREAM("Failed to get private parameter: " << param);
-        }
+        ROS_INFO_STREAM("Private parameter: " << param.name << " = " << param.value);
     }
-    {{args.package.name}}::LogicModule logic;
+    sim2real_gap::LogicModule logic;
 
     std::string message = logic.greet("ROS User");
     // std::string message = "Hello, ROS User!";
     ROS_INFO_STREAM(message);
     logic.spdlog_test(12.3456789);
-
-    // === Set external callbacks for interfaces ===
-    {#– Example: how one would set a callback externally for a topic subscriber –#}
-    {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" -%}
-    node.set_callback_{{ interface.name }}([](const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg) {
-        ROS_INFO("Externally set callback for {{ interface.name }}: %s", msg->data.c_str());
-        // Add custom processing here.
-    });
-    {% endfor %}
 
     ros::spin();
 
