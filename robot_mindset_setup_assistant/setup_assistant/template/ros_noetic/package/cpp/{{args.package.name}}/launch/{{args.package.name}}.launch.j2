@@ -1,11 +1,6 @@
-<!-- This file is auto-generated. -->
-
-<!-- Multi_serve starts the nodes that are to be started for each instance
-with the corresponding instance configurations. -->
-
 <launch>
     <!-- Default arguments -->
-    <arg  name="namespace"
+    <arg  name="namespace}}"
         default="{{ args.package.name }}"
             doc="Namespace for the {{ args.package.name }} nodes." />
     <arg  name="simulation"
@@ -27,9 +22,11 @@ with the corresponding instance configurations. -->
             doc="{{ arg.description }}" />
 {% endfor %}{% endif %}{% endif %}{% endif %}
 
-    <!--  Place the main part in the instance/{{ args.package_name }}.launch file. -->
-    <group ns="{{ args.package.name }}">
-        <include file="$(find {{ args.package.name }})/launch/instance/{{ args.package.name }}.launch" pass_all_args="true"/>
-    </group>
-
+    <!-- Place your launch file conetent here. -->
+    <node name="{{ args.package.name }}_node"
+        pkg="{{ args.package.name }}"
+        type="node"
+        output="screen">
+        <rosparam command="load" file="$(arg instance_config_folder)/config.yaml"/>
+    </node>
 </launch>

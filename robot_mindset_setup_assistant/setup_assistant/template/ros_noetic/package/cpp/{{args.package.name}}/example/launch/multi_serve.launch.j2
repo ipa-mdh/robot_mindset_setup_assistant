@@ -1,0 +1,35 @@
+<!-- This file is auto-generated. -->
+
+<!-- Multi_serve starts the nodes that are to be started for each instance
+with the corresponding instance configurations. -->
+
+<launch>
+    <!-- Default arguments -->
+    <arg  name="namespace"
+        default="{{ args.package.name }}"
+            doc="Namespace for the {{ args.package.name }} nodes." />
+    <arg  name="simulation"
+        default="true"
+            doc="Flag to start the application as a simulation or not." />
+    <arg  name="simulation_with_gazebo"
+        default="true"
+            doc="Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored." />
+
+    <!-- Specific arguments -->
+    <arg name="instance_config_folder"
+    default="$(find {{ args.package.name }})/example/instance_config/$(arg namespace)"
+        doc="Location of the instance config folder." />
+
+{%- if args.multi_serve  %}{%- if args.multi_serve.launch  %}{%- if args.multi_serve.launch.arguements  %}
+{%- for arg in args.multi_serve.launch.arguements %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+{% endfor %}{% endif %}{% endif %}{% endif %}
+
+    <!--  Place the main part in the launch/{{ args.package_name }}.launch file. -->
+    <group ns="{{ args.package.name }}">
+        <include file="$(find {{ args.package.name }})/launch/{{ args.package.name }}.launch" pass_all_args="true"/>
+    </group>
+
+</launch>
