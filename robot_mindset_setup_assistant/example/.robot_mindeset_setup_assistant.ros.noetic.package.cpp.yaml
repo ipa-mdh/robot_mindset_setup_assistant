@@ -10,8 +10,8 @@
 # as context, and the result is parsed again into the final YAML structure.
 
 package:
-  name: sim2real_gap
-  description: A package to examine the sim2real gap."
+  name: test_pkg
+  description: A package to examine the test_pgk."
   version: "0.0.1"
   maintainer: Robot Mindset
   maintainer_email: robot.mindset@robot-mindset.com
@@ -89,13 +89,23 @@ spark:
     - type: "data_processing"
 
 link_serve:
-  joint_state_publisher: 
-    topic: "joint_states"
+  interfaces:
+    - direction: "in"
+      type: "topic"
+      msgs: "sensor_msgs/JointState"
+      description: "Robot joint states."
+    - direction: "out"
+      type: "topic"
+      msgs: "sensor_msgs/JointState"
+      description: "Combined joint states"
 
 single_serve:
-  mtc_generator: true
-  moveit: true
-  robot_state_publisher: true
+  # Todo: eher Beschreibung für ein Projekt / diese Beschreibung sollte gleich sein für Packagete und Projekte / oder diese Beschreibung braucht man nicht, da alle multi_serve Packete auch als single_serve laufen können
+  # name: robot_state_publisher
+  #
+  # mtc_generator: true
+  # moveit: true
+  # robot_state_publisher: true
 
 multi_serve:
   # launch:

@@ -5,4 +5,7 @@ repositories:
     type: git
     url: {{dep.url}}
     version: {{dep.version}}
-{%- endfor %}{% endif %}
+{%- endfor %}
+{%- else %}
+repositories: []
+{%- endif %}

@@ -8,7 +8,7 @@ from setup_assistant.package_versioning import GitFlowRepo
 # Configuration
 submodule_url = "https://github.com/ipa-mdh/dev-setup.git"  # replace with actual URL
 submodule_path = "dev-setup"
-submodule_branch = "feature/debian"
+submodule_branch = "master"
 
 def run(cmd, **kwargs):
     """Run a shell command with subprocess, print it, and raise on error."""
