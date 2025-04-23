@@ -8,16 +8,16 @@ int main(int argc, char** argv)
     spdlog::set_level(spdlog::level::info); 
 
     ros::init(argc, argv, "{{ args.package.name }}_node");
-    sim2real_gap::ROSNode node;
+    {{args.package.name}}::ROSNode node;
 
     // Get private parameters
-    std::vector<sim2real_gap::RosParam> params = node.get_private_parameters();
+    std::vector<{{args.package.name}}::RosParam> params = node.get_private_parameters();
     
     for (const auto& param : params)
     {
         ROS_INFO_STREAM("Private parameter: " << param.name << " = " << param.value);
     }
-    sim2real_gap::LogicModule logic;
+    {{args.package.name}}::LogicModule logic;
 
     std::string message = logic.greet("ROS User");
     // std::string message = "Hello, ROS User!";

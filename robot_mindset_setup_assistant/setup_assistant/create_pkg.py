@@ -8,6 +8,7 @@ from loguru import logger
 from setup_assistant.load_config import get_config
 from setup_assistant.package_versioning import GitFlowRepo
 from setup_assistant.dev_setup import apply as apply_dev_setup
+from setup_assistant.doxygen_awesome import apply as apply_doxygen_awesome
 
 def render_path(path: Path, context: dict) -> Path:
     """Render each part of the path as a Jinja2 template."""
@@ -88,6 +89,7 @@ class RosNoeticPackage(GitFlowRepo):
         
         self.init()
         self.add_dev_setup()
+        self.add_doxygen_awesome()
         
     def git_flow_feature(func):
         """
@@ -129,4 +131,11 @@ class RosNoeticPackage(GitFlowRepo):
         Apply the dev setup to the package.
         """
         apply_dev_setup(self, self.working_dir, environment=self.context["package"]["environment"], package_name=self.package_name)
+        
+    @git_flow_feature
+    def add_doxygen_awesome(self):
+        """
+        Add Doxygen Awesome to the package.
+        """
+        apply_doxygen_awesome(self)
 

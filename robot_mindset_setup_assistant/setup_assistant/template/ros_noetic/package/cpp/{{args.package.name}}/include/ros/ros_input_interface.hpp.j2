@@ -28,7 +28,7 @@
 #include "{{ msgs }}.h"
 {%- endfor %}
 
-namespace sim2real_gap {
+namespace {{args.package.name}} {
 
 // Interface for the inbound direction (receiving messages)
 class RosInputInterface {

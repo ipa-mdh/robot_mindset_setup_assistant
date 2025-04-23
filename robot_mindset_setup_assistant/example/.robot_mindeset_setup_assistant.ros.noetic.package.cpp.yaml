@@ -11,7 +11,7 @@
 
 package:
   name: test_pkg
-  description: A package to examine the test_pgk."
+  description: A package to examine the test_pgk.
   version: "0.0.1"
   maintainer: Robot Mindset
   maintainer_email: robot.mindset@robot-mindset.com

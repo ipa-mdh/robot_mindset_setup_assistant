@@ -1,4 +1,3 @@
-from git import Repo
 import subprocess
 from pathlib import Path
 from loguru import logger
