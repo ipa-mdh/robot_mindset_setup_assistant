@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="{{ args.package.name }}">
+
+  <xacro:macro name="{{ args.package.name }}"
+    params="
+        prefix:='{{ args.package.name }}'
+        params_path
+{%- if args.interfaces.urdf.parent is defined %}
+        {{ args.interfaces.urdf.parent.name }}
+        {{ args.interfaces.urdf.parent.xyz }}:='{{ args.interfaces.urdf.parent.xyz }}'
+        {{ args.interfaces.urdf.parent.rpy }}:='{{ args.interfaces.urdf.parent.rpy }}'
+{%- endif %}
+{%- if args.interfaces.urdf.childs is defined %}
+  {% for child in args.interfaces.urdf.childs %}
+        {{ child.name }}:='{{ child.name }}'
+        {{ child.name }}_xyz:='{{ child.xyz }}'
+        {{ child.name }}_rpy:='{{ child.rpy }}'
+  {%- endfor %}
+{%- endif %}
+      ">
+
+    <!--Declare properties -->
+    <xacro:property name="params" value="${load_yaml(params_path)}"/>
+
+    <!-- interface to the parent -->
+{%- if args.interfaces.urdf.parent is defined %}
+    <joint name="${prefix}_{{ args.interfaces.urdf.parent.name }}_joint" type="fixed">
+      <parent link="${{{ args.interfaces.urdf.parent.name }}}" />
+      <child link="${prefix}_base_link" />
+      <origin xyz="${xyz}" rpy="${rpy}" />
+    </joint>
+{%- else %}
+    <!-- No parent defined in the .robot_mindset_setup_assistant.yaml file -->
+{%- endif %}
+
+    <xacro:include filename="$(find {{ args.package.name }})/urdf/{{ args.package.name }}_core.xacro" />
+    <xacro:{{ args.package.name }}_core prefix="${prefix}" params_path="${params_path}" />
+    
+    <!-- interface to the childs -->
+{%- if args.interfaces.urdf.childs is defined %}
+  {%- for child in args.interfaces.urdf.childs %}
+    <joint name="${prefix}_{{ child.name }}_joint" type="fixed">
+      <parent link="${prefix}_{{ child.parent }}" />
+      <child link="${child.name}" />
+      <origin xyz="${child.xyz}" rpy="${child.rpy}" />
+    </joint>
+
+    <link name="${child.name}" />
+  {% endfor %}
+{%- else %}
+    <!-- No childs defined in the .robot_mindset_setup_assistant.yaml file -->
+{%- endif %}
+
+  </xacro:macro>
+
+</robot>

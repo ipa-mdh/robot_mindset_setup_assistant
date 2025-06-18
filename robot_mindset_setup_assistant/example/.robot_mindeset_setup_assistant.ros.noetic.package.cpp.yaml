@@ -1,9 +1,9 @@
 # === Robot Mindset Setup Assistant === 
-# This file is used to configure the setup assistant for the robot_ur package.
+# This file is used to configure the setup assistant for the {{ args.package.name | default(package_name) }} package.
 # It contains information about the package, capabilities, and launch configurations.
 
 # This YAML file acts as both the template and the data source for generating a final
-# configuration. It uses Jinja2 syntax (e.g., {{ args.package.name }}) to allow referencing
+# configuration. It uses Jinja2 syntax (e.g., {{ args.package.name | default(package_name) }}) to allow referencing
 # values defined earlier in the file.
 # The file is first loaded as a dictionary using yaml.safe_load(), then passed to a
 # Jinja2 template created from the same file. The template is rendered with this dictionary
@@ -36,53 +36,58 @@ package:
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
 
-ros:
-  interfaces:
-    - name: "interface_topic_string_in"
-      direction: "in"
-      msgs: "std_msgs/String"
-      type: "topic"
-      description: "A ROS Topic interface."
-    - name: "interface_topic_string_out"
-      direction: "out"
-      msgs: "std_msgs/String"
-      type: "topic"
-      description: "A string interface."
-    - name: "set_controller_sate"
-      direction: "in"
-      msgs: "std_srvs/SetBool"
-      type: "service"
-      description: "A service interface."
-    - name: "get_controller_state"
-      direction: "out"
-      msgs: "std_srvs/SetBool"
-      type: "service"
-      description: "A service interface."
-    - name: "interface_topic_float_out2"
-      direction: "out"
-      msgs: "std_msgs/Float64"
-      type: "topic"
-      description: "A service interface2."
-    - name: "interface_topic_float_in2"
-      direction: "in"
-      msgs: "std_msgs/Float64"
-      type: "topic"
-      description: "A ROS Topic interface.2"
-    # - name: "set_controller"
-    #   direction: "in"
-    #   msgs: "my_msgs/controller_config"
-    #   type: "topic"
-    #   description: "A string interface for the robot."
-    # - name: "get_controller"
-    #   direction: "out"
-    #   msgs: "my_msgs/controller_config"
-    #   type: "topic"
-    #   description: "A string interface for the robot."
-    # - name: "action_interface"
-    #   direction: "in"
-    #   msgs: "my_msgs/action_conig"
-    #   type: "action"
-    #   description: "An action interface for the robot."
+interfaces: 
+  ros:
+    topics:
+      publisher:
+        - name: "interface_topic_float_out"
+          msgs: "std_msgs/Float64"
+          description: "A ROS Topic interface."
+        - name: "interface_topic_string_out"
+          msgs: "std_msgs/String"
+          description: "A string interface."
+      subscriber:
+        - name: "interface_topic_float_in"
+          msgs: "std_msgs/Float64"
+          description: "A ROS Topic interface."
+        - name: "interface_topic_string_in"
+          msgs: "std_msgs/String"
+          description: "A string interface."
+    services:
+      server:
+        - name: "set_controller_sate"
+          msgs: "std_srvs/SetBool"
+          description: "A service interface."
+      client:
+        - name: "get_controller_state"
+          msgs: "std_srvs/SetBool"
+          description: "A service interface."
+    actions:
+      server:
+        - name: "action_interface"
+          msgs: "my_msgs/action_conig"
+          description: "An action interface for the robot."
+      client:
+        - name: "action_interface_client"
+          msgs: "my_msgs/action_conig"
+          description: "An action interface for the robot."
+  urdf: 
+    parent:
+      name: "parent"
+      description: "The parent link of the robot."
+      xyz: "0 0 0"
+      rpy: "0 0 0"
+    childs:
+      - name: "gripper"
+        description: "The first child link of the robot."
+        parent: "parent_link"
+        xyz: "0 0 0"
+        rpy: "0 0 0"
+      - name: "sensor"
+        parent: "parent_link"
+        description: "The second child link of the robot."
+        xyz: "0 0 0"
+        rpy: "0 0 0"
 
 spark:
   capabilities:
