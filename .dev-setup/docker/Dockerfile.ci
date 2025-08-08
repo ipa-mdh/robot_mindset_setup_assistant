@@ -3,7 +3,6 @@
 # Do not edit directly; modify the template or input variables instead.
 # -----------------------------------------------------------------------------
 
-
 # Use the image from the first file
 FROM robot_mindset_setup_assistant:base-1.0
 
@@ -19,9 +18,6 @@ WORKDIR /workspace
 RUN apt update
 RUN apt install doxygen -y
 RUN apt install graphviz -y
-
-# Make sure the install script is executable
-RUN chmod +x /workspace/src/robot_mindset_setup_assistant/.dev-setup/install.sh
 
 # Run the main launch file
 CMD ["bash"]

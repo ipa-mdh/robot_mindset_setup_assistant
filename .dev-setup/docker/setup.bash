@@ -5,13 +5,3 @@
 # -----------------------------------------------------------------------------
 
 # set -e
-
-if [ -f "/opt/dev-setup/setup.bash" ]; then
-    source "/opt/dev-setup/setup.bash"
-else
-    echo -e "\033[0;31m > /opt/dev-setup/setup.bash not found\033[0m"
-    echo -e "\033[0;31m   Please ensure the file exists and is accessible\033[0m"
-fi
-
-# Execute the passed command
-exec "$@"
