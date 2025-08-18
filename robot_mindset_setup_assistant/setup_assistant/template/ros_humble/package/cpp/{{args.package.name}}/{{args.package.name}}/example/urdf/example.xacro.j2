@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<robot name="{{args.package.name}}" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:arg name="simulation_with_gazebo" default="false" />
+    <xacro:property name="gazebo" value="$(arg simulation_with_gazebo)" />
+
+    <xacro:arg name="instance_config_folder"
+        default="$(find {{args.package.name}})/example/instance_config/{{args.package.name}}" />
+    <xacro:property name="instance_config_folder" value="$(arg instance_config_folder)" />
+
+    <xacro:property name="config_path" value="$(arg instance_config_folder)/config.yaml" />
+
+
+    <xacro:property name="config" value="${xacro.load_yaml(config_path)}" />
+
+    <xacro:include filename="$(find {{args.package.name}})/urdf/{{args.package.name}}.xacro" />
+
+    <link name="world" />
+
+
+    <xacro:if value="${gazebo}">
+        <xacro:{{args.package.name}} parent_link="world" prefix="{{args.package.name}}" xyz="0 0 0" rpy="0 0 0"
+            gazebo="true" robot_type="${config['config']['robot_type']}" />
+    </xacro:if>
+
+    <xacro:unless value="${gazebo}">
+
+        <xacro:{{args.package.name}} parent_link="world" prefix="{{args.package.name}}" xyz="0 0 0" rpy="0 0 0"
+            gazebo="false" robot_type="${config['config']['robot_type']}" robot_ip="${config['config']['robot_ip']}"
+            use_rmi="${config['config']['use_rmi']}" use_hspo="${config['config']['use_hspo']}" />
+    </xacro:unless>
+
+</robot>

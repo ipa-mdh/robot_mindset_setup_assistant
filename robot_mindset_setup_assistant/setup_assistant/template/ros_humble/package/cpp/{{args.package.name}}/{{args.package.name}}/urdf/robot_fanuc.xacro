@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot_fanuc">
+
+  <xacro:arg name="simulation_controllers"
+             default="controllers.yaml" />
+  <xacro:arg name="simulation_controllers_path"
+             default="$(find robot_fanuc)/example/instance_config/robot_fanuc/$(arg simulation_controllers)" />
+
+  <xacro:property name="simulation_controllers" 
+                  value="$(arg simulation_controllers_path)" />
+
+  <xacro:macro name="robot_fanuc"
+    params="parent_link
+            prefix:='robot_fanuc'
+            xyz:='0 0 0'
+            rpy:='0 0 0'
+            tcp_link:='tool0'
+            tcp_xyz:='0 0 0'
+            tcp_rpy:='0 0 0'
+            robot_type:='crx10ia_l'
+            robot_ip:='192.168.150.2'
+            use_mock_hardware:='false'
+            read_only:='false'
+            use_rmi:='true'
+            use_hspo:='false'
+            gazebo:='false'
+    ">
+    <xacro:include filename="$(find robot_fanuc)/urdf/${robot_type}/${robot_type}.urdf.xacro" />
+
+    <joint name="${prefix}_world_joint" type="fixed">
+      <parent link="${parent_link}" />
+      <child link="${prefix}_base_link" />
+      <origin xyz="${xyz}" rpy="${rpy}" />
+    </joint>
+
+    <xacro:if value="${robot_type == 'crx10ia_l'}">
+      <xacro:crx10ia_l
+        prefix="${prefix}"
+        robot_ip="${robot_ip}"
+        use_mock_hardware="${use_mock_hardware}"
+        read_only="${read_only}"
+        use_rmi="${use_rmi}"
+        use_hspo="${use_hspo}"
+        gz="${gazebo}"
+      />
+    </xacro:if>
+
+    <xacro:if value="${robot_type == 'crx10ia'}">
+      <xacro:crx10ia
+        prefix="${prefix}"
+        robot_ip="${robot_ip}"
+        simulation_controllers="${simulation_controllers}"
+        use_mock_hardware="${use_mock_hardware}"
+        read_only="${read_only}"
+        use_rmi="${use_rmi}"
+        use_hspo="${use_hspo}"
+        gz="${gazebo}"
+      />
+    </xacro:if>
+
+    <joint name="${prefix}_tool0_joint" type="fixed">
+      <parent link="${prefix}_tcp" />
+      <child link="${tcp_link}" />
+      <origin xyz="${tcp_xyz}" rpy="${tcp_rpy}" />
+    </joint>
+
+    <link name="${tcp_link}" />
+
+  </xacro:macro>
+</robot>

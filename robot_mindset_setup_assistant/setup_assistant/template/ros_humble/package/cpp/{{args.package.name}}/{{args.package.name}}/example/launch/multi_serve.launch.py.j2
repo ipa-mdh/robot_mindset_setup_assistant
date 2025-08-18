@@ -1,0 +1,117 @@
+import os
+from pathlib import Path
+import yaml
+from loguru import logger
+
+import launch
+import launch_ros
+from ament_index_python.packages import get_package_share_directory
+
+def generate_standard_launch_description():
+    """
+    Generate a standard launch description.
+    """
+    logger.info("---- Multi Serve -----")
+    # Set default launch arguments
+    namespace = launch.substitutions.LaunchConfiguration('namespace', default='{{args.package.name}}')
+    simulation = launch.substitutions.LaunchConfiguration('simulation', default='true')
+    simulation_with_gazebo = launch.substitutions.LaunchConfiguration('simulation_with_gazebo', default='false')
+    gazebo_classic = launch.substitutions.LaunchConfiguration('gazebo_classic', default='true')
+
+    # get path of package
+    package_path = Path(get_package_share_directory('{{args.package.name}}'))
+
+    default_instance_config = package_path / 'example' / 'instance_config'
+    instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder', default=str(default_instance_config.as_posix()))
+
+    return [
+        launch.actions.DeclareLaunchArgument('namespace', default_value=namespace),
+        launch.actions.DeclareLaunchArgument('simulation', default_value=simulation),
+        launch.actions.DeclareLaunchArgument('simulation_with_gazebo', default_value=simulation_with_gazebo),
+        launch.actions.DeclareLaunchArgument('gazebo_classic', default_value=gazebo_classic),
+        launch.actions.DeclareLaunchArgument('instance_config_folder', default_value=instance_config_folder),
+    ]
+
+def get_config(config_file: Path):
+    config = {}
+    
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+    else:
+        logger.warning(f"Config file {config_file} does not exist. Using empty config.")
+    
+    # if key config is not in config
+    if 'config' not in config:
+        logger.warning(f"Key 'config' not found in config file. Using empty config.")
+        return {}
+    else:
+        return config['config']
+
+def get_instance_config(path: Path, instance: str):
+    config = {}
+    config_file = path / instance / 'config.yaml'
+
+    logger.info(f"[{instance}] get config")
+    config = get_config(config_file)
+
+    return config
+
+def generate_custom_launch_description(context, *args, **kwargs):
+    """
+    Generate a custom launch description.
+    """
+    namespace = launch.substitutions.LaunchConfiguration('namespace').perform(context)
+    simulation = launch.substitutions.LaunchConfiguration('simulation').perform(context)
+    simulation_with_gazebo = launch.substitutions.LaunchConfiguration('simulation_with_gazebo').perform(context)
+    gazebo_classic = launch.substitutions.LaunchConfiguration('gazebo_classic').perform(context)
+
+    instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder').perform(context)
+    instance_config_folder = Path(instance_config_folder)
+
+    gz = simulation and simulation_with_gazebo
+
+    package_config_path = Path(get_package_share_directory('{{args.package.name}}')) / "config/config.yaml"
+    package_config = get_config(package_config_path)
+    
+    launch_description = []
+
+    # --------------------------------------------
+    #             package related code
+    # --------------------------------------------
+
+
+    # --------- robot fanuc ---------
+    {{args.package.name}}_launch = os.path.join(
+        get_package_share_directory('{{args.package.name}}'),
+        'launch',
+        'node.launch.py'
+    )
+
+    {{args.package.name}} = launch.actions.IncludeLaunchDescription(
+        launch.launch_description_sources.PythonLaunchDescriptionSource({{args.package.name}}_launch),
+        launch_arguments={
+            'namespace': namespace,
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_file': str(instance_config_folder / '{{args.package.name}}')
+        }.items()
+    )
+
+    launch_description.append({{args.package.name}})
+
+    # --------------------------------------------
+    #  ~~~~~~~~~~ package related code ~~~~~~~~~~
+    # --------------------------------------------
+
+    return launch_description
+
+def generate_launch_description():
+    buffer = []
+    buffer = generate_standard_launch_description()
+    buffer.append(launch.actions.OpaqueFunction(function=generate_custom_launch_description))
+    return launch.LaunchDescription(buffer)
+
+if __name__ == '__main__':
+    generate_launch_description()

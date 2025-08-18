@@ -1,0 +1,9 @@
+config:
+  log_level: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  
+  robot_ip: 192.168.1.100
+  robot_type: crx10ia_l
+  use_rmi: true
+  controllers_file: controllers.yaml
+  read_only: false
+  use_hspo: true

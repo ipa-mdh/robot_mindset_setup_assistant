@@ -1,0 +1,134 @@
+import os
+from pathlib import Path
+import yaml
+from loguru import logger
+
+
+from launch import LaunchDescription
+from launch.actions import IncludeLaunchDescription, GroupAction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
+from launch_ros.actions import PushRosNamespace
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from ament_index_python.packages import get_package_share_directory
+from launch.substitutions import LaunchConfiguration
+
+def generate_standard_launch_description():
+    """
+    Generate a standard launch description.
+    """
+    # Set default launch arguments
+    namespace = LaunchConfiguration('namespace', default='{{args.package.name}}')
+    simulation = LaunchConfiguration('simulation', default='true')
+    simulation_with_gazebo = LaunchConfiguration('simulation_with_gazebo', default='false')
+    gazebo_classic = LaunchConfiguration('gazebo_classic', default='true')
+
+    # get path of package
+    package_path = Path(get_package_share_directory('{{args.package.name}}'))
+
+    default_instance_config = package_path / 'example' / 'instance_config'
+    instance_config_folder = LaunchConfiguration('instance_config_folder', default=str(default_instance_config))
+
+    return [
+        DeclareLaunchArgument('namespace', default_value=namespace),
+        DeclareLaunchArgument('simulation', default_value=simulation),
+        DeclareLaunchArgument('simulation_with_gazebo', default_value=simulation_with_gazebo),
+        DeclareLaunchArgument('gazebo_classic', default_value=gazebo_classic),
+        DeclareLaunchArgument('instance_config_folder', default_value=instance_config_folder),
+    ]
+
+def generate_custom_launch_description(context, *args, **kwargs):
+    """
+    Generate the launch description.
+    """
+    namespace = LaunchConfiguration('namespace').perform(context)
+    simulation = LaunchConfiguration('simulation').perform(context)
+    simulation_with_gazebo = LaunchConfiguration('simulation_with_gazebo').perform(context)
+    gazebo_classic = LaunchConfiguration('gazebo_classic').perform(context)
+
+    instance_config_folder = LaunchConfiguration('instance_config_folder').perform(context)
+
+    launch_description = []
+
+    # -----------------------------
+    #         single serve
+    # -----------------------------
+
+    single_serve_launch = os.path.join(
+        get_package_share_directory('{{args.package.name}}'),
+        'example',
+        'launch',
+        'single_serve.launch.py'
+    )
+
+    single_serve = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(single_serve_launch),
+        launch_arguments={
+            'namespace': namespace,
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_folder': instance_config_folder
+        }.items()
+    )
+
+    launch_description.append(single_serve)
+
+    # -----------------------------
+    #         link serve
+    # -----------------------------
+
+    link_serve_launch = os.path.join(
+        get_package_share_directory('{{args.package.name}}'),
+        'example',
+        'launch',
+        'link_serve.launch.py'
+    )
+
+    link_serve = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(link_serve_launch),
+        launch_arguments={
+            'namespace': namespace,
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_folder': instance_config_folder
+        }.items()
+    )
+
+    launch_description.append(link_serve)
+    
+
+    # -----------------------------
+    #         multi serve
+    # -----------------------------
+
+    multi_serve_launch = os.path.join(
+        get_package_share_directory('{{args.package.name}}'),
+        'example',
+        'launch',
+        'multi_serve.launch.py'
+    )
+
+    multi_serve = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(multi_serve_launch),
+        launch_arguments={
+            'namespace': namespace,
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_folder': instance_config_folder
+        }.items()
+    )
+
+    launch_description.append(multi_serve)
+
+    return launch_description
+
+def generate_launch_description():
+    buffer = []
+    buffer = generate_standard_launch_description()
+    buffer.append(OpaqueFunction(function=generate_custom_launch_description))
+    return LaunchDescription(buffer)
+
+if __name__ == '__main__':
+    generate_launch_description()
