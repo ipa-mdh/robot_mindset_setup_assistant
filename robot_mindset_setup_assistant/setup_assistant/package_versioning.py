@@ -127,6 +127,24 @@ class GitFlowRepo:
     def stash(self):
         logger.info("Stashing changes")
         run(["git", "stash", "--include-untracked"], cwd=self.repo_path)
+
+    def decorator(func):
+        """
+        Decorator to handle git flow feature branches.
+        """
+        def wrapper(self, *args, **kwargs):
+            result = None
+            feature_name = func.__name__
+            self.start_feature(feature_name)
+            try:
+                result = func(self, *args, **kwargs)
+                self.add_all_commit(f"Finished {feature_name}")
+            except Exception as e:
+                logger.error(f"Error in feature {feature_name}: {e}")
+            finally:
+                self.finish_feature(feature_name)
+            return result
+        return wrapper
         
 # 🧪 Example Usage
 if __name__ == "__main__":

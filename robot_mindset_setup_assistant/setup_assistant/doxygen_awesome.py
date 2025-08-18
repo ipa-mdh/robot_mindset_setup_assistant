@@ -3,7 +3,7 @@ from loguru import logger
 from setup_assistant.package_versioning import GitFlowRepo
 
 # Configuration
-submodule_url = "https://github.com/jothepro/doxygen-awesome-css.git"
+submodule_url = "https://github.com/ipa-mdh/doxygen-awesome-css.git"
 submodule_path = "doxygen-awesome-css"
 submodule_branch = "tags/v2.3.4" # v2.3.4
 

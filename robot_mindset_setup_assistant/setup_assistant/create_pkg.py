@@ -66,9 +66,15 @@ def get_template_folder(environment: str):
         if not isinstance(string, str):
             string = str(string)
         return string.replace(".", "_")
+    
+    def dot_to_forward_slash(string: str):
+        """Convert dots to forward slashes in a string."""
+        if not isinstance(string, str):
+            string = str(string)
+        return string.replace(".", "/")
 
     # check if template directory exists
-    template_root = parent_dir / Path("template") / dot_to_underscore(environment)
+    template_root = parent_dir / Path("template") / dot_to_forward_slash(environment)
     if not template_root.exists():
         logger.error(f"Template directory {template_root} does not exist.")
         raise ValueError(f"Unknown environment: {environment}")
@@ -90,26 +96,8 @@ class RosNoeticPackage(GitFlowRepo):
         self.init()
         self.add_dev_setup()
         self.add_doxygen_awesome()
-        
-    def git_flow_feature(func):
-        """
-        Decorator to handle git flow feature branches.
-        """
-        def wrapper(self, *args, **kwargs):
-            result = None
-            feature_name = func.__name__
-            self.start_feature(feature_name)
-            try:
-                result = func(self, *args, **kwargs)
-                self.add_all_commit(f"Finished {feature_name}")
-            except Exception as e:
-                logger.error(f"Error in feature {feature_name}: {e}")
-            finally:
-                self.finish_feature(feature_name)
-            return result
-        return wrapper
 
-    @git_flow_feature
+    @GitFlowRepo.decorator
     def init(self):
         """
         Initialize the package by creating the necessary directories and files.
@@ -125,14 +113,14 @@ class RosNoeticPackage(GitFlowRepo):
         dest = self.working_dir / ".robot_mindeset_setup_assistant.yaml"
         shutil.copy(self.config_path, dest)
     
-    @git_flow_feature
+    @GitFlowRepo.decorator
     def add_dev_setup(self):
         """
         Apply the dev setup to the package.
         """
         apply_dev_setup(self, self.working_dir, environment=self.context["package"]["environment"], package_name=self.package_name)
         
-    @git_flow_feature
+    @GitFlowRepo.decorator
     def add_doxygen_awesome(self):
         """
         Add Doxygen Awesome to the package.

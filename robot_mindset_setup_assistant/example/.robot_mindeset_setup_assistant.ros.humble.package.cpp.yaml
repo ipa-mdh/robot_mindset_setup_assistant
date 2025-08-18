@@ -1,0 +1,117 @@
+# === Robot Mindset Setup Assistant === 
+# This file is used to configure the setup assistant for the robot_ur package.
+# It contains information about the package, capabilities, and launch configurations.
+
+# This YAML file acts as both the template and the data source for generating a final
+# configuration. It uses Jinja2 syntax (e.g., {{ args.package.name }}) to allow referencing
+# values defined earlier in the file.
+# The file is first loaded as a dictionary using yaml.safe_load(), then passed to a
+# Jinja2 template created from the same file. The template is rendered with this dictionary
+# as context, and the result is parsed again into the final YAML structure.
+
+package:
+  name: test_pkg_humble
+  description: A package to examine the test_pgk.
+  version: "0.0.1"
+  maintainer: Robot Mindset
+  maintainer_email: robot.mindset@robot-mindset.com
+  license:
+    value: MIT
+    options: [BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3]
+  language: cpp # python, cpp
+  environment: ros.humble # ros.noetic, ros.humble, (debian)
+  dependencies:
+    apt:
+      - python3-catkin-tools
+      - libspdlog-dev
+    pip: []
+    ros:
+      - std_msgs
+      - roscpp
+    git: []
+      # - name: sim2real_gap
+      #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
+      #   version: main
+    packages: # CMakeLists.txt modifications
+      - name: spdlog # https://github.com/gabime/spdlog
+        target_link: spdlog::spdlog
+
+ros:
+  interfaces:
+    - name: "interface_topic_string_in"
+      direction: "in"
+      msgs: "std_msgs/String"
+      type: "topic"
+      description: "A ROS Topic interface."
+    - name: "interface_topic_string_out"
+      direction: "out"
+      msgs: "std_msgs/String"
+      type: "topic"
+      description: "A string interface."
+    - name: "set_controller_sate"
+      direction: "in"
+      msgs: "std_srvs/SetBool"
+      type: "service"
+      description: "A service interface."
+    - name: "get_controller_state"
+      direction: "out"
+      msgs: "std_srvs/SetBool"
+      type: "service"
+      description: "A service interface."
+    - name: "interface_topic_float_out2"
+      direction: "out"
+      msgs: "std_msgs/Float64"
+      type: "topic"
+      description: "A service interface2."
+    - name: "interface_topic_float_in2"
+      direction: "in"
+      msgs: "std_msgs/Float64"
+      type: "topic"
+      description: "A ROS Topic interface.2"
+    # - name: "set_controller"
+    #   direction: "in"
+    #   msgs: "my_msgs/controller_config"
+    #   type: "topic"
+    #   description: "A string interface for the robot."
+    # - name: "get_controller"
+    #   direction: "out"
+    #   msgs: "my_msgs/controller_config"
+    #   type: "topic"
+    #   description: "A string interface for the robot."
+    # - name: "action_interface"
+    #   direction: "in"
+    #   msgs: "my_msgs/action_conig"
+    #   type: "action"
+    #   description: "An action interface for the robot."
+
+spark:
+  capabilities:
+    - type: "data_processing"
+
+link_serve:
+  interfaces:
+    - direction: "in"
+      type: "topic"
+      msgs: "sensor_msgs/JointState"
+      description: "Robot joint states."
+    - direction: "out"
+      type: "topic"
+      msgs: "sensor_msgs/JointState"
+      description: "Combined joint states"
+
+single_serve:
+  # Todo: eher Beschreibung für ein Projekt / diese Beschreibung sollte gleich sein für Packagete und Projekte / oder diese Beschreibung braucht man nicht, da alle multi_serve Packete auch als single_serve laufen können
+  # name: robot_state_publisher
+  #
+  # mtc_generator: true
+  # moveit: true
+  # robot_state_publisher: true
+
+multi_serve:
+  # launch:
+  #   arguements:
+  #     - name: "instance_config_folder"
+  #       description: "Location of the instance config folder."
+  #       default: "$(find {{ args.package.name }})/example/instance_config"
+
+    
