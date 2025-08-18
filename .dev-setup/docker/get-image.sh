@@ -5,7 +5,7 @@
 # - Attempts pull before prompting for login.
 # - Prompts to log in only if the pull fails and you're not logged in.
 # - Tries pulling again after login.
-# - Prompts to build if pull fails post-login.
+# - Returns 0 if image was successfully pulled, 1 if pull failed but build possible, 2 if login failed/declined
 function try_pull_image() {
     LOCAL_IMAGE=$1
     REMOTE_IMAGE=$2
@@ -15,7 +15,7 @@ function try_pull_image() {
     if docker pull ${REMOTE_IMAGE}; then
         docker tag ${REMOTE_IMAGE} ${LOCAL_IMAGE}
         echo "Successfully pulled remote image ${REMOTE_IMAGE}."
-        exit 0
+        return 0
     else
         echo "Could not pull remote image ${REMOTE_IMAGE}."
     fi
@@ -29,37 +29,65 @@ function try_pull_image() {
     if ! is_logged_in; then
         read -p "You are not logged in to $REGISTRY_URL. Log in now? (y/n): " answer
         if [[ "$answer" =~ ^[Yy]$ ]]; then
-            docker login $REGISTRY_URL || { echo "Docker login failed"; exit 1; }
+            docker login $REGISTRY_URL || { echo "Docker login failed"; return 2; }
         else
-            echo "Cannot continue without login. Exiting."
-            exit 1
+            echo "Cannot continue without login."
+            return 2
         fi
     fi
 
     # Try pulling again after login
     if docker pull ${REMOTE_IMAGE}; then
+        docker tag ${REMOTE_IMAGE} ${LOCAL_IMAGE}
         echo "Successfully pulled remote image ${REMOTE_IMAGE} after login."
-        exit 0
+        return 0
     else
         echo "Remote image ${REMOTE_IMAGE} still not available after login."
-        read -p "Do you want to build it locally? (y/n): " build_answer
-        if [[ "$build_answer" =~ ^[Yy]$ ]]; then
-            docker build -t ${LOCAL_IMAGE} . || { echo "Docker build failed"; exit 1; }
-            docker tag ${LOCAL_IMAGE} ${REMOTE_IMAGE}
-        else
-            echo "No action taken."
-            exit 0
-        fi
+        return 1  # Indicates pull failed but build is possible
     fi
 }
 
 # --- Pull / Build and tag images ---
 
 # robot_mindset_setup_assistant:base-1.0
-try_pull_image robot_mindset_setup_assistant:base-1.0 container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant:base-1.0
+if try_pull_image robot_mindset_setup_assistant:base-1.0 container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant:base-1.0; then
+    echo "Image robot_mindset_setup_assistant:base-1.0 ready."
+elif [ $? -eq 1 ]; then
+    read -p "Do you want to build robot_mindset_setup_assistant:base-1.0 locally? (y/n): " build_answer
+    if [[ "$build_answer" =~ ^[Yy]$ ]]; then
+        echo "Building robot_mindset_setup_assistant:base-1.0 locally..."
+        docker build --file .dev-setup/docker/Dockerfile.base \
+            --secret id=gitcreds,src=$HOME/.git-credentials \
+            --tag robot_mindset_setup_assistant:base-1.0 \
+            . || { echo "Docker build failed"; exit 1; }
+        docker tag robot_mindset_setup_assistant:base-1.0 container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant:base-1.0
+        echo "Successfully built and tagged robot_mindset_setup_assistant:base-1.0."
+    else
+        echo "Skipping robot_mindset_setup_assistant:base-1.0 - user declined to build locally."
+    fi
+else
+    echo "Skipping robot_mindset_setup_assistant:base-1.0 due to login failure or user declined login."
+fi
 
 # robot_mindset_setup_assistant:ci-1.0
-try_pull_image robot_mindset_setup_assistant:ci-1.0 container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant:ci-1.0
+if try_pull_image robot_mindset_setup_assistant:ci-1.0 container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant:ci-1.0; then
+    echo "Image robot_mindset_setup_assistant:ci-1.0 ready."
+elif [ $? -eq 1 ]; then
+    read -p "Do you want to build robot_mindset_setup_assistant:ci-1.0 locally? (y/n): " build_answer
+    if [[ "$build_answer" =~ ^[Yy]$ ]]; then
+        echo "Building robot_mindset_setup_assistant:ci-1.0 locally..."
+        docker build --file .dev-setup/docker/Dockerfile.ci \
+            --secret id=gitcreds,src=$HOME/.git-credentials \
+            --tag robot_mindset_setup_assistant:ci-1.0 \
+            . || { echo "Docker build failed"; exit 1; }
+        docker tag robot_mindset_setup_assistant:ci-1.0 container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant:ci-1.0
+        echo "Successfully built and tagged robot_mindset_setup_assistant:ci-1.0."
+    else
+        echo "Skipping robot_mindset_setup_assistant:ci-1.0 - user declined to build locally."
+    fi
+else
+    echo "Skipping robot_mindset_setup_assistant:ci-1.0 due to login failure or user declined login."
+fi
 
 # robot_mindset_setup_assistant:run-1.0
 docker build --file .dev-setup/docker/Dockerfile.run \
