@@ -1,0 +1,22 @@
+#pragma once
+
+#include <string>
+#include <spdlog/spdlog.h>
+
+#include "{{args.package.name}}/{{args.package.name}}_input_interface.hpp"
+#include "{{args.package.name}}/{{args.package.name}}_output_interface.hpp"
+
+namespace {{args.package.name}} {
+
+class LogicModule : public LogicModuleInputInterface, public LogicModuleOutputInterface
+{
+public:
+    LogicModule();
+    void set_logger_level(std::string level_str);
+
+    // test functions
+    std::string greet(const std::string& name) const;
+    void spdlog_test(double number) const;
+};
+
+}

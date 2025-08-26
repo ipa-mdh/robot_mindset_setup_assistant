@@ -1,0 +1,120 @@
+#pragma once
+
+#include <string>
+#include <spdlog/spdlog.h>
+
+namespace {{ args.package.name }} {
+
+class LogicModuleInputInterface {
+public:
+    virtual ~LogicModuleInputInterface() = default;
+    
+    // === Interface functions ===
+    // handle ROS subscriptions
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_msgs/String" %}
+    virtual void process_sub_{{interface.name}}(const std::string& msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Float64" %}
+    virtual void process_sub_{{interface.name}}(double msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Float32" %}
+    virtual void process_sub_{{interface.name}}(float msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Int32" %}
+    virtual void process_sub_{{interface.name}}(int32_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Int64" %}
+    virtual void process_sub_{{interface.name}}(int64_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/UInt32" %}
+    virtual void process_sub_{{interface.name}}(uint32_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/UInt64" %}
+    virtual void process_sub_{{interface.name}}(uint64_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Int8" %}
+    virtual void process_sub_{{interface.name}}(int8_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/UInt8" %}
+    virtual void process_sub_{{interface.name}}(uint8_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Bool" %}
+    virtual void process_sub_{{interface.name}}(bool msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Byte" %}
+    virtual void process_sub_{{interface.name}}(uint8_t msg)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- elif interface.msgs == "std_msgs/Empty" %}
+    virtual void process_sub_{{interface.name}}()
+    {
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    }
+    {%- else %}
+    // For other message types, implemetnation is required
+    // virtual void process_sub_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg)
+    // {
+    //     spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+    // }
+    {%- endif %}
+{%- endfor %}
+
+    // === Service call ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_srvs/SetBool" %}
+    virtual void process_srv_{{interface.name}}(bool msg, bool& res_success, std::string& res_message)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }}): {}", msg);
+        res_success = true;
+        res_message = "Service processed successfully";
+    }
+    {%- elif interface.msgs == "std_srvs/Trigger" %}
+    virtual void process_srv_{{interface.name}}(bool& res_sucess, std::string& res_message)
+    {
+        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }})");
+        res_sucess = true;
+        res_message = "Service processed successfully";
+    }
+    {%- elif interface.msgs == "std_srvs/Empty" %}
+    virtual void process_srv_{{interface.name}}()
+    {
+        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }})");
+    }
+    {%- else %}
+    // For other message types, implemetnation is required
+    // virtual void process_srv_{{interface.name}}({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &res);
+    {%- endif %}
+{%- endfor %}
+
+    // === Action server callbacks ===
+    {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    // {{ interface.description }}
+    virtual void process_act_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
+    {%- endfor %}
+
+};
+}

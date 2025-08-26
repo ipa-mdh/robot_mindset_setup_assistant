@@ -1,0 +1,106 @@
+#pragma once
+
+#include <string>
+#include <spdlog/spdlog.h>
+
+namespace {{ args.package.name }} {
+
+class LogicModuleOutputInterface {
+public:
+    virtual ~LogicModuleOutputInterface() = default;
+    
+    // === Setter for the callback interface function ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_msgs/String" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(const std::string&)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Float64" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(double)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Float32" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(float)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Int32" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(int32_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Int64" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(int64_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/UInt32" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(uint32_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/UInt64" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(uint64_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Int8" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(int8_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/UInt8" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(uint8_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Bool" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(bool)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Byte" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void(uint8_t)> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- elif interface.msgs == "std_msgs/Empty" %}
+    void set_pub_callback_{{interface.name}}(const std::function<void()> callback) {
+        pub_callback_{{ interface.name }}_ = callback;
+    }
+    {%- else %}
+    // For other message types, implemetnation is required
+    // void set_pub_callback_{{interface.name}}(const std::function<void({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }})> callback) {
+    //     pub_callback_{{ interface.name }}_ = callback;
+    // }
+    {%- endif %}
+{%- endfor %}
+
+protected:
+    // === Callback function for the interface === 
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    // {{ interface.description }}
+    {%- if interface.msgs == "std_msgs/String" %}
+    std::function<void(const std::string&)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Float64" %}
+    std::function<void(double)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Float32" %}
+    std::function<void(float)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Int32" %}
+    std::function<void(int32_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Int64" %}
+    std::function<void(int64_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/UInt32" %}
+    std::function<void(uint32_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/UInt64" %}
+    std::function<void(uint64_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Int8" %}
+    std::function<void(int8_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/UInt8" %}
+    std::function<void(uint8_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Bool" %}
+    std::function<void(bool)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Byte" %}
+    std::function<void(uint8_t)> pub_callback_{{ interface.name }}_;
+    {%- elif interface.msgs == "std_msgs/Empty" %}
+    std::function<void()> pub_callback_{{ interface.name }}_;
+    {%- else %}
+    // For other message types, implemetnation is required
+    // std::function<const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}> pub_callback_{{ interface.name }}_;
+    {%- endif %}
+{%- endfor %}
+};
+
+}

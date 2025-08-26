@@ -10,6 +10,11 @@ from loguru import logger
 import launch
 import launch_ros
 from ament_index_python.packages import get_package_share_directory
+from moveit_configs_utils.launch_utils import (
+    add_debuggable_node,
+    DeclareBooleanLaunchArg,
+)
+from moveit_configs_utils import MoveItConfigsBuilder
 
 
 def generate_standard_launch_description():
@@ -26,8 +31,8 @@ def generate_standard_launch_description():
     # get path of package
     package_path = Path(get_package_share_directory('{{args.package.name}}'))
 
-    default_instance_config = package_path / 'example' / 'instance_config' / '{{args.package.name}}'
-    instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder', default=str(default_instance_config.as_posix()))
+    default_instance_config = package_path / 'example' / 'instance_config'
+    instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder', default=str(default_instance_config))
 
     return [
         launch.actions.DeclareLaunchArgument('namespace', default_value=namespace),
@@ -37,15 +42,19 @@ def generate_standard_launch_description():
         launch.actions.DeclareLaunchArgument('instance_config_folder', default_value=instance_config_folder),
     ]
 
-def get_config(config_file: Path):
+def load_yaml(file: Path):
     config = {}
-    
-    if config_file.exists():
-        with open(config_file, 'r') as f:
+    if file.exists():
+        with open(file, 'r') as f:
             config = yaml.safe_load(f)
     else:
-        logger.warning(f"Config file {config_file} does not exist. Using empty config.")
+        logger.warning(f"Config file {file} does not exist. Using empty config.")
     
+    return config
+
+def get_config(config_file: Path):
+    config = load_yaml(config_file)
+
     # if key config is not in config
     if 'config' not in config:
         logger.warning(f"Key 'config' not found in config file. Using empty config.")
@@ -62,6 +71,23 @@ def get_instance_config(path: Path, instance: str):
 
     return config
 
+def copy_instance_config_folder(instance_config_folder: Path, namespace: str, package: str):
+    source = Path(get_package_share_directory(package)) / 'example' / 'instance_config' / package
+
+    if source.exists():
+        destination = instance_config_folder / namespace
+
+        if not instance_config_folder.exists():
+            instance_config_folder.mkdir(parents=True)
+
+        if not destination.exists():
+            logger.info(f"Copying instance config folder from {source} to {destination}")
+            shutil.copytree(source, destination)
+        else:
+            logger.warning(f"Instance config folder {destination} already exists. Skipping copy.")
+    else:
+        logger.error(f"Source instance config folder {source} does not exist. Skipping copy.")
+
 def generate_custom_launch_description(context, *args, **kwargs):
     """
     Generate a custom launch description.
@@ -72,11 +98,9 @@ def generate_custom_launch_description(context, *args, **kwargs):
     gazebo_classic = launch.substitutions.LaunchConfiguration('gazebo_classic').perform(context)
 
     instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder').perform(context)
+    instance_config_folder = Path(instance_config_folder)
 
     gz = simulation and simulation_with_gazebo
-
-    package_config_path = Path(get_package_share_directory('{{args.package.name}}')) / "config/config.yaml"
-    package_config = get_config(package_config_path)
 
     launch_description = []
 
@@ -84,45 +108,28 @@ def generate_custom_launch_description(context, *args, **kwargs):
     #             package related code
     # --------------------------------------------
 
-    config = get_instance_config(Path(instance_config_folder), '{{args.package.name}}')
-    
-    # Use sim time
-    launch_description.append(
-        launch_ros.actions.SetParameter(name='use_sim_time',
-                     value=gz))
+{%- if args.single_serve is defined %}
+{%- if args.single_serve | length > 0 %}
+{%- for single in args.single_serve %}
+    # --- {{single.name}} ---
+    copy_instance_config_folder(instance_config_folder, '{{ single.name | lower | replace(' ', '_') | replace('-', '_') }}', '{{ single.package }}')
+    {{ single.name | lower | replace(' ', '_') | replace('-', '_') }}_launch = Path(launch.substitutions.FindPackageShare('{{ single.package }}')) / "launch" / "instance.launch.py"
 
-    # Robot description
-    robot_description_content = launch.substitutions.Command(
-        [
-            launch.substitutions.PathJoinSubstitution([launch.substitutions.FindExecutable(name="xacro")]),
-            " ",launch.substitutions.PathJoinSubstitution(
-                [
-                    # todo: use robot fanuc package
-                    launch_ros.substitutions.FindPackageShare("crx_description"),
-                    "urdf",
-                    "crx10ia_l",
-                    "crx10ia_l"+".xacro"
-                ]),
-            " ", "use_mock_hardware:=", str(config.get('use_mock_hardware', 'false')),
-            " ", "robot_type:=", str(config.get('robot_type', 'crx10ia_l')),
-            " ", "robot_ip:=", str(config.get('robot_ip', '192.168.1.100')),
-            " ", "read_only:=", str(config.get('read_only', 'false')),
-            " ", "use_rmi:=", str(config.get('use_rmi', 'false')),
-            " ", "use_hspo:=", str(config.get('use_hspo', 'false')),
-            " ", "gz:=", gz
-        ]
+    {{ single.name | lower | replace(' ', '_') | replace('-', '_') }} = launch.actions.IncludeLaunchDescription(
+        launch.launch_description_sources.PythonLaunchDescriptionSource({{ single.name | lower | replace(' ', '_') | replace('-', '_') }}_launch),
+        launch_arguments={
+            'namespace': '{{ single.name | lower | replace(' ', '_') | replace('-', '_') }}',
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_folder': str(instance_config_folder / '{{ single.name | lower | replace(' ', '_') | replace('-', '_') }}')
+        }.items()
     )
+    launch_description.append({{ single.name | lower | replace(' ', '_') | replace('-', '_') }})
 
-    robot_description = {"robot_description": robot_description_content}
-
-    launch_description.append(
-        launch_ros.actions.Node(
-            package="robot_state_publisher",
-            executable="robot_state_publisher",
-            output="both",
-            parameters=[robot_description],
-        )
-    )
+{%- endfor %}
+{%- endif %}
+{%- endif %}
 
     # --------------------------------------------
     #  ~~~~~~~~~~ package related code ~~~~~~~~~~

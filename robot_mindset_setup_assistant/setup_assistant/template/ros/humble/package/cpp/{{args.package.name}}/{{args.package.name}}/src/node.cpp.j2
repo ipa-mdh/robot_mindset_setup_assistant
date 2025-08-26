@@ -1,0 +1,30 @@
+#include <ros/ros.h>
+
+#include "ros/ros_node.hpp"
+#include "{{args.package.name}}/{{args.package.name}}.hpp"
+
+int main(int argc, char** argv)
+{
+    spdlog::set_level(spdlog::level::info); 
+
+    ros::init(argc, argv, "{{ args.package.name }}_node");
+    {{args.package.name}}::ROSNode node;
+
+    // Get private parameters
+    std::vector<{{args.package.name}}::RosParam> params = node.get_private_parameters();
+    
+    for (const auto& param : params)
+    {
+        ROS_INFO_STREAM("Private parameter: " << param.name << " = " << param.value);
+    }
+    {{args.package.name}}::LogicModule logic;
+
+    std::string message = logic.greet("ROS User");
+    // std::string message = "Hello, ROS User!";
+    ROS_INFO_STREAM(message);
+    logic.spdlog_test(12.3456789);
+
+    ros::spin();
+
+    return 0;
+}
