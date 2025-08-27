@@ -49,7 +49,9 @@
 
     /****************** Interface Members ******************/
     // === Initialize publishers and subscribers ===
-    {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "topic" %}
     {%- if interface.direction == "in" %}
     // Topic subscriber for: {{ interface.description }}
@@ -58,10 +60,14 @@
     // Topic publisher for: {{ interface.description }}
     ros::Publisher pub_{{ interface.name }}_;
     {%- endif %}
-    {%- endfor %}
+  {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Initialize services ===
-    {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "service" %}
     {%- if interface.direction == "in" %}
     // Service server for: {{ interface.description }}
@@ -70,27 +76,35 @@
     // Service client for: {{ interface.description }}
     ros::ServiceClient client_{{ interface.name }}_;
     {%- endif %}
-    {%- endfor %}
+  {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Initialize actions ===
-    {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "action" %}
     {%- if interface.direction == "in" %}
     // Action server for: {{ interface.description }}
     {%- elif interface.direction == "out" %}
     // Action client for: {{ interface.description }}
     {%- endif %}
-    {%- endfor %}
-   
+  {%- endfor %}
+{%- endif %}
+{%- endif %}
+
     // Service interfaces: servers and clients
   
     // Action interfaces: servers and clients (using dynamic allocation)
     
     /****************** Callback Functions ******************/
     // === Topic subscriber callbacks ===
-    {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     void callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg) override;
-    {%- endfor %}
+  {%- endfor %}
   
     // === Service server callbacks ===
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
@@ -101,10 +115,14 @@
     {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
     {%- endfor %}
-  
+{%- endif %}
+{%- endif %}
+
     /****************** Interface Functions ******************/
     // === Topic publisher ===
-    {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
     void interface_pub_{{ interface.name }}_(const std::string &msg) override;
@@ -134,10 +152,14 @@
     // For other message types, implemetnation is required
     // void interface_pub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) override;
     {%- endif %}
-    {%- endfor %}
+  {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Service call ===
-    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_srvs/SetBool" %}
     bool interface_srv_{{ interface.name }}_(bool req, bool &res) override;
@@ -151,13 +173,18 @@
     // For other message types, implemetnation is required
     //bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
     {%- endif %}
-    {%- endfor %}
+  {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Action server callbacks ===
-    {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
     void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
-    {%- endfor %}
-
+  {%- endfor %}
+{%- endif %}
+{%- endif %}
   };
  
  }

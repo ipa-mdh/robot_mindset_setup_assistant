@@ -6,6 +6,8 @@
 {%- set unique_msgs = [] %}
 {%- set ns = namespace(add_actionlib=false) -%}
 
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.direction == "in" %}
     {#- Check if the message type is already in the list #}
     {%- if interface.msgs not in unique_msgs -%}
@@ -18,6 +20,8 @@
         {%- set ns.add_actionlib = true -%}
     {%- endif -%}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 // Include message headers based on the Robot Rindest Setup Assistant configuration
 {%- if ns.add_actionlib %}
@@ -38,19 +42,31 @@ public:
 protected:
     /****************** Callback Functions ******************/
     // Topic subscriber callbacks
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     virtual void callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg) = 0;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
   
     // Service server callbacks
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     virtual bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // Action server callbacks
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     virtual void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 };
 
 }

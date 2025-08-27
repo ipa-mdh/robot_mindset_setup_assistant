@@ -11,6 +11,8 @@ public:
     
     // === Interface functions ===
     // handle ROS subscriptions
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
@@ -81,8 +83,12 @@ public:
     // }
     {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Service call ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_srvs/SetBool" %}
@@ -109,12 +115,18 @@ public:
     // virtual void process_srv_{{interface.name}}({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &res);
     {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Action server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     // {{ interface.description }}
     virtual void process_act_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 };
 }

@@ -90,32 +90,44 @@ digraph InheritanceDiagram {
 
 | Name                           | Direction | Message Type         | Description                              |
 |--------------------------------|-----------|----------------------|------------------------------------------|
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for iface in args.ros.interfaces if iface.type == 'topic' %}
 | {{ ("`" ~ iface.name ~ "`").ljust(30) }} | {{ iface.direction.ljust(9) }} | {{ ("`" ~ iface.msgs ~ "`").ljust(20) }} | {{ iface.description.ljust(40) }} |
 {%- else %}
 |                                |           |                      |                      |
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 
 ### Services
 
 | Name                           | Direction | Message Type         | Description                              |
 |--------------------------------|-----------|----------------------|------------------------------------------|
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for iface in args.ros.interfaces if iface.type == 'service' %}
 | {{ ("`" ~ iface.name ~ "`").ljust(30) }} | {{ iface.direction.ljust(9) }} | {{ ("`" ~ iface.msgs ~ "`").ljust(20) }} | {{ iface.description.ljust(40) }} |
 {%- else %}
 |                                |           |                      |                      |
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 ### Actions
 
 | Name                           | Direction | Message Type         | Description                              |
 |--------------------------------|-----------|----------------------|------------------------------------------|
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for iface in args.ros.interfaces if iface.type == 'action' %}
 | {{ ("`" ~ iface.name ~ "`").ljust(30) }} | {{ iface.direction.ljust(9) }} | {{ ("`" ~ iface.msgs ~ "`").ljust(20) }} | {{ iface.description.ljust(40) }} |
 {%- else %}
 |                                |           |                      |                      |
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 ---
 

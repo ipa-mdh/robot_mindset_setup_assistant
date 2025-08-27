@@ -10,6 +10,8 @@ public:
     virtual ~LogicModuleOutputInterface() = default;
     
     // === Setter for the callback interface function ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
@@ -67,9 +69,13 @@ public:
     // }
     {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 protected:
     // === Callback function for the interface === 
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
@@ -101,6 +107,8 @@ protected:
     // std::function<const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}> pub_callback_{{ interface.name }}_;
     {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 };
 
 }

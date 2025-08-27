@@ -49,6 +49,8 @@
 
     /****************** Interface Members ******************/
     // === Initialize publishers and subscribers ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "topic" %}
     {%- if interface.direction == "in" %}
@@ -59,8 +61,12 @@
     ros::Publisher pub_{{ interface.name }}_;
     {%- endif %}
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Initialize services ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "service" %}
     {%- if interface.direction == "in" %}
@@ -71,8 +77,12 @@
     ros::ServiceClient client_{{ interface.name }}_;
     {%- endif %}
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Initialize actions ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
       if interface.type == "action" %}
     {%- if interface.direction == "in" %}
@@ -81,6 +91,8 @@
     // Action client for: {{ interface.description }}
     {%- endif %}
     {%- endfor %}
+{%- endif %}
+{%- endif %}
    
     // Service interfaces: servers and clients
   
@@ -88,22 +100,36 @@
     
     /****************** Callback Functions ******************/
     // === Topic subscriber callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     void callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg) override;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
   
     // === Service server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Action server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
   
     /****************** Interface Functions ******************/
     // === Topic publisher ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
@@ -135,8 +161,12 @@
     // void interface_pub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) override;
     {%- endif %}
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Service call ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_srvs/SetBool" %}
@@ -152,11 +182,17 @@
     //bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
     {%- endif %}
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Action server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
     void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
   };
  

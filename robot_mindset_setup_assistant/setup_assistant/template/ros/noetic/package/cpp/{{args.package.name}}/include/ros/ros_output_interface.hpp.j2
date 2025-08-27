@@ -12,6 +12,8 @@ public:
 protected:
     /****************** Interface Functions ******************/
     // === Topic publisher ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
@@ -43,8 +45,12 @@ protected:
     // virtual void interface_pub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) = 0;
     {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
   
     // === Service call ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_srvs/SetBool" %}
@@ -60,11 +66,17 @@ protected:
     //virtual bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
     {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Action server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
     virtual void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 };
 
 }

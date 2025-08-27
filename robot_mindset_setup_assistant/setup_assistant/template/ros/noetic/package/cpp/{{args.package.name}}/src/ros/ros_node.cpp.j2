@@ -50,35 +50,51 @@ void ROSNode::init()
 void ROSNode::init_ros_interface_subscribers()
 {
     // Initialize subscribers
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     // {{ interface.description }}
     sub_{{ interface.name }}_ =  nh_.subscribe("{{ interface.name }}", 10, &ROSNode::callback_sub_{{ interface.name }}_, this);
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 }
 void ROSNode::init_ros_interface_publishers()
 {
     // Initialize publishers
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     pub_{{ interface.name }}_ =  nh_private_.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}", 10);
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 }
 void ROSNode::init_ros_interface_services()
 {
     // Initialize service
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     // {{ interface.description }}
     service_{{ interface.name }}_ =  nh_private_.advertiseService("{{ interface.name }}", &ROSNode::callback_srv_{{ interface.name }}_, this);
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 }
 void ROSNode::init_ros_interface_clients()
 {
     // Initialize clients
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
     client_{{ interface.name }}_ =  nh_.serviceClient<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}");
     {%- endfor %}
+{%- endif %}
+{%- endif %}
 }
 void ROSNode::init_ros_interface_action_services()
 {
@@ -92,6 +108,8 @@ void ROSNode::init_logic_module()
 {
     // Initialize ROS interface
     // Set external callbacks for interfaces
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
     {% for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // Set external callbacks for interfaces
     {% if interface.msgs == "std_msgs/String" %}
@@ -175,6 +193,8 @@ void ROSNode::init_logic_module()
     // );
     {% endif %}
     {% endfor %}
+{%- endif %}
+{%- endif %}
 }
 
 /****************** Parameter Functions ******************/
@@ -236,6 +256,8 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
 // /****************** Callback Functions ******************/
 
 // === Topic publisher ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
 // {{ interface.description }}
 {%- if interface.msgs == "std_msgs/String" %}
@@ -354,8 +376,12 @@ void ROSNode::interface_pub_{{ interface.name }}_()
 // }
 {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 // === Service call ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
 // {{ interface.description }}
 {%- if interface.msgs == "std_srvs/SetBool" %}
@@ -405,8 +431,12 @@ bool ROSNode::interface_srv_{{ interface.name }}_()
 //bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
 {%- endif %}
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 // === Action server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
 void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
 {
@@ -418,10 +448,14 @@ void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('
     logic_module_.process_act_{{interface.name}}(goal_out);
 }
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 
 /****************** Callback Functions ******************/
 // === Subscriber callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
 void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg)
 {
@@ -496,8 +530,12 @@ void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('
     {%- endif %}
 }
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 // === Service server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
 bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res)
 {
@@ -534,8 +572,12 @@ bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0]
     {%- endif %}
 }
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 // === Action server callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
 void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
 {
@@ -543,5 +585,7 @@ void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}
     // logic_module_.process_act_{{interface.name}}(goal);
 }
 {%- endfor %}
+{%- endif %}
+{%- endif %}
 
 }
