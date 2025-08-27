@@ -55,8 +55,6 @@ def insert_custom_section(generated_content,
         re.DOTALL | re.MULTILINE
     )
 
-    logger.error(f"Custom content to insert:\n{custom_content}")
-
     def replacer(match):
         indent = match.group(1)  # capture leading whitespace (spaces or tabs)
         # Compose new block with preserved indent before each line of block
