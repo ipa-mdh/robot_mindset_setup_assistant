@@ -73,10 +73,10 @@
       if interface.type == "service" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].namespace) %}
-    {%- if interface.direction == "in" %}
+    {%- if interface.direction == "out" %}
     // Service server: {{ interface.description }}
     rclcpp::Service<{{ lu.namespace }}>::SharedPtr service_{{ interface.name }}_;
-    {%- elif interface.direction == "out" %}
+    {%- elif interface.direction == "in" %}
     // Service client: {{ interface.description }}
     rclcpp::Client<{{ lu.namespace }}>::SharedPtr client_{{ interface.name }}_;
     {%- endif %}
@@ -94,9 +94,9 @@
       if interface.type == "action" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].namespace) %}
-    {%- if interface.direction == "in" %}
+    {%- if interface.direction == "out" %}
     // Action server: {{ interface.description }}
-    {%- elif interface.direction == "out" %}
+    {%- elif interface.direction == "in" %}
     // Action client: {{ interface.description }}
     {%- endif %}
     {%- else %}
@@ -124,7 +124,7 @@
   {% endfor %}
   
     // === Service server callbacks ===
-  {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+  {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].namespace) %}
     void callback_srv_{{ interface.name }}_(const std::shared_ptr<{{ lu.namespace }}::Request> req, std::shared_ptr<{{ lu.namespace }}::Response> res) override;
@@ -134,7 +134,7 @@
   {% endfor %}
 
     // === Action server callbacks ===
-  {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+  {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].namespace) %}
     // void callback_act_{{ interface.name }}_(const {{ lu.namespace }}::GoalConstPtr &goal) override;
@@ -165,7 +165,7 @@
     // === Service call ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-  {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+  {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace    = args.lookup.interfaces.msgs[interface.msgs].namespace,
                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
@@ -189,7 +189,7 @@
     // === Action server callbacks ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-  {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+  {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
   {% endfor %}
 {%- endif %}

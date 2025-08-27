@@ -21,22 +21,56 @@ package:
   language: cpp # python, cpp
   environment: ros.humble # ros.noetic, ros.humble, (debian)
   dependencies:
+    # System dependencies
     apt:
       - python3-catkin-tools
       - libspdlog-dev
+    # Python dependencies
     pip: []
+    # ROS 2 dependencies (target: package.xml)
     ros:
       - joint_state_publisher
       - rclcpp
       - std_msgs
       - std_srvs
+    # repositories to be cloned into the workspace via vcs tool (target: .rosinstall)
     git: []
-    packages: # CMakeLists.txt modifications
+      # - name: sim2real_gap
+      #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
+      #   version: main
+    # CMakeLists.txt modifications
+    packages: 
       - name: rclcpp
       - name: std_msgs
       - name: std_srvs
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
+
+# ============================ serve ============================
+# List of packages to be launched. The instance
+# launch file will be used.
+# 
+# There are three types of serving modes:
+# 
+# link_serve
+# ----
+# Starts the instance in the root namespace '/'.
+# It connects multiple nodes, such as the
+# joint_state_publisher, which joins the joint_state
+# from different namespaces (e.g. /robot_1/joint_states
+# and /robot_2/joint_states).
+# 
+# single_serve
+# ----
+# Starts the instance in the root namespace '/'.
+# Example applications: rviz, robot_state_publisher, move_group.
+# 
+# multi_serve
+# ---- 
+# Always starts the instance in the '/<name>' namespace.
+# Example applications: ROS controllers (e.g. robot_1).
+# ===============================================================
+
 
 # link_serve:
 #   - name: Joint State Publisher
@@ -52,6 +86,23 @@ multi_serve:
  - name: joint_state_publisher
    package: robot_mindset_joint_state_publisher
 
+# ============================ ROS Interfaces ============================
+# Define the ROS interfaces (topics, services, actions) for the node.
+# Each interface has a direction (in/out), a message type,
+# and a type (topic/service/action).
+#
+# direction | topic       | service  | action
+# --------------------------------------------
+#    in     | subscriber  | client   | client
+#    out    | pubublisher | service  | server
+#
+# out: Something that the node provides to other nodes.
+#      Normally, only one topic, service or action can be published
+#      under the service name.
+# in: Something the node can consume from other nodes.
+#     One of multiple topic/service/action subscribers/clients
+#     connecting to the service name.
+# ========================================================================
 ros:
   interfaces:
     - name: interface_topic_string_in
@@ -65,7 +116,7 @@ ros:
       type: topic
       description: A string interface.
     - name: test_empty
-      direction: out
+      direction: in
       msgs: std_srvs/srv/empty
       type: service
       description: A service interface.
