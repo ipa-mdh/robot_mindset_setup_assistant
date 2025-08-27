@@ -16,12 +16,6 @@ endif()
 set(THIS_PACKAGE_INCLUDE_DEPENDS
 {%- if args.package %}
 {%- if args.package.dependencies %}
-{%- if args.package.dependencies.ros %}
-# ROS 2 dependencies
-{%- for dep in args.package.dependencies.ros %}
-{{ dep }}
-{%- endfor %}
-{%- endif %}
 {%- if args.package.dependencies.packages %}
 # additional package dependencies
 {%- for dep in args.package.dependencies.packages %}
@@ -46,12 +40,13 @@ endforeach()
 ######################
 # --- node ---
 set(NODE node)
-file(GLOB node_SRC CONFIGURE_DEPENDS "*.h" "*.cpp")
+file(GLOB node_SRC CONFIGURE_DEPENDS "*.h" "*.hpp" "*.cpp")
 
 add_executable(${NODE} src/node.cpp ${node_SRC})
 target_include_directories(${NODE} PUBLIC
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR} /include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
+
 ament_target_dependencies(${NODE} ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
 #############
@@ -59,14 +54,19 @@ ament_target_dependencies(${NODE} ${THIS_PACKAGE_INCLUDE_DEPENDS})
 #############
 
 install(
-TARGETS
-${NODE}
-DESTINATION
-lib/${PROJECT_NAME}
+  TARGETS
+  ${NODE}
+  DESTINATION
+  lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY hardware/include/
+  DESTINATION include/${PROJECT_NAME}
 )
 
 install(DIRECTORY launch config example urdf
-DESTINATION share/${PROJECT_NAME}
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

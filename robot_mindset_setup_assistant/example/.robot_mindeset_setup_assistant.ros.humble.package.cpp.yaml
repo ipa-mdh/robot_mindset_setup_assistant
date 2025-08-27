@@ -27,8 +27,14 @@ package:
     pip: []
     ros:
       - joint_state_publisher
+      - rclcpp
+      - std_msgs
+      - std_srvs
     git: []
     packages: # CMakeLists.txt modifications
+      - name: rclcpp
+      - name: std_msgs
+      - name: std_srvs
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
 
@@ -46,54 +52,59 @@ multi_serve:
  - name: joint_state_publisher
    package: robot_mindset_joint_state_publisher
 
-# ros:
-#   interfaces:
-#     - name: "interface_topic_string_in"
-#       direction: "in"
-#       msgs: "std_msgs/String"
-#       type: "topic"
-#       description: "A ROS Topic interface."
-#     - name: "interface_topic_string_out"
-#       direction: "out"
-#       msgs: "std_msgs/String"
-#       type: "topic"
-#       description: "A string interface."
-#     - name: "set_controller_sate"
-#       direction: "in"
-#       msgs: "std_srvs/SetBool"
-#       type: "service"
-#       description: "A service interface."
-#     - name: "get_controller_state"
-#       direction: "out"
-#       msgs: "std_srvs/SetBool"
-#       type: "service"
-#       description: "A service interface."
-#     - name: "interface_topic_float_out2"
-#       direction: "out"
-#       msgs: "std_msgs/Float64"
-#       type: "topic"
-#       description: "A service interface2."
-#     - name: "interface_topic_float_in2"
-#       direction: "in"
-#       msgs: "std_msgs/Float64"
-#       type: "topic"
-#       description: "A ROS Topic interface.2"
-#     # - name: "set_controller"
-#     #   direction: "in"
-#     #   msgs: "my_msgs/controller_config"
-#     #   type: "topic"
-#     #   description: "A string interface for the robot."
-#     # - name: "get_controller"
-#     #   direction: "out"
-#     #   msgs: "my_msgs/controller_config"
-#     #   type: "topic"
-#     #   description: "A string interface for the robot."
-#     # - name: "action_interface"
-#     #   direction: "in"
-#     #   msgs: "my_msgs/action_conig"
-#     #   type: "action"
-#     #   description: "An action interface for the robot."
+ros:
+  interfaces:
+    - name: interface_topic_string_in
+      direction: in
+      msgs: std_msgs/msg/string
+      type: topic
+      description: A ROS Topic interface.
+    - name: interface_topic_string_out
+      direction: out
+      msgs: std_msgs/msg/string
+      type: topic
+      description: A string interface.
+    - name: test_empty
+      direction: out
+      msgs: std_srvs/srv/empty
+      type: service
+      description: A service interface.
+    - name: set_controller_state
+      direction: in
+      msgs: std_srvs/srv/set_bool
+      type: service
+      description: A service interface.
+    - name: get_controller_state
+      direction: out
+      msgs: std_srvs/srv/set_bool
+      type: service
+      description: A service interface.
+    - name: interface_topic_float_out2
+      direction: out
+      msgs: std_msgs/msg/float64
+      type: topic
+      description: A service interface2.
+    - name: interface_topic_float_in2
+      direction: in
+      msgs: std_msgs/msg/float64
+      type: topic
+      description: A ROS Topic interface.2
+    # - name: set_controller
+    #   direction: in
+    #   msgs: my_msgs/controller_config
+    #   type: topic
+    #   description: A string interface for the robot.
+    # - name: get_controller
+    #   direction: out
+    #   msgs: my_msgs/controller_config
+    #   type: topic
+    #   description: A string interface for the robot.
+    # - name: action_interface
+    #   direction: in
+    #   msgs: my_msgs/action_conig
+    #   type: action
+    #   description: An action interface for the robot.
 
 spark:
   capabilities:
-    - type: "data_processing"
+    - type: data_processing

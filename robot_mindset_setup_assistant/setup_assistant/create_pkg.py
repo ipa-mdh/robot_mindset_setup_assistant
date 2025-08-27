@@ -7,6 +7,7 @@ import yaml
 from loguru import logger
 
 from setup_assistant.load_config import get_config
+from setup_assistant.load_config import get_lookup_tables
 from setup_assistant.package_versioning import GitFlowRepo
 from setup_assistant.dev_setup import apply as apply_dev_setup
 from setup_assistant.doxygen_awesome import apply as apply_doxygen_awesome
@@ -147,7 +148,7 @@ def get_template_folder(environment: str):
     # get this file location
     current_file_path = Path(__file__).resolve()
     # get the parent directory of this file
-    parent_dir = current_file_path.parent
+    parent_dir = current_file_path.parent.parent
 
     def dot_to_underscore(string: str):
         """Convert dots to underscores n a string."""
@@ -172,8 +173,11 @@ def get_template_folder(environment: str):
 class RosNoeticPackage(GitFlowRepo):
     def __init__(self, destination: Path, config_path: Path):
         self.config_path = config_path
-        
         self.context = get_config(self.config_path)
+
+        lookup_tables = get_lookup_tables(self.context["package"]["environment"])
+        self.context.update({"lookup": lookup_tables})
+
         self.package_name = self.context["package"]["name"]
         
         self.working_dir = destination / self.package_name

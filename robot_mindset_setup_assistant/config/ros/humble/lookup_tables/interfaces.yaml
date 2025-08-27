@@ -1,0 +1,79 @@
+msgs:
+  std_msgs/msg/empty:
+    include: std_msgs/msg/empty,
+    namespace: std_msgs::msg::Empty,
+    cpp_data_type: ''
+  std_msgs/msg/string:
+    include: std_msgs/msg/string,
+    namespace: std_msgs::msg::String,
+    cpp_data_type: std::string
+  std_msgs/msg/byte:
+    include: std_msgs/msg/byte,
+    namespace: std_msgs::msg::Byte,
+    cpp_data_type: std::uint8_t
+  std_msgs/msg/int8:
+    include: std_msgs/msg/int8,
+    namespace: std_msgs::msg::Int8,
+    cpp_data_type: std::int8_t
+  std_msgs/msg/uint8:
+    include: std_msgs/msg/uint8,
+    namespace: std_msgs::msg::UInt8,
+    cpp_data_type: std::uint8_t
+  std_msgs/msg/int16:
+    include: std_msgs/msg/int16,
+    namespace: std_msgs::msg::Int16,
+    cpp_data_type: std::int16_t
+  std_msgs/msg/uint16:
+    include: std_msgs/msg/uint16,
+    namespace: std_msgs::msg::UInt16,
+    cpp_data_type: std::uint16_t
+  std_msgs/msg/int32:
+    include: std_msgs/msg/int32,
+    namespace: std_msgs::msg::Int32,
+    cpp_data_type: std::int32_t
+  std_msgs/msg/uint32:
+    include: std_msgs/msg/uint32,
+    namespace: std_msgs::msg::UInt32,
+    cpp_data_type: std::uint32_t
+  std_msgs/msg/int64:
+    include: std_msgs/msg/int64,
+    namespace: std_msgs::msg::Int64,
+    cpp_data_type: std::int64_t
+  std_msgs/msg/uint64:
+    include: std_msgs/msg/uint64,
+    namespace: std_msgs::msg::UInt64,
+    cpp_data_type: std::uint64_t
+  std_msgs/msg/float32:
+    include: std_msgs/msg/float32,
+    namespace: std_msgs::msg::Float32,
+    cpp_data_type: float
+  std_msgs/msg/float64:
+    include: std_msgs/msg/float64,
+    namespace: std_msgs::msg::Float64,
+    cpp_data_type: double
+  std_srvs/srv/empty:
+    include: std_srvs/srv/empty,
+    namespace: std_srvs::srv::Empty,
+    cpp_data_type: ''
+  std_srvs/srv/set_bool: 
+    include: std_srvs/srv/set_bool,
+    namespace: std_srvs::srv::SetBool,
+    cpp_data_type:
+      req: 
+        - name: data
+          type: bool
+      res:
+        - name: success
+          type: bool
+        - name: message
+          type: string
+  std_srvs/srv/trigger:
+    include: std_srvs/srv/trigger,
+    namespace: std_srvs::srv::Trigger,
+    cpp_data_type: 
+      req: ''
+      res: 
+        - name: success
+          type: bool
+        - name: message
+          type: string

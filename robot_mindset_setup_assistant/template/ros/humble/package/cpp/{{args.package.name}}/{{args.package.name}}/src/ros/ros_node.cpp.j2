@@ -4,10 +4,10 @@ namespace {{ args.package.name }}
 {
 
 /****************** Constructor & Destructor ******************/
-ROSNode::ROSNode()
+ROSNode::ROSNode(string node_name)
 {
     // Initialize the node
-    init();
+    init(node_name);
     init_ros_interface_subscribers();
     init_ros_interface_publishers();
     init_ros_interface_services();
@@ -23,11 +23,10 @@ ROSNode::~ROSNode()
 }
 
 /****************** Initialization Functions ******************/
-void ROSNode::init()
+void ROSNode::init(string node_name)
 {
     // Initialize node handles
-    nh_ = ros::NodeHandle();
-    nh_private_ = ros::NodeHandle("~");
+    this->nh_ = std::make_shared<rclcpp::Node>(node_name);
 
     // Initialize private parameters
     std::vector<RosParam> params = get_private_parameters();
@@ -209,13 +208,13 @@ std::vector<RosParam> ROSNode::get_private_parameters()
     nh_private_.getParamNames(all_params);
 
     std::string node_ns = nh_private_.getNamespace();  // e.g., /my_ns/my_node
-    // ROS_DEBUG_STREAM("Private namespace: " << node_ns);
+    // RCLCPP_DEBUG_STREAM(this->nh_->get_logger(), "Private namespace: " << node_ns);
     for (const auto& param : all_params)
     {
-        // ROS_DEBUG_STREAM("param: " << param);
+        // RCLCPP_DEBUG_STREAM(this->nh_->get_logger(), "param: " << param);
         if (param.find(node_ns + "/") == 0)  // check if it's in the private scope
         {
-            // ROS_DEBUG_STREAM("Private param: " << param);
+            // RCLCPP_DEBUG_STREAM(this->nh_->get_logger(), "Private param: " << param);
             RosParam buffer;
             buffer.name = param;
             // Get the parameter value
@@ -235,7 +234,7 @@ std::vector<RosParam> ROSNode::get_private_parameters()
 bool ROSNode::set_private_parameter(const std::string& param_name, const std::string& param_value) {
     // Check if the parameter name is valid
     if (param_name.empty() || param_value.empty()) {
-        ROS_ERROR_STREAM("Invalid parameter name or value");
+        RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "Invalid parameter name or value");
         return false;
     }
 
@@ -245,10 +244,10 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
     // Check if the parameter was set successfully
     std::string value;
     if (nh_private_.getParam(param_name, value)) {
-        ROS_INFO_STREAM("Private parameter set: " << param_name << " = " << value);
+        RCLCPP_INFO_STREAM(this->nh_->get_logger(), "Private parameter set: " << param_name << " = " << value);
         return true;
     } else {
-        ROS_ERROR_STREAM("Failed to set private parameter: " << param_name);
+        RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "Failed to set private parameter: " << param_name);
         return false;
     }
 }

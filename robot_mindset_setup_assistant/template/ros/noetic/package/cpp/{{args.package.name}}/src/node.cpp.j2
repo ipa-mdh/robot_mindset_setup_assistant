@@ -15,13 +15,13 @@ int main(int argc, char** argv)
     
     for (const auto& param : params)
     {
-        ROS_INFO_STREAM("Private parameter: " << param.name << " = " << param.value);
+        RCLCPP_INFO_STREAM(this->nh_->get_logger(), "Private parameter: " << param.name << " = " << param.value);
     }
     {{args.package.name}}::LogicModule logic;
 
     std::string message = logic.greet("ROS User");
     // std::string message = "Hello, ROS User!";
-    ROS_INFO_STREAM(message);
+    RCLCPP_INFO_STREAM(this->nh_->get_logger(), message);
     logic.spdlog_test(12.3456789);
 
     ros::spin();
