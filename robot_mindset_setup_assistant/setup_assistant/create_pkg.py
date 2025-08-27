@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from jinja2 import Template
 from pathlib import Path
@@ -9,6 +10,89 @@ from setup_assistant.load_config import get_config
 from setup_assistant.package_versioning import GitFlowRepo
 from setup_assistant.dev_setup import apply as apply_dev_setup
 from setup_assistant.doxygen_awesome import apply as apply_doxygen_awesome
+
+CUSTOM_SECTION_START_MARKER="# JINJA-BEGIN:customer-section"
+CUSTOM_SECTION_END_MARKER="# JINJA-END:customer-section"
+
+def extract_custom_section(file_content,
+                           start_marker="# JINJA-BEGIN:customer-section",
+                           end_marker="# JINJA-END:customer-section"):
+    """
+    Extracts the section between markers (exclusive),
+    and returns it with indentation added for all lines
+    to match the indent of the marker line.
+    """
+    # Match entire block including markers (allow multiline)
+    pattern = re.compile(
+        rf"(^[ \t]*){re.escape(start_marker)}\n(.*?)\n^[ \t]*{re.escape(end_marker)}",
+        re.DOTALL | re.MULTILINE
+    )
+    match = pattern.search(file_content)
+    if match:
+        indent = match.group(1)
+        content = match.group(2)
+        return content
+    return None
+
+def add_symbol_to_lines(text, symbol="#"):
+    """Prepends the given symbol to the beginning of each line in the input text."""
+    return '\n'.join(f"{symbol}{line}" for line in text.splitlines())
+
+
+
+def insert_custom_section(generated_content,
+                          custom_content,
+                          start_marker=CUSTOM_SECTION_START_MARKER,
+                          end_marker=CUSTOM_SECTION_END_MARKER):
+    """
+    Replace the section between start_marker and end_marker,
+    preserving any leading whitespace before the markers.
+    """
+
+    # Regex to capture leading whitespace before each marker and the content in between
+    pattern = re.compile(
+        rf"(^[ \t]*){re.escape(start_marker)}.*?^[ \t]*{re.escape(end_marker)}",
+        re.DOTALL | re.MULTILINE
+    )
+
+    logger.error(f"Custom content to insert:\n{custom_content}")
+
+    def replacer(match):
+        indent = match.group(1)  # capture leading whitespace (spaces or tabs)
+        # Compose new block with preserved indent before each line of block
+        new_block = f"{indent}{start_marker}\n"
+        new_block += custom_content + "\n"
+        new_block += f"{indent}{end_marker}"
+        return new_block
+
+    if pattern.search(generated_content):
+        return pattern.sub(replacer, generated_content)
+    else:
+        # If markers not found, append custom block without indent
+        new_block = f"{start_marker}\n{custom_content}\n{end_marker}"
+        return f"{generated_content}\n{new_block}"
+
+def preserve_user_content(file_path: Path, new_rendered_output):
+    """Preserve user content between custom section markers."""
+    if not file_path.exists():
+        return new_rendered_output
+
+    with open(file_path) as f:
+        file_content = f.read()
+
+    # Extract custom section from previous output
+    custom_section_content = extract_custom_section(file_content)
+
+    if custom_section_content:
+        logger.debug(f"Custom section content:\n{custom_section_content}")
+
+    # Inject custom section back into the new generated content
+    if custom_section_content:
+        merged_output = insert_custom_section(new_rendered_output, custom_section_content)
+    else:
+        merged_output = new_rendered_output  # No manual changes found
+
+    return merged_output
 
 def render_path(path: Path, context: dict) -> Path:
     """Render each part of the path as a Jinja2 template."""
@@ -37,6 +121,7 @@ def render_template_folder(template_root: Path, destination_root: Path, context:
                 template = Template(f.read())
                 rendered = template.render(args=context)
             dest_path = dest_path.with_suffix("")  # Remove .j2 extension
+            rendered = preserve_user_content(dest_path, rendered)
             # create parent directories if they don't exist
             dest_path.parent.mkdir(parents=True, exist_ok=True)
             with open(dest_path, "w") as f:
@@ -46,7 +131,12 @@ def render_template_folder(template_root: Path, destination_root: Path, context:
                 logger.debug(f"Copying file: {file} to {dest_path}")
                 # create parent directories if they don't exist
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(src=file, dst=dest_path)
+                with open(file) as f:
+                    content = f.read()
+                content = preserve_user_content(dest_path, content)
+                with open(dest_path, "w") as f:
+                    f.write(content)
+                # shutil.copy(src=file, dst=dest_path)
 
 def get_template_folder(environment: str):
     """
