@@ -1,109 +1,104 @@
 #pragma once
 
 #include <string>
-#include <spdlog/spdlog.h>
+    #include <spdlog /spdlog.h>
 
-namespace {{ args.package.name }} {
+        namespace {{ args.package.name }} {
 
-class LogicModuleInputInterface {
-public:
-    virtual ~LogicModuleInputInterface() = default;
-    
-    // === Interface functions ===
-    // handle ROS subscriptions
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
-    // {{ interface.description }}
-{%- if interface.msgs in lookup.interfaces.msgs %}
-    {%- set lu = namespace(namespace=lookup.interfaces.msgs[interface.msgs].namespace,
-                           cpp_data_type=lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    {%- if lu.cpp_data_type is empty %}
-    virtual void process_sub_{{interface.name}}()
-    {
-        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {{ interface.msgs}}");
-    }
-    {%- else %}
-    virtual void process_sub_{{interface.name}}(const {{ lu.namespace }} &msg)
-    {
+        class LogicModuleInputInterface {
+        public:
+        virtual ~LogicModuleInputInterface() = default;
+
+        // === Interface functions ===
+        // handle ROS subscriptions
+        {%- if args.ros is defined %}
+        {%- if args.ros.interfaces is defined %}
+        {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+        // {{ interface.description }}
+        {%- if interface.msgs in args.lookup.interfaces.msgs %}
+        {%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+        cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+        virtual void process_sub_{{interface.name}}(const {{ lu.ros_data_type }} &msg)
+        {
         spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
-    }
-    {%- endif %}
-{%- else %}
-    // For other message types, implementation is required
-    // interface: 
-    //     - name: {{ interface.name }}
-    //     - msgs: {{ interface.msgs }}
-    // virtual void process_sub_{{interface.name}}(const {{ interface.msgs  }} &msg)
-    // {
-    //     spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
-    // }
-{%- endif %}
-{%- endfor %}
-{%- endif %}
-{%- endif %}
+        }
+        {%- else %}
+        // For other message types, implementation is required
+        // interface:
+        // - name: {{ interface.name }}
+        // - msgs: {{ interface.msgs }}
+        // virtual void process_sub_{{interface.name}}(const {{ interface.msgs }} &msg)
+        // {
+        // spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg);
+        // }
+        {%- endif %}
+        {%- endfor %}
+        {%- endif %}
+        {%- endif %}
 
-    // === Service call ===
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-    // {{ interface.description }}
-{%- if interface.msgs in lookup.interfaces.msgs %}
-    {%- set lu = namespace(namespace=lookup.interfaces.msgs[interface.msgs].namespace,
-                           cpp_data_type=lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    {%- if lu.cpp_data_type is empty %}
-    virtual void process_srv_{{interface.name}}()
-    {
-        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }})");
-    }
-    {%- else %}
-    virtual void process_srv_{{interface.name}}(bool msg, bool& res_success, const {{ lu.cpp_data_type }}& res_message)
-    {
+
+        // === Service call ===
+        {%- if args.ros is defined %}
+        {%- if args.ros.interfaces is defined %}
+        {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+        // {{ interface.description }}
+        {%- if interface.msgs in args.lookup.interfaces.msgs %}
+        {%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+        cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+        virtual void process_srv_{{interface.name}}(bool msg, bool& res_success, const {{ lu.cpp_data_type }}&
+        res_message)
+        {
         spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }}): {}", msg);
         res_success = true;
         res_message = "Service processed successfully";
-    }
-    {%- endif %}
-    virtual void process_srv_{{interface.name}}(const {{ lookup.interfaces.msgs[interface.msgs].namespace }} &msg)
-    {
+        }
+        {#virtual void process_srv_{{interface.name}}(const {{ args.lookup.interfaces.msgs[interface.msgs].ros_data_type
+        }}
+        &msg)
+        {
         spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }}): {}", msg);
-    }
-    {%- if interface.msgs == "std_srvs/SetBool" %}
-    virtual void process_srv_{{interface.name}}(bool msg, bool& res_success, std::string& res_message)
-    {
+        }
+        {%- if interface.msgs == "std_srvs/SetBool" %}
+        virtual void process_srv_{{interface.name}}(bool msg, bool& res_success, std::string& res_message)
+        {
         spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }}): {}", msg);
         res_success = true;
         res_message = "Service processed successfully";
-    }
-    {%- elif interface.msgs == "std_srvs/Trigger" %}
-    virtual void process_srv_{{interface.name}}(bool& res_sucess, std::string& res_message)
-    {
+        }
+        {%- elif interface.msgs == "std_srvs/Trigger" %}
+        virtual void process_srv_{{interface.name}}(bool& res_sucess, std::string& res_message)
+        {
         spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }})");
         res_sucess = true;
         res_message = "Service processed successfully";
-    }
-    {%- elif interface.msgs == "std_srvs/Empty" %}
-    virtual void process_srv_{{interface.name}}()
-    {
+        }
+        {%- elif interface.msgs == "std_srvs/Empty" %}
+        virtual void process_srv_{{interface.name}}()
+        {
         spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name }} ({{ interface.msgs }})");
-    }
-    {%- else %}
-    // For other message types, implemetnation is required
-    // virtual void process_srv_{{interface.name}}({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &res);
-    {%- endif %}
-{%- endfor %}
-{%- endif %}
-{%- endif %}
+        }
+        {%- else %}
+        // For other message types, implemetnation is required
+        // virtual void process_srv_{{interface.name}}({{ interface.msgs.split('/')[0] }}::{{
+        interface.msgs.split('/')[1] }} &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}
+        &res);
+        {%- endif %} #}
+        {%- endif %}
+        {%- endfor %}
+        {%- endif %}
+        {%- endif %}
 
-    // === Action server callbacks ===
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-    {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
-    // {{ interface.description }}
-    virtual void process_act_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
-    {%- endfor %}
-{%- endif %}
-{%- endif %}
 
-};
-}
+        // === Action server callbacks ===
+        {%- if args.ros is defined %}
+        {%- if args.ros.interfaces is defined %}
+        {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+        // {{ interface.description }}
+        virtual void process_act_{{interface.name}}(const {{ interface.msgs.split('/')[0] }}::{{
+        interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
+        {%- endfor %}
+        {%- endif %}
+        {%- endif %}
+
+        };
+        }

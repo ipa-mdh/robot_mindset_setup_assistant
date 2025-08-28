@@ -1,82 +1,79 @@
-msgs: {
-  std_msgs/empty: {
-    include: std_msgs/empty,
-    namespace: std_msgs::Empty,
+msgs:
+  std_msgs/empty:
+    include: std_msgs/empty
+    ros_data_type: std_msgs::Empty
     cpp_data_type: ''
-  },
-  std_msgs/std/string: {
-    include: std_msgs/string,
-    namespace: std::String,
+  std_msgs/string:
+    include: std_msgs/string
+    ros_data_type: std_msgs::String
     cpp_data_type: std::string
-  },
-  std_msgs/std/byte: {
-    include: std_msgs/byte,
-    namespace: std::Byte,
+  std_msgs/byte:
+    include: std_msgs/byte
+    ros_data_type: std_msgs::Byte
     cpp_data_type: std::uint8_t
-  },
-  std_msgs/std/int8: {
-    include: std_msgs/int8,
-    namespace: std::Int8,
+  std_msgs/int8:
+    include: std_msgs/int8
+    ros_data_type: std_msgs::Int8
     cpp_data_type: std::int8_t
-  },
-  std_msgs/std/uint8: {
-    include: std_msgs/uint8,
-    namespace: std::UInt8,
+  std_msgs/uint8:
+    include: std_msgs/uint8
+    ros_data_type: std_msgs::UInt8
     cpp_data_type: std::uint8_t
-  },
-  std_msgs/std/int16: {
-    include: std_msgs/int16,
-    namespace: std::Int16,
+  std_msgs/int16:
+    include: std_msgs/int16
+    ros_data_type: std_msgs::Int16
     cpp_data_type: std::int16_t
-  },
-  std_msgs/std/uint16: {
-    include: std_msgs/uint16,
-    namespace: std::UInt16,
+  std_msgs/uint16:
+    include: std_msgs/uint16
+    ros_data_type: std_msgs::UInt16
     cpp_data_type: std::uint16_t
-  },
-  std_msgs/std/int32: {
-    include: std_msgs/int32,
-    namespace: std::Int32,
+  std_msgs/int32:
+    include: std_msgs/int32
+    ros_data_type: std_msgs::Int32
     cpp_data_type: std::int32_t
-  },
-  std_msgs/std/uint32: {
-    include: std_msgs/uint32,
-    namespace: std::UInt32,
+  std_msgs/uint32:
+    include: std_msgs/uint32
+    ros_data_type: std_msgs::UInt32
     cpp_data_type: std::uint32_t
-  },
-  std_msgs/std/int64: {
-    include: std_msgs/int64,
-    namespace: std::Int64,
+  std_msgs/int64:
+    include: std_msgs/int64
+    ros_data_type: std_msgs::Int64
     cpp_data_type: std::int64_t
-  },
-  std_msgs/std/uint64: {
-    include: std_msgs/uint64,
-    namespace: std::UInt64,
+  std_msgs/uint64:
+    include: std_msgs/uint64
+    ros_data_type: std_msgs::UInt64
     cpp_data_type: std::uint64_t
-  },
-  std_msgs/std/float32: {
-    include: std_msgs/float32,
-    namespace: std::Float32,
+  std_msgs/float32:
+    include: std_msgs/float32
+    ros_data_type: std_msgs::Float32
     cpp_data_type: float
-  },
-  std_msgs/std/float64: {
-    include: std_msgs/float64,
-    namespace: std::Float64,
+  std_msgs/float64:
+    include: std_msgs/float64
+    ros_data_type: std_msgs::Float64
     cpp_data_type: double
-  },
-  std_srvs/srv/empty: {
-    include: std_srvs/empty,
-    namespace: std_srvs::Empty,
+  std_srvs/srv/empty:
+    include: std_srvs/empty
+    ros_data_type: std_srvs::Empty
     cpp_data_type: ''
-  },
-  std_srvs/srv/set_bool: {
-    include: std_srvs/set_bool,
-    namespace: std_srvs::SetBool,
-    cpp_data_type: bool
-  },
-  std_srvs/srv/trigger: {
-    include: std_srvs/trigger,
-    namespace: std_srvs::Trigger,
-    cpp_data_type: ''
-  }
-}
+  std_srvs/srv/set_bool: 
+    include: std_srvs/srv/set_bool
+    ros_data_type: std_srvs::SetBool
+    cpp_data_type:
+      req: 
+        - name: data
+          type: bool
+      res:
+        - name: success
+          type: bool
+        - name: message
+          type: std::string
+  std_srvs/srv/trigger:
+    include: std_srvs/srv/trigger
+    ros_data_type: std_srvs::srv::Trigger
+    cpp_data_type: 
+      req: ''
+      res: 
+        - name: success
+          type: bool
+        - name: message
+          type: std::string

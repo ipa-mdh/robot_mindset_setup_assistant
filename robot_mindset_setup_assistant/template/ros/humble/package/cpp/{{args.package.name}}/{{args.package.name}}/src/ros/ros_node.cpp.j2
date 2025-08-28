@@ -51,10 +51,17 @@ void ROSNode::init_ros_interface_subscribers()
     // Initialize subscribers
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-    {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
-    sub_{{ interface.name }}_ =  nh_.subscribe("{{ interface.name }}", 10, &ROSNode::callback_sub_{{ interface.name }}_, this);
-    {%- endfor %}
+    sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ = this->create_subscription<{{ lu.ros_data_type }}>(
+        {{ interface.name|replace(' ', '_')|replace('-', '_') }}, 10,
+        std::bind(&ROSNode::callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_, this, _1));
+    {%- else %}
+    // {{ interface.name }}: Unknown topic interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{%- endfor %}
 {%- endif %}
 {%- endif %}
 
@@ -106,92 +113,25 @@ void ROSNode::init_ros_interface_action_clients()
 void ROSNode::init_logic_module()
 {
     // Initialize ROS interface
-    // Set external callbacks for interfaces
+    // Set external callbacks: publisher
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-    {% for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
-    // Set external callbacks for interfaces
-    {% if interface.msgs == "std_msgs/String" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](const std::string& msg) {
+{% for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    logic_module_.set_pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(
+        [this](const {{ lu.cpp_data_type }} &msg) {
         this->interface_pub_{{ interface.name }}_(msg);
         }
     );
-    {% elif interface.msgs == "std_msgs/Float64" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](double msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Float32" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](float msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Int32" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](int32_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Int64" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](int64_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/UInt32" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](uint32_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/UInt64" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](uint64_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Int8" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](int8_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/UInt8" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](uint8_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Bool" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](bool msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Byte" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this](uint8_t msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
-        }
-    );
-    {% elif interface.msgs == "std_msgs/Empty" %}
-    logic_module_.set_pub_callback_{{ interface.name }}(
-        [this]() {
-        this->interface_pub_{{ interface.name }}();
-        }
-    );
-    {% else %}
+{%- else %}
     // For other message types, implemetnation is required
-    // logic_module_.set_pub_callback_{{ interface.name }}(
-    //     [this](const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) {
-    //     this->interface_pub_{{ interface.name }}_(msg);
-    //      }
-    // );
-    {% endif %}
-    {% endfor %}
+    //   interface: {{ interface.name }}
+    //   ros_data_type: {{ lu.ros_data_type }}
+    //   cpp_data_type: {{ lu.cpp_data_type }}
+{%- endif %}
+{% endfor %}
 {%- endif %}
 {%- endif %}
 }
@@ -208,13 +148,13 @@ std::vector<RosParam> ROSNode::get_private_parameters()
     nh_private_.getParamNames(all_params);
 
     std::string node_ns = nh_private_.getNamespace();  // e.g., /my_ns/my_node
-    // RCLCPP_DEBUG_STREAM(this->nh_->get_logger(), "Private namespace: " << node_ns);
+    // RCLCPP_DEBUG_STREAM(this->get_logger(), "Private namespace: " << node_ns);
     for (const auto& param : all_params)
     {
-        // RCLCPP_DEBUG_STREAM(this->nh_->get_logger(), "param: " << param);
+        // RCLCPP_DEBUG_STREAM(this->get_logger(), "param: " << param);
         if (param.find(node_ns + "/") == 0)  // check if it's in the private scope
         {
-            // RCLCPP_DEBUG_STREAM(this->nh_->get_logger(), "Private param: " << param);
+            // RCLCPP_DEBUG_STREAM(this->get_logger(), "Private param: " << param);
             RosParam buffer;
             buffer.name = param;
             // Get the parameter value
@@ -234,7 +174,7 @@ std::vector<RosParam> ROSNode::get_private_parameters()
 bool ROSNode::set_private_parameter(const std::string& param_name, const std::string& param_value) {
     // Check if the parameter name is valid
     if (param_name.empty() || param_value.empty()) {
-        RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "Invalid parameter name or value");
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Invalid parameter name or value");
         return false;
     }
 
@@ -244,10 +184,10 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
     // Check if the parameter was set successfully
     std::string value;
     if (nh_private_.getParam(param_name, value)) {
-        RCLCPP_INFO_STREAM(this->nh_->get_logger(), "Private parameter set: " << param_name << " = " << value);
+        RCLCPP_INFO_STREAM(this->get_logger(), "Private parameter set: " << param_name << " = " << value);
         return true;
     } else {
-        RCLCPP_ERROR_STREAM(this->nh_->get_logger(), "Failed to set private parameter: " << param_name);
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to set private parameter: " << param_name);
         return false;
     }
 }
@@ -456,78 +396,21 @@ void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
-void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg)
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+void ROSNode::callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.ros_data_type }} &msg)
 {
-    {%- if interface.msgs == "std_msgs/String" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %s", msg->data.c_str());
-    {%- elif interface.msgs == "std_msgs/Float64" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %f", msg->data);
-    {%- elif interface.msgs == "std_msgs/Float32" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %f", msg->data);
-    {%- elif interface.msgs == "std_msgs/Int32" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %d", msg->data);
-    {%- elif interface.msgs == "std_msgs/Int64" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %ld", msg->data);
-    {%- elif interface.msgs == "std_msgs/UInt32" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %u", msg->data);
-    {%- elif interface.msgs == "std_msgs/UInt64" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %lu", msg->data);
-    {%- elif interface.msgs == "std_msgs/Int8" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %d", msg->data);
-    {%- elif interface.msgs == "std_msgs/UInt8" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %u", msg->data);
-    {%- elif interface.msgs == "std_msgs/Bool" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %s", msg->data ? "true" : "false");
-    {%- elif interface.msgs == "std_msgs/Byte" %}
-    ROS_DEBUG("Received on topic {{ interface.name }} : %u", msg->data);
-    {%- elif interface.msgs == "std_msgs/Empty" %}
-    ROS_DEBUG("Received on topic {{ interface.name }}");
-    {%- else %}
-    // For other message types, implemetnation is required
-    // ROS_DEBUG("Received on topic {{ interface.name }} : %s", msg->data.c_str());
-    {%- endif %}
+    RCLCPP_DEBUG_STREAM(this->get_logger(), "Received on topic {{ interface.name }}" << msg->data);
     // Process the message
-    {%- if interface.msgs == "std_msgs/String" %}
-    std::string data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Float64" %}
-    double data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Float32" %}
-    float data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Int32" %}
-    int32_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Int64" %}
-    int64_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/UInt32" %}
-    uint32_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/UInt64" %}
-    uint64_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Int8" %}
-    int8_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/UInt8" %}
-    uint8_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Bool" %}
-    bool data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Byte" %}
-    uint8_t data = msg->data;
-    logic_module_.process_sub_{{interface.name}}(data);
-    {%- elif interface.msgs == "std_msgs/Empty" %}
-    // No data to process
-    {%- else %}
-    // For other message types, implemetnation is required
-    // Message type: {{ interface.msgs }}
-    // logic_module_.process_sub_{{interface.name}}(msg);
-    {%- endif %}
+    {{ lu.cpp_data_type }} data = msg->data;
+    logic_module_.process_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(data);
 }
+{%- else %}
+// For other message types, implemetnation is required
+// Message type: {{ interface.msgs }}
+// logic_module_.process_sub_{{interface.name|replace(' ', '_')|replace('-', '_')}}(msg);
+{%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
@@ -536,40 +419,50 @@ void ROSNode::callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-bool ROSNode::callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res)
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+void ROSNode::callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const std::shared_ptr<{{ lu.ros_data_type }}::Request> req, std::shared_ptr<{{ lu.ros_data_type }}::Response> res)
 {
-    {%- if interface.msgs == "std_srvs/SetBool" %}
-    ROS_DEBUG("Received service {{ interface.name }} : %s", req.data ? "true" : "false");
+    RCLCPP_DEBUG_STREAM(this->get_logger(), "Received on topic {{ interface.name }}" << req->data);
+
+{%- for field in lu.cpp_data_type.req %}
+    {{ field.type }} req_{{ field.name }};
+{%- endfor %}
+{%- for field in lu.cpp_data_type.res %}
+    {{ field.type }} res_{{ field.name }};
+{%- endfor %}
+
+{%- if lu.cpp_data_type.req|length > 0 %}
+    // convert data to custom message
+{%- for field in lu.cpp_data_type.req %}
+    req_{{ field.name }} = req->{{ field.name }};
+{%- endfor %}
+{%- endif %}
+
     // Process the request
-    bool reg_data = req.data;
-    bool res_sucess;
-    std::string res_msg;
-    logic_module_.process_srv_{{interface.name}}(reg_data, res_sucess, res_msg);
-    res.success = res_sucess;
-    res.message = res_msg;
-    return  res_sucess;
-    {%- elif interface.msgs == "std_srvs/Trigger" %}
-    ROS_DEBUG("Received service {{ interface.name }}");
-    // Process the request
-    bool res_sucess;
-    std::string res_msg;
-    logic_module_.process_srv_{{interface.name}}(res_sucess, res_msg);
-    res.success = res_sucess;
-    res.message = res_msg;
-    return  res_sucess;
-    {%- elif interface.msgs == "std_srvs/Empty" %}
-    ROS_DEBUG("Received service {{ interface.name }}");
-    // Process the request
-    logic_module_.process_srv_{{interface.name}}();
-    // No response needed
-    return  true;
-    {%- else %}
-    // For other message types, implemetnation is required
-    // Message type: {{ interface.msgs }}
-    // ROS_DEBUG("Received service {{ interface.name }}");
-    return true;
-    {%- endif %}
+    logic_module_.process_srv_{{interface.name|replace(' ', '_')|replace('-', '_')}}(
+        {%- for req in lu.cpp_data_type.req %}
+        {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor %}
+        {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif %}
+        {%- for res in lu.cpp_data_type.res %}
+        {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+    );
+
+{%- if lu.cpp_data_type.res|length > 0 %}
+    // convert data to ros message
+{%- for field in lu.cpp_data_type.res %}
+    res->{{ field.name }} = res_{{ field.name }};
+{%- endfor %}
+{%- endif %}
 }
+{%- else %}
+// For other message types, implemetnation is required
+// Interface: {{ interface.name }}
+// Message type: {{ interface.msgs }}
+{%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}

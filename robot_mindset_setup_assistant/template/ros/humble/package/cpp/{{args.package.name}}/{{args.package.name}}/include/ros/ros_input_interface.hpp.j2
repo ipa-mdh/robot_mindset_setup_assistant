@@ -9,27 +9,32 @@
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.direction == "in" %}
-    {#- Check if the message type is already in the list #}
-    {%- if interface.msgs not in unique_msgs -%}
-        {#- If not, add it to the list #}
-        {%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
-    {%- endif -%}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
 
-    {#- Check if the interface is an action and set the flag #}
-    {%- if interface.type == "action" -%}
-        {%- set ns.add_actionlib = true -%}
-    {%- endif -%}
+{#- Check if the interface is an action and set the flag #}
+{%- if interface.type == "action" -%}
+{%- set ns.add_actionlib = true -%}
+{%- endif -%}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
 
 // Include message headers based on the Robot Mindset Setup Assistant configuration
 {%- if ns.add_actionlib %}
-#include <actionlib/client/simple_action_client.h>
+#include <rclcpp_action /rclcpp_action.hpp>
 {% endif %}
 
 {%- for msgs in unique_msgs|sort %}
-#include "{{ msgs }}.h"
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
 {%- endfor %}
 
 namespace {{args.package.name}} {
@@ -41,24 +46,38 @@ public:
 
 protected:
     /****************** Callback Functions ******************/
-    // Topic subscriber callbacks
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-    {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
-    virtual void callback_sub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::ConstPtr &msg) = 0;
-    {%- endfor %}
-  
-    // Service server callbacks
-    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-    virtual bool callback_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request &req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
-    {%- endfor %}
+    // === Topic subscriber callbacks ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    virtual void callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.ros_data_type }} & msg) = 0;
+    {%- else %}
+    // {{ interface.name }}: Unknown topic interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{% endfor %}
 
-    // Action server callbacks
-    {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
-    virtual void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
-    {%- endfor %}
+    // === Service server callbacks ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    virtual void callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const std::shared_ptr<{{ lu.ros_data_type }}::Request> req, std::shared_ptr<{{ lu.ros_data_type }}::Response> res) = 0;
+    {%- else %}
+    // {{ interface.name }}: Unknown service interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{% endfor %}
+
+    // === Action server callbacks ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    // virtual void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.ros_data_type }}::GoalConstPtr &goal) = 0;
+    {%- else %}
+    // {{ interface.name }}: Unknown action interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{% endfor %}
 {%- endif %}
 {%- endif %}
 };
-
 }
