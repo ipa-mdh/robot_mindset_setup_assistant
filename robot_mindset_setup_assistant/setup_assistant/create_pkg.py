@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import yaml
 from loguru import logger
+import copy
 
 from setup_assistant.load_config import get_config
 from setup_assistant.load_config import get_lookup_tables
@@ -12,34 +13,47 @@ from setup_assistant.package_versioning import GitFlowRepo
 from setup_assistant.dev_setup import apply as apply_dev_setup
 from setup_assistant.doxygen_awesome import apply as apply_doxygen_awesome
 
-CUSTOM_SECTION_START_MARKER="# JINJA-BEGIN:customer-section"
-CUSTOM_SECTION_END_MARKER="# JINJA-END:customer-section"
+CUSTOM_SECTION_START_MARKER="JINJA-BEGIN"
+CUSTOM_SECTION_END_MARKER="JINJA-END"
 
 def extract_custom_section(file_content,
-                           start_marker="# JINJA-BEGIN:customer-section",
-                           end_marker="# JINJA-END:customer-section"):
+                           start_marker=CUSTOM_SECTION_START_MARKER,
+                           end_marker=CUSTOM_SECTION_END_MARKER):
     """
     Extracts the section between markers (exclusive),
     and returns it with indentation added for all lines
     to match the indent of the marker line.
     """
     # Match entire block including markers (allow multiline)
-    pattern = re.compile(
-        rf"(^[ \t]*){re.escape(start_marker)}\n(.*?)\n^[ \t]*{re.escape(end_marker)}",
-        re.DOTALL | re.MULTILINE
-    )
-    match = pattern.search(file_content)
-    if match:
-        indent = match.group(1)
-        content = match.group(2)
-        return content
-    return None
+    # pattern = re.compile(
+    #     rf"(^[ \t]*){re.escape(start_marker)}(.*)\n(.*?)\n^[ \t]*{re.escape(end_marker)}",
+    #     re.DOTALL | re.MULTILINE
+    # )
+    # match = pattern.search(file_content)
+    # if match:
+    #     indent = match.group(1)
+    #     tag = match.group(2).strip()
+    #     content = match.group(3)
+    #     return {'indent': indent, 'tag': tag, 'content': content}
 
-def add_symbol_to_lines(text, symbol="#"):
-    """Prepends the given symbol to the beginning of each line in the input text."""
-    return '\n'.join(f"{symbol}{line}" for line in text.splitlines())
+    custom_section = []
+    sections = re.findall(rf'{re.escape(start_marker)}(.*?)^[ \t#]*{re.escape(end_marker)}', file_content, re.DOTALL | re.MULTILINE)
+    for section in sections:
+        match = re.match("^:([\w\-]+)(.*)", section, re.DOTALL | re.MULTILINE)
 
+        if match:
+            tag = match.group(1)
+            content = match.group(2)
+            logger.info(f"prcessing section tag: {tag}")
+            # logger.debug(content)
+            custom_section.append({'tag': tag, 'content': content})
+        else:
+            logger.error("Jinja marker detected without a tag. Allowed pattern: :[\w\-]+")
+            logger.info("Example marker with tag: JINJA-BEGIN:my-tag")
+            logger.error("Section without tag:")
+            logger.info(section)
 
+    return custom_section
 
 def insert_custom_section(generated_content,
                           custom_content,
@@ -49,27 +63,23 @@ def insert_custom_section(generated_content,
     Replace the section between start_marker and end_marker,
     preserving any leading whitespace before the markers.
     """
+    content = copy.deepcopy(generated_content)
+    for c in custom_content:
+        tag = c['tag']
+        new_content = c['content']
+        pattern = re.compile(
+            rf'{start_marker}:{tag}.*?(^[ \t#]*){end_marker}:{tag}',
+            re.DOTALL | re.MULTILINE
+        )
+        match = pattern.search(content)
+        if match:
+            indent_end_marker = match.group(1)
 
-    # Regex to capture leading whitespace before each marker and the content in between
-    pattern = re.compile(
-        rf"(^[ \t]*){re.escape(start_marker)}.*?^[ \t]*{re.escape(end_marker)}",
-        re.DOTALL | re.MULTILINE
-    )
+            content = pattern.sub(f'{start_marker}:{tag}{new_content}{indent_end_marker}{end_marker}:{tag}\n', content)
+        else:
+            logger.error(f"Tag ({tag}) could not be found.")
 
-    def replacer(match):
-        indent = match.group(1)  # capture leading whitespace (spaces or tabs)
-        # Compose new block with preserved indent before each line of block
-        new_block = f"{indent}{start_marker}\n"
-        new_block += custom_content + "\n"
-        new_block += f"{indent}{end_marker}"
-        return new_block
-
-    if pattern.search(generated_content):
-        return pattern.sub(replacer, generated_content)
-    else:
-        # If markers not found, append custom block without indent
-        new_block = f"{start_marker}\n{custom_content}\n{end_marker}"
-        return f"{generated_content}\n{new_block}"
+    return content
 
 def preserve_user_content(file_path: Path, new_rendered_output):
     """Preserve user content between custom section markers."""
@@ -82,8 +92,8 @@ def preserve_user_content(file_path: Path, new_rendered_output):
     # Extract custom section from previous output
     custom_section_content = extract_custom_section(file_content)
 
-    if custom_section_content:
-        logger.debug(f"Custom section content:\n{custom_section_content}")
+    # if custom_section_content:
+    #     logger.debug(f"Custom section content:\n{custom_section_content}")
 
     # Inject custom section back into the new generated content
     if custom_section_content:
