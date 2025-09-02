@@ -57,8 +57,12 @@ class GitFlowRepo:
     def start_feature(self, name):
         feature_branch = f"feature/{name}"
         logger.info(f"Starting feature: {feature_branch}")
-        self.repo.git.checkout(DEVELOP_BRANCH)
-        self.repo.git.checkout("-b", feature_branch)
+        if feature_branch in self.repo.branches:
+            logger.warning("The feature branch already exists. Switch to it.")
+            self.repo.git.checkout(feature_branch)
+        else:
+            self.repo.git.checkout(DEVELOP_BRANCH)
+            self.repo.git.checkout("-b", feature_branch)
         return feature_branch
 
     def finish_feature(self, name):
@@ -71,8 +75,12 @@ class GitFlowRepo:
     def start_release(self, version):
         release_branch = f"release/{version}"
         logger.info(f"Starting release: {release_branch}")
-        self.repo.git.checkout(DEVELOP_BRANCH)
-        self.repo.git.checkout("-b", release_branch)
+        if release_branch in self.repo.branches:
+            logger.warning("The realease branch already exists. Switch to it.")
+            self.repo.git.checkout(release_branch)
+        else:
+            self.repo.git.checkout(DEVELOP_BRANCH)
+            self.repo.git.checkout("-b", release_branch)
         return release_branch
 
     def finish_release(self, version):
@@ -88,8 +96,12 @@ class GitFlowRepo:
     def start_hotfix(self, name):
         hotfix_branch = f"hotfix/{name}"
         logger.info(f"Starting hotfix: {hotfix_branch}")
-        self.repo.git.checkout(MAIN_BRANCH)
-        self.repo.git.checkout("-b", hotfix_branch)
+        if hotfix_branch in self.repo.branches:
+            logger.warning("The hotfix branch already exists. Switch to it.")
+            self.repo.git.checkout(hotfix_branch)
+        else:
+            self.repo.git.checkout(MAIN_BRANCH)
+            self.repo.git.checkout("-b", hotfix_branch)
         return hotfix_branch
 
     def finish_hotfix(self, name):
@@ -117,16 +129,25 @@ class GitFlowRepo:
             
     def create_tag(self, tag_name, message=""):
         logger.info(f"Creating tag: {tag_name}")
-        self.repo.create_tag(tag_name, message=message)
+        if tag_name in self.repo.tags:
+            logger.warning("The tag already exists.")
+        else:
+            self.repo.create_tag(tag_name, message=message)
 
     def add_all_commit(self, message=""):
         logger.info(f"Committing all changes with message: {message}")
-        self.repo.git.add(['*'])
-        self.repo.index.commit(message)
+        if self.repo.is_dirty(untracked_files=True):
+            self.repo.git.add(['*'])
+            self.repo.index.commit(message)
+        else:
+            logger.warning("There is nothing to commit.")
         
     def stash(self):
         logger.info("Stashing changes")
-        run(["git", "stash", "--include-untracked"], cwd=self.repo_path)
+        if self.repo.is_dirty(untracked_files=True):
+            run(["git", "stash", "--include-untracked"], cwd=self.repo_path)
+        else:
+            logger.warning("Repo isn't dirty, so there's nothing to stash.")
 
     def decorator(func):
         """
