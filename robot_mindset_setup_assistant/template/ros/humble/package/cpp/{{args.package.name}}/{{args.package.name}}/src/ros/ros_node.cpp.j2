@@ -59,7 +59,7 @@ void ROSNode::init_ros_interface_subscribers()
         {{ interface.name|replace(' ', '_')|replace('-', '_') }}, 10,
         std::bind(&ROSNode::callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_, this, _1));
     {%- else %}
-    // {{ interface.name }}: Unknown topic interface.msgs: {{ interface.msgs }}
+    // {{ interface.name|replace(' ', '_')|replace('-', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
     {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -73,7 +73,8 @@ void ROSNode::init_ros_interface_publishers()
 {%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
-    pub_{{ interface.name }}_ =  nh_private_.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}", 10);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ =  nh_private_.advertise<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name|replace(' ', '_')|replace('-', '_') }}", 10);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
     {%- endfor %}
 {%- endif %}
 {%- endif %}
@@ -85,7 +86,7 @@ void ROSNode::init_ros_interface_services()
 {%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     // {{ interface.description }}
-    service_{{ interface.name }}_ =  nh_private_.advertiseService("{{ interface.name }}", &ROSNode::callback_srv_{{ interface.name }}_, this);
+    service_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ =  nh_private_.advertiseService("{{ interface.name|replace(' ', '_')|replace('-', '_') }}", &ROSNode::callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_, this);
     {%- endfor %}
 {%- endif %}
 {%- endif %}
@@ -97,7 +98,7 @@ void ROSNode::init_ros_interface_clients()
 {%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
-    client_{{ interface.name }}_ =  nh_.serviceClient<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name }}");
+    client_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ =  nh_.serviceClient<{{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}>("{{ interface.name|replace(' ', '_')|replace('-', '_') }}");
     {%- endfor %}
 {%- endif %}
 {%- endif %}
@@ -122,12 +123,12 @@ void ROSNode::init_logic_module()
                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     logic_module_.set_pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(
         [this](const {{ lu.cpp_data_type }} &msg) {
-        this->interface_pub_{{ interface.name }}_(msg);
+        this->interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(msg);
         }
     );
 {%- else %}
     // For other message types, implemetnation is required
-    //   interface: {{ interface.name }}
+    //   interface: {{ interface.name|replace(' ', '_')|replace('-', '_') }}
     //   ros_data_type: {{ lu.ros_data_type }}
     //   cpp_data_type: {{ lu.cpp_data_type }}
 {%- endif %}
@@ -200,118 +201,118 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
 // {{ interface.description }}
 {%- if interface.msgs == "std_msgs/String" %}
-void ROSNode::interface_pub_{{ interface.name }}_(const std::string &msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const std::string &msg)
 {
     // Create a String message
     std_msgs::String msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Float64" %}
-void ROSNode::interface_pub_{{ interface.name }}_(double msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(double msg)
 {
     // Create a Float64 message
     std_msgs::Float64 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Float32" %}
-void ROSNode::interface_pub_{{ interface.name }}_(float msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(float msg)
 {
     // Create a Float32 message
     std_msgs::Float32 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Int32" %}
-void ROSNode::interface_pub_{{ interface.name }}_(int32_t msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(int32_t msg)
 {
     // Create a Int32 message
     std_msgs::Int32 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Int64" %}
-void interface_pub_{{ interface.name }}_(int64_t msg)
+void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(int64_t msg)
 {
     // Create a Int64 message
     std_msgs::Int64 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/UInt32" %}
-void ROSNode::interface_pub_{{ interface.name }}_(uint32_t msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint32_t msg)
 {
     // Create a UInt32 message
     std_msgs::UInt32 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/UInt64" %}
-void ROSNode::interface_pub_{{ interface.name }}_(uint64_t msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint64_t msg)
 {
     // Create a UInt64 message
     std_msgs::UInt64 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Int8" %}
-void ROSNode::interface_pub_{{ interface.name }}_(int8_t msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(int8_t msg)
 {
     // Create a Int8 message
     std_msgs::Int8 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/UInt8" %} 
-void ROSNode::interface_pub_{{ interface.name }}_(uint8_t msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint8_t msg)
 {
     // Create a UInt8 message
     std_msgs::UInt8 msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Bool" %}
-void ROSNode::interface_pub_{{ interface.name }}_(bool msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool msg)
 {
     // Create a Bool message
     std_msgs::Bool msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Byte" %}
-void ROSNode::interface_pub_{{ interface.name }}_(uint8_t msg)
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint8_t msg)
 {
     // Create a Byte message
     std_msgs::Byte msg_out;
     msg_out.data = msg;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- elif interface.msgs == "std_msgs/Empty" %}
-void ROSNode::interface_pub_{{ interface.name }}_()
+void ROSNode::interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_()
 {
     // Create a Empty message
     std_msgs::Empty msg_out;
     // Publish the message
-    pub_{{ interface.name }}_.publish(msg_out);
+    pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg_out);
 }
 {%- else %}
 // For other message types, implemetnation is required
-// void interface_pub_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg)
+// void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg)
 // {
     // Publish the message
-    // pub_{{ interface.name }}_.publish(msg);
+    // pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.publish(msg);
 // }
 {%- endif %}
 {%- endfor %}
@@ -324,50 +325,50 @@ void ROSNode::interface_pub_{{ interface.name }}_()
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
 // {{ interface.description }}
 {%- if interface.msgs == "std_srvs/SetBool" %}
-bool ROSNode::interface_srv_{{ interface.name }}_(bool req, bool &res) {
+bool ROSNode::interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool req, bool &res) {
     // Create a SetBool message
     std_srvs::SetBool srv;
     srv.request.data = req;
     // Call the service
-    if (client_{{ interface.name }}_.call(srv)) {
+    if (client_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.call(srv)) {
         res = srv.response.success;
         return true;
     } else {
-        ROS_ERROR("Failed to call service {{ interface.name }}");
+        ROS_ERROR("Failed to call service {{ interface.name|replace(' ', '_')|replace('-', '_') }}");
         return false;
     }
 }
 {%- elif interface.msgs == "std_srvs/Trigger" %}
-bool ROSNode::interface_srv_{{ interface.name }}_(bool req, bool &res)
+bool ROSNode::interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool req, bool &res)
 {
     // Create a Trigger message
     std_srvs::Trigger srv;
     srv.request.data = req;
     // Call the service
-    if (client_{{ interface.name }}_.call(srv)) {
+    if (client_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.call(srv)) {
         res = srv.response.success;
         return true;
     } else {
-        ROS_ERROR("Failed to call service {{ interface.name }}");
+        ROS_ERROR("Failed to call service {{ interface.name|replace(' ', '_')|replace('-', '_') }}");
         return false;
     }
 }
 {%- elif interface.msgs == "std_srvs/Empty" %}
-bool ROSNode::interface_srv_{{ interface.name }}_()
+bool ROSNode::interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_()
 {
     // Create a Empty message
     std_srvs::Empty srv;
     // Call the service
-    if (client_{{ interface.name }}_.call(srv)) {
+    if (client_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_.call(srv)) {
         return true;
     } else {
-        ROS_ERROR("Failed to call service {{ interface.name }}");
+        ROS_ERROR("Failed to call service {{ interface.name|replace(' ', '_')|replace('-', '_') }}");
         return false;
     }
 }
 {%- else %}
 // For other message types, implemetnation is required
-//bool interface_srv_{{ interface.name }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
+//bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_({{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Response &res) override;
 {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -377,14 +378,14 @@ bool ROSNode::interface_srv_{{ interface.name }}_()
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
+void ROSNode::callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
 {
     // Create a new goal
     {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Goal goal_out;
     // Set the goal
     goal_out = *goal;
     // Process the goal
-    logic_module_.process_act_{{interface.name}}(goal_out);
+    logic_module_.process_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(goal_out);
 }
 {%- endfor %}
 {%- endif %}
@@ -401,7 +402,7 @@ void ROSNode::callback_act_{{ interface.name }}_(const {{ interface.msgs.split('
                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
 void ROSNode::callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.ros_data_type }} &msg)
 {
-    RCLCPP_DEBUG_STREAM(this->get_logger(), "Received on topic {{ interface.name }}" << msg->data);
+    RCLCPP_DEBUG_STREAM(this->get_logger(), "Received on topic {{ interface.name|replace(' ', '_')|replace('-', '_') }}" << msg->data);
     // Process the message
     {{ lu.cpp_data_type }} data = msg->data;
     logic_module_.process_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(data);
@@ -424,7 +425,7 @@ void ROSNode::callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_')
                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
 void ROSNode::callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const std::shared_ptr<{{ lu.ros_data_type }}::Request> req, std::shared_ptr<{{ lu.ros_data_type }}::Response> res)
 {
-    RCLCPP_DEBUG_STREAM(this->get_logger(), "Received on topic {{ interface.name }}" << req->data);
+    RCLCPP_DEBUG_STREAM(this->get_logger(), "Received on topic {{ interface.name|replace(' ', '_')|replace('-', '_') }}" << req->data);
 
 {%- for field in lu.cpp_data_type.req %}
     {{ field.type }} req_{{ field.name }};
@@ -460,7 +461,7 @@ void ROSNode::callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_')
 }
 {%- else %}
 // For other message types, implemetnation is required
-// Interface: {{ interface.name }}
+// Interface: {{ interface.name|replace(' ', '_')|replace('-', '_') }}
 // Message type: {{ interface.msgs }}
 {%- endif %}
 {%- endfor %}
@@ -471,10 +472,10 @@ void ROSNode::callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_')
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
-void callback_act_{{ interface.name }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
+void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
 {
     // Process the goal
-    // logic_module_.process_act_{{interface.name}}(goal);
+    // logic_module_.process_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(goal);
 }
 {%- endfor %}
 {%- endif %}

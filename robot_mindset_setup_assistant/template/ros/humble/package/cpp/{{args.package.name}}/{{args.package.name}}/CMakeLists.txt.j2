@@ -12,15 +12,17 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
 {%- if args.package %}
 {%- if args.package.dependencies %}
 {%- if args.package.dependencies.packages %}
-# additional package dependencies
-{%- for dep in args.package.dependencies.packages %}
+  {%- for dep in args.package.dependencies.packages %}
 {{ dep.name }}
-{%- endfor %}
+  {%- endfor %}
 {%- endif %}
 {%- endif %}
 {%- endif %}
@@ -48,6 +50,16 @@ target_include_directories(${NODE} PUBLIC
   $<INSTALL_INTERFACE:include>)
 
 ament_target_dependencies(${NODE} ${THIS_PACKAGE_INCLUDE_DEPENDS})
+
+target_link_libraries(${NODE}
+{%- if args.package.dependencies.packages  %}
+  {%- for dep in args.package.dependencies.packages %}
+    {%- if dep.target_link is defined %}
+  {{ dep.target_link }}
+    {%- endif %}
+  {%- endfor %}
+{%- endif %}
+)
 
 #############
 ## Install ##
