@@ -45,6 +45,7 @@ package:
       - name: std_srvs
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
+      - name: fmt
 
 # ============================ serve ============================
 # List of packages to be launched. The instance
@@ -105,7 +106,7 @@ multi_serve:
 # ========================================================================
 ros:
   interfaces:
-    - name: interface_topic_string_in
+    - name: interface topic-string_in
       direction: in
       msgs: std_msgs/msg/string
       type: topic
