@@ -17,7 +17,7 @@ protected:
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
-    cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     // {{ interface.description }}
     virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.cpp_data_type }}
     &msg) = 0;
@@ -35,7 +35,7 @@ protected:
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
-    cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     // {{ interface.description }}
     virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(
     {%- for req in lu.cpp_data_type.req -%}
