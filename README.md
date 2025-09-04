@@ -185,6 +185,46 @@ While docstring conventions are not enforced yet, the following are recommended:
 - [ ] Multi-stage Docker build optimization
 - [ ] Custom interface template injection
 
+<Details>
+
+Current state of the generated files with ROS2 support
+- ROS2 Interfaces
+  - Topics 
+    - Header 
+      - [ ] Ros_node.hpp 
+      - [ ] Ros_input_interface.hpp 
+      - [ ] Ros_output_interface.hpp 
+      - [ ] Package_name.hpp 
+      - [ ] Package_name_output_interface.hpp 
+      - [ ] Package_name_input_interface.h 
+    - Cpp 
+      - [ ] Ros_node.cpp 
+      - [ ] Package_name.cpp 
+  - Serivce 
+    - Header 
+      - [ ] Ros_node.hpp 
+      - [ ] Ros_input_interface.hpp 
+      - [ ] Ros_output_interface.hpp 
+      - [ ] Package_name.hpp 
+      - [ ] Package_name_output_interface.hpp 
+      - [ ] Package_name_input_interface.h 
+    - Cpp 
+      - [ ] Ros_node.cpp 
+      - [ ] Package_name.cpp 
+    - Actions 
+      - Header 
+        - [ ] Ros_node.hpp 
+        - [ ] Ros_input_interface.hpp 
+        - [ ] Ros_output_interface.hpp 
+        - [ ] Package_name.hpp 
+        - [ ] Package_name_output_interface.hpp 
+        - [ ] Package_name_input_interface.h 
+      - Cpp 
+        - [ ] Ros_node.cpp 
+        - [ ] Package_name.cpp
+
+</Details>
+
 ---
 
 ## 📥 Installation & Usage
