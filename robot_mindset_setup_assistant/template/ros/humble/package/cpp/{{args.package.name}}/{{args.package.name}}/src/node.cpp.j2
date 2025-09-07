@@ -5,25 +5,9 @@ int main(int argc, char** argv)
 {
     spdlog::set_level(spdlog::level::info); 
 
-    //ros::init(argc, argv, "{{ args.package.name }}_node");
     rclcpp::init(argc, argv);
-    {{args.package.name}}::ROSNode node("{{ args.package.name }}_node");
 
-    //// Get private parameters
-    //std::vector<{{args.package.name}}::RosParam> params = node.get_private_parameters();
-    //
-    //for (const auto& param : params)
-    //{
-    //    RCLCPP_INFO_STREAM(node.nh_->get_logger(), "Private parameter: " << param.name << " = " << param.value);
-    //}
-    //{{args.package.name}}::LogicModule logic;
-    //
-    //std::string message = logic.greet("ROS User");
-    //// std::string message = "Hello, ROS User!";
-    //RCLCPP_INFO_STREAM(this->nh_->get_logger(), message);
-    //logic.spdlog_test(12.3456789);
-
-    rclcpp::spin(node.nh_);
+    rclcpp::spin(std::make_shared<ROSNode>("{{ args.package.name }}_node"));
     rclcpp::shutdown();
 
     return 0;

@@ -4,10 +4,10 @@ namespace {{ args.package.name }}
 {
 
 /****************** Constructor & Destructor ******************/
-ROSNode::ROSNode(string node_name)
+ROSNode::ROSNode(string node_name) : Node(node_name)
 {
     // Initialize the node
-    init(node_name);
+    init();
     init_ros_interface_subscribers();
     init_ros_interface_publishers();
     init_ros_interface_services();
@@ -23,11 +23,8 @@ ROSNode::~ROSNode()
 }
 
 /****************** Initialization Functions ******************/
-void ROSNode::init(string node_name)
+void ROSNode::init()
 {
-    // Initialize node handles
-    this->nh_ = std::make_shared<rclcpp::Node>(node_name);
-
     // Initialize private parameters
     std::vector<RosParam> params = get_private_parameters();
 

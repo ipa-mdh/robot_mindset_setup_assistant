@@ -2,41 +2,38 @@
 
 #include <string>
 
-    namespace {{ args.package.name }} {
+namespace {{ args.package.name }} {
 
-    // Interface for the outbound direction (sending messages)
-    class RosOutputInterface {
-    public:
+// Interface for the outbound direction (sending messages)
+class RosOutputInterface {
+public:
     virtual ~RosOutputInterface() = default;
 
-    protected:
+protected:
     /****************** Interface Functions ******************/
     // === Topic publisher ===
-    {%- if args.ros is defined %}
-    {%- if args.ros.interfaces is defined %}
-    {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-    {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
-    cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     // {{ interface.description }}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.cpp_data_type }}
-    &msg) = 0;
+    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.cpp_data_type }} &msg) = 0;
     {%- else %}
-    // Implementation is required: virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_')
-    }}_(const {{ interface.msgs }} &msg) =
-    0;
+    // Implementation is required: virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs }} &msg) = 0;
     {%- endif %}
-    {%- endfor %}
-    {%- endif %}
-    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Service call ===
-    {%- if args.ros is defined %}
-    {%- if args.ros.interfaces is defined %}
-    {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-    {%- set lu = namespace(namespace = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
-    cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     // {{ interface.description }}
     virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(
     {%- for req in lu.cpp_data_type.req -%}
@@ -50,18 +47,18 @@
     {%- else %}
     // {{ interface.name|replace(' ', '_')|replace('-', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
     {%- endif %}
-    {% endfor %}
-    {%- endif %}
-    {%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 
     // === Action server callbacks ===
-    {%- if args.ros is defined %}
-    {%- if args.ros.interfaces is defined %}
-    {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-    virtual void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{
-    interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
-    {%- endfor %}
-    {%- endif %}
-    {%- endif %}
-    };
-    }
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    virtual void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+};
+
+} // namespace {{ args.package.name }}
