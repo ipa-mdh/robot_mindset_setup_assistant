@@ -44,7 +44,7 @@ def extract_custom_section(file_content,
         if match:
             tag = match.group(1)
             content = match.group(2)
-            logger.info(f"prcessing section tag: {tag}")
+            logger.info(f"processing section tag: {tag}")
             # logger.debug(content)
             custom_section.append({'tag': tag, 'content': content})
         else:

@@ -144,8 +144,10 @@ def generate_custom_launch_description(context, *args, **kwargs):
 
     # =======================================================================================
     #      Place your package-related launch actions
-    #      between “JINJA-BEGIN:customer-section” 
-    #          and “JINJA-END:customer-section”.
+    #      between
+    # JINJA-BEGIN:tag
+    #          and
+    # JINJA-END:tag
     # =======================================================================================
     #   The instance configuration folder can be accessed via:
     #     logger.info("Instance config folder: {instance_config_folder / <instance_name>}")
