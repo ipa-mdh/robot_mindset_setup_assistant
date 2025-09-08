@@ -106,7 +106,7 @@ multi_serve:
 # ========================================================================
 ros:
   interfaces:
-    - name: interface topic-string_in
+    - name: interface/topic-string_in
       direction: in
       msgs: std_msgs/msg/string
       type: topic
@@ -116,18 +116,18 @@ ros:
       msgs: std_msgs/msg/string
       type: topic
       description: A string interface.
-    - name: test_empty
-      direction: in
-      msgs: std_srvs/srv/empty
-      type: service
-      description: A service interface.
+    # - name: test_empty
+    #   direction: out
+    #   msgs: std_srvs/srv/empty
+    #   type: service
+    #   description: A service interface.
     - name: set_controller_state
-      direction: in
+      direction: out
       msgs: std_srvs/srv/set_bool
       type: service
       description: A service interface.
     - name: get_controller_state
-      direction: out
+      direction: in
       msgs: std_srvs/srv/set_bool
       type: service
       description: A service interface.

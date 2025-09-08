@@ -17,15 +17,19 @@ public:
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    void set_pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(const std::function<void(const {{ lu.cpp_data_type }}&)> callback)
+    void set_pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const std::function<void(
+        {%- for field in lu.cpp_data_type -%}
+        const {{ field.type }}&{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+    )> callback)
     {
-        pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ = callback;
+        pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
     }
     {%- else %}
     // For other message types, implemetnation is required
-    // void set_pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(const std::function<void( <corresponding-cpp-data-type>)> callback)
+    // void set_pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const std::function<void( <corresponding-cpp-data-type>)> callback)
     // {
-    //   pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_ = callback;
+    //   pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
     // }
     {%- endif %}
 {%- endfor %}
@@ -41,7 +45,11 @@ protected:
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}    
-    std::function<void(const {{ lu.cpp_data_type }}&)> pub_callback_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_;
+    std::function<void(
+    {%- for field in lu.cpp_data_type -%}
+        const {{ field.type }}&{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+        )> pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
     
     {%- else %}
 // For other message types, implemetnation is required

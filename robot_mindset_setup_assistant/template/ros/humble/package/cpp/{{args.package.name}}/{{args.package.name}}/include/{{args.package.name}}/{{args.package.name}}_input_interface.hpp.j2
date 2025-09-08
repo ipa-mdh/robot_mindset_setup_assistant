@@ -2,7 +2,7 @@
 
 #include <string>
 #include <spdlog/spdlog.h>
-#include "rosidl_generator_traits/traits.hpp"
+// #include "rosidl_generator_traits/traits.hpp"
 
 namespace {{ args.package.name }} 
 {
@@ -21,18 +21,23 @@ public:
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                         cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    virtual void process_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(const {{ lu.ros_data_type }} &msg)
+    virtual void process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }} &msg_{{ field.name }}{%if not loop.last %}, {% endif %}
+    {%- endfor %})
     {
-        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name|replace(' ', '_')|replace('-', '_') }}: {}", rosidl_generator_traits::to_yaml(msg));
+        {%- for field in lu.cpp_data_type %}
+        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: {{ field.name }}: {}", msg_{{ field.name }});
+        {%- endfor %}
     }
 {%- else %}
     // For other message types, implementation is required
     // interface:
-    // - name: {{ interface.name|replace(' ', '_')|replace('-', '_') }}
+    // - name: {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
     // - msgs: {{ interface.msgs }}
-    // virtual void process_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(const {{ interface.msgs }} &msg)
+    // virtual void process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ interface.msgs }} &msg)
     // {
-    // spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name|replace(' ', '_')|replace('-', '_') }}: {}", rosidl_generator_traits::to_yaml(msg));
+    //     spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: {{ field.name }}: {}", msg_{{ field.name }});
     // }
 {%- endif %}
 {%- endfor %}
@@ -43,19 +48,26 @@ public:
     // === Service call ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
-                        cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    virtual void process_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(bool msg, bool& res_success, const {{ lu.cpp_data_type }}& res_message)
+                       cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    virtual void process_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for field in lu.cpp_data_type.req %}
+        const {{ field.type }} &req_{{ field.name }}{%- if not loop.last or lu.cpp_data_type.res|length > 0 %}, {% endif %}
+    {%- endfor %}
+    {%- for field in lu.cpp_data_type.res %}
+        {{ field.type }} &res_{{ field.name }}{%- if not loop.last %}, {% endif %}
+    {%- endfor %})
     {
-        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name|replace(' ', '_')|replace('-', '_') }} ({{ interface.msgs }}): {}", rosidl_generator_traits::to_yaml(msg));
-        res_success = true;
-        res_message = "Service processed successfully";
+        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}:");
+        {%- for field in lu.cpp_data_type.req %}
+        spdlog::debug(" {{ field.name }}: {}", req_{{ field.name }});
+        {%- endfor %}
     }
 {%- endif %}
-{%- endfor %}
+{% endfor %}
 {%- endif %}
 {%- endif %}
 
@@ -65,10 +77,11 @@ public:
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     // {{ interface.description }}
-    virtual void process_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}(const {{ interface.msgs.split('/')[0] }}::{{interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
+    virtual void process_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ interface.msgs.split('/')[0] }}::{{interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
 
 };
-}
+
+} // namespace {{ args.package.name }}

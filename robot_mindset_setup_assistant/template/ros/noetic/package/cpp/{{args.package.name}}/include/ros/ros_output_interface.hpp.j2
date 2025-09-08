@@ -17,32 +17,32 @@
     {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_msgs/String" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const std::string &msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const std::string &msg) = 0;
     {%- elif interface.msgs == "std_msgs/Float64" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(double msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(double msg) = 0;
     {%- elif interface.msgs == "std_msgs/Float32" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(float msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(float msg) = 0;
     {%- elif interface.msgs == "std_msgs/Int32" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(int32_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(int32_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/Int64" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(int64_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(int64_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/UInt32" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint32_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(uint32_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/UInt64" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint64_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(uint64_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/Int8" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(int8_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(int8_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/UInt8" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint8_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(uint8_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/Bool" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(bool msg) = 0;
     {%- elif interface.msgs == "std_msgs/Byte" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(uint8_t msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(uint8_t msg) = 0;
     {%- elif interface.msgs == "std_msgs/Empty" %}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_() = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_() = 0;
     {%- else %}
     // For other message types, implemetnation is required
-    // virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{
+    // virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{
     interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }} &msg) = 0;
     {%- endif %}
     {%- endfor %}
@@ -55,16 +55,16 @@
     {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     // {{ interface.description }}
     {%- if interface.msgs == "std_srvs/SetBool" %}
-    virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool req, bool &res) = 0;
+    virtual bool interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(bool req, bool &res) = 0;
     {%- elif interface.msgs == "std_srvs/Trigger" %}
-    virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool req, bool &res) = 0;
+    virtual bool interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(bool req, bool &res) = 0;
     {%- elif interface.msgs == "std_srvs/Empty" %}
-    virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_() = 0;
+    virtual bool interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_() = 0;
     {%- elif interface.msgs == "std_srvs/SetBool" %}
-    virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(bool req, bool &res) = 0;
+    virtual bool interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(bool req, bool &res) = 0;
     {%- else %}
     // For other message types, implemetnation is required
-    //virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_({{
+    //virtual bool interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_({{
     interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Request req, {{ interface.msgs.split('/')[0]
     }}::{{ interface.msgs.split('/')[1] }}::Response &res) = 0;
     {%- endif %}
@@ -76,7 +76,7 @@
     {%- if args.ros is defined %}
     {%- if args.ros.interfaces is defined %}
     {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-    virtual void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{
+    virtual void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{
     interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
     {%- endfor %}
     {%- endif %}

@@ -52,9 +52,9 @@ protected:
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-    virtual void callback_sub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.ros_data_type }} & msg) = 0;
+    virtual void callback_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ lu.ros_data_type }} & msg) = 0;
     {%- else %}
-    // {{ interface.name|replace(' ', '_')|replace('-', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
     {%- endif %}
 {% endfor %}
 
@@ -62,9 +62,9 @@ protected:
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-    virtual void callback_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const std::shared_ptr<{{ lu.ros_data_type }}::Request> req, std::shared_ptr<{{ lu.ros_data_type }}::Response> res) = 0;
+    virtual void callback_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const std::shared_ptr<{{ lu.ros_data_type }}::Request> req, std::shared_ptr<{{ lu.ros_data_type }}::Response> res) = 0;
     {%- else %}
-    // {{ interface.name|replace(' ', '_')|replace('-', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
 {%- endif %}
 {% endfor %}
 
@@ -72,9 +72,9 @@ protected:
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-    // virtual void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.ros_data_type }}::GoalConstPtr &goal) = 0;
+    // virtual void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ lu.ros_data_type }}::GoalConstPtr &goal) = 0;
     {%- else %}
-    // {{ interface.name|replace(' ', '_')|replace('-', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
     {%- endif %}
 {% endfor %}
 {%- endif %}

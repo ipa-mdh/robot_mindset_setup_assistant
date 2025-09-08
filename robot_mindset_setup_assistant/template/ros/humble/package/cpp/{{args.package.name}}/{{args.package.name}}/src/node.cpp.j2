@@ -1,13 +1,15 @@
 #include "ros/ros_node.hpp"
 #include "{{args.package.name}}/{{args.package.name}}.hpp"
 
+using namespace {{args.package.name}};
+
 int main(int argc, char** argv)
 {
     spdlog::set_level(spdlog::level::info); 
 
     rclcpp::init(argc, argv);
 
-    rclcpp::spin(std::make_shared<ROSNode>("{{ args.package.name }}_node"));
+    rclcpp::spin(std::make_shared<ROSNode>());
     rclcpp::shutdown();
 
     return 0;

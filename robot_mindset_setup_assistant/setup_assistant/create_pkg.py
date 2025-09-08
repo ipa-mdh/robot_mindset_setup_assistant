@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader, Template
 from pathlib import Path
 import shutil
 import yaml
@@ -15,6 +15,9 @@ from setup_assistant.doxygen_awesome import apply as apply_doxygen_awesome
 
 CUSTOM_SECTION_START_MARKER="JINJA-BEGIN"
 CUSTOM_SECTION_END_MARKER="JINJA-END"
+
+def regex_replace(value, pattern, replacement):
+    return re.sub(pattern, replacement, value)
 
 def extract_custom_section(file_content,
                            start_marker=CUSTOM_SECTION_START_MARKER,
@@ -126,9 +129,19 @@ def render_template_folder(template_root: Path, destination_root: Path, context:
             dest_path.mkdir(parents=True, exist_ok=True)
             
         elif file.suffix == ".j2":
-            with open(file) as f:
-                template = Template(f.read())
-                rendered = template.render(args=context)
+            # with open(file) as f:
+            #     template = Template(f.read())
+            #     rendered = template.render(args=context)
+
+            env = Environment(loader=FileSystemLoader(file.parent))
+            # env = Environment()
+            # Register the regex_replace filter
+            env.filters['regex_replace'] = regex_replace
+            # Load the template by filename (e.g., 'template.jinja2')
+            template = env.get_template(file.name)
+            # Render the template with your context
+            rendered = template.render(args=context)
+
             dest_path = dest_path.with_suffix("")  # Remove .j2 extension
             rendered = preserve_user_content(dest_path, rendered)
             # create parent directories if they don't exist

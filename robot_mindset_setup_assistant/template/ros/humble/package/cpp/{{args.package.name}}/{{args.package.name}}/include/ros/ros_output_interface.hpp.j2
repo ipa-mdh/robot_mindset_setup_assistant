@@ -19,9 +19,12 @@ protected:
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     // {{ interface.description }}
-    virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ lu.cpp_data_type }} &msg) = 0;
+    virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }} &msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}) = 0;
     {%- else %}
-    // Implementation is required: virtual void interface_pub_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs }} &msg) = 0;
+    // Implementation is required: virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ interface.msgs }} &msg) = 0;
     {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -35,17 +38,17 @@ protected:
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     // {{ interface.description }}
-    virtual bool interface_srv_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(
-    {%- for req in lu.cpp_data_type.req -%}
-    {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif -%}
-    {%- endfor -%}
+    virtual bool interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    {%- for req in lu.cpp_data_type.req %}
+        {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
     {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif -%}
-    {%- for res in lu.cpp_data_type.res -%}
-    {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif -%}
+    {%- for res in lu.cpp_data_type.res %}
+        {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
     {%- endfor -%}
     ) = 0;
     {%- else %}
-    // {{ interface.name|replace(' ', '_')|replace('-', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
     {%- endif %}
 {% endfor %}
 {%- endif %}
@@ -55,7 +58,7 @@ protected:
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-    virtual void callback_act_{{ interface.name|replace(' ', '_')|replace('-', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
+    virtual void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
 {%- endfor %}
 {%- endif %}
 {%- endif %}
