@@ -1,6 +1,7 @@
 #include "{{args.package.name}}/{{args.package.name}}.hpp"
 
-namespace {{args.package.name}} {
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+{
 
 LogicModule::LogicModule() {}
 

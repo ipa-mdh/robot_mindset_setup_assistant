@@ -10,7 +10,7 @@
 # as context, and the result is parsed again into the final YAML structure.
 
 package:
-  name: robot_mindset_joint_state_publisher
+  name: test_humble_cpp_pkg
   description: A package to examine the test_pgk.
   version: "0.0.1"
   maintainer: Robot Mindset

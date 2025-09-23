@@ -1,7 +1,7 @@
 #include "ros/ros_node.hpp"
 #include "{{args.package.name}}/{{args.package.name}}.hpp"
 
-using namespace {{args.package.name}};
+using namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }};
 
 int main(int argc, char** argv)
 {

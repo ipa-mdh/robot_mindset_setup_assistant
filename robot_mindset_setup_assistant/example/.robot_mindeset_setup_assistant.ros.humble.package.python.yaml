@@ -10,7 +10,7 @@
 # as context, and the result is parsed again into the final YAML structure.
 
 package:
-  name: robot_mindset_joint_state_publisher
+  name: test_humble_python_pkg
   description: A package to examine the test_pgk.
   version: "0.0.1"
   maintainer: Robot Mindset
@@ -30,7 +30,7 @@ package:
     # ROS 2 dependencies (target: package.xml)
     ros:
       - joint_state_publisher
-      - rclcpp
+      - rclpy
       - std_msgs
       - std_srvs
     # repositories to be cloned into the workspace via vcs tool (target: .rosinstall)
@@ -40,12 +40,9 @@ package:
       #   version: main
     # CMakeLists.txt modifications
     packages: 
-      - name: rclcpp
+      - name: rclpy
       - name: std_msgs
       - name: std_srvs
-      - name: spdlog # https://github.com/gabime/spdlog
-        target_link: spdlog::spdlog
-      - name: fmt
 
 # ============================ serve ============================
 # List of packages to be launched. The instance

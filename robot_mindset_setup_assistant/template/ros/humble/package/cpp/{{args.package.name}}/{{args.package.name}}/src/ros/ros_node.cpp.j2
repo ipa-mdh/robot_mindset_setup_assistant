@@ -1,6 +1,6 @@
 #include "ros/ros_node.hpp"
 
-namespace {{ args.package.name }}
+namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}
 {
 
 /****************** Constructor & Destructor ******************/

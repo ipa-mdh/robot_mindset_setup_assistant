@@ -138,6 +138,8 @@ class ROSNode(Node):
             {{ cls }},
             '{{ interface.name }}',
         )
+        while not self._client_{{ identifier }}.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Service %s not available, waiting again...', '{{ interface.name }}')
         logger.debug('Created service client for %s', '{{ interface.name }}')
 {%- else %}
         logger.warning('Interface %s not in lookup table, skipping service client', '{{ interface.name }}')
@@ -151,6 +153,12 @@ class ROSNode(Node):
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
         self.logic_module.set_pub_callback_{{ identifier }}(self._interface_pub_{{ identifier }})
+{%- endif %}
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self.logic_module.set_srv_client_{{ identifier }}(self._interface_srv_{{ identifier }})
 {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -173,7 +181,8 @@ class ROSNode(Node):
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
     def _callback_srv_{{ identifier }}(self, request: Any, response: Any) -> Any:
         logger.debug('Forwarding service call %s to logic module', '{{ interface.name }}')
-        return self.logic_module.process_srv_{{ identifier }}(request, response)
+        result = self.logic_module.process_srv_{{ identifier }}(request, response)
+        return result if result is not None else response
 
 {%- endif %}
 {%- endfor %}
@@ -199,6 +208,30 @@ class ROSNode(Node):
 {%- endif %}
         self._pub_{{ identifier }}.publish(message)
         logger.debug('Published message on %s', '{{ interface.name }}')
+
+{%- endif %}
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def _interface_srv_{{ identifier }}(self, **payload: Any):
+        if self._client_{{ identifier }} is None:
+            logger.error('Service client for %s not initialised', '{{ interface.name }}')
+            return None
+        request = {{ cls }}.Request()
+{%- for field in lu.cpp_data_type.req %}
+        if '{{ field.name }}' in payload:
+            setattr(request, '{{ field.name }}', payload['{{ field.name }}'])
+        else:
+            logger.debug('Missing field %s for service %s, using default', '{{ field.name }}', '{{ interface.name }}')
+{%- endfor %}
+        future = self._client_{{ identifier }}.call_async(request)
+        logger.debug('Dispatched async request on %s', '{{ interface.name }}')
+        return future
 
 {%- endif %}
 {%- endfor %}

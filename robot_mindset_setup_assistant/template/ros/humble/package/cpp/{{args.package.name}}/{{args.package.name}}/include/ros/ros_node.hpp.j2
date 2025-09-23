@@ -202,7 +202,7 @@ private:
   // === Service call ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
   {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
   {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
   // {{ interface.description }}
@@ -216,7 +216,7 @@ private:
   {%- for res in lu.cpp_data_type.res %}
   {{ indent }}{{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
   {%- endfor -%}
-  );
+  ) override;
   {%- else %}
   // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
   {%- endif %}

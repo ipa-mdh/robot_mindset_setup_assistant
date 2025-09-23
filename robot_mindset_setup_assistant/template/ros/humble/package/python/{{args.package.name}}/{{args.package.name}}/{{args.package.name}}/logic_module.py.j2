@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Awaitable
 
 from loguru import logger
 
@@ -17,6 +17,10 @@ class LogicModule:
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
         self._pub_callback_{{ identifier }}: Optional[Callable[..., None]] = None
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._srv_client_call_{{ identifier }}: Optional[Callable[..., Awaitable[Any]]] = None
 {%- endfor %}
 {%- endif %}
 
@@ -89,6 +93,20 @@ class LogicModule:
             logger.warning("No publisher callback registered for {{ interface.name }}")
             return
         self._pub_callback_{{ identifier }}(**fields)
+
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    def set_srv_client_{{ identifier }}(self, caller: Callable[..., Awaitable[Any]]) -> None:
+        """Register the ROS service client bridge for {{ interface.description }}."""
+        self._srv_client_call_{{ identifier }} = caller
+
+    def interface_srv_{{ identifier }}(self, **fields: Any):
+        """Invoke the outbound service {{ interface.name }} using the registered client."""
+        if self._srv_client_call_{{ identifier }} is None:
+            logger.warning("No service client callback registered for {{ interface.name }}")
+            return None
+        return self._srv_client_call_{{ identifier }}(**fields)
 
 {%- endfor %}
 {%- endif %}
