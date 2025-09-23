@@ -54,7 +54,7 @@ void ROSNode::init_ros_interface_subscribers()
     // {{ interface.description }}
     sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->create_subscription<{{ lu.ros_data_type }}>(
         "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}", 10,
-        std::bind(&ROSNode::callback_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, _1));
+        std::bind(&ROSNode::callback_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1));
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
     {%- endif %}
@@ -92,7 +92,7 @@ void ROSNode::init_ros_interface_services()
     // {{ interface.description }}
     service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->create_service<{{ lu.ros_data_type }}(
         "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}", 
-        std::bind(&ROSNode::callback_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, _1, _2));
+        std::bind(&ROSNode::callback_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1, std::placeholders::_2));
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
     {%- endif %}
@@ -109,7 +109,7 @@ void ROSNode::init_ros_interface_clients()
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
-    client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =  this->create_client<lu.ros_data_type>(
+    client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =  this->create_client<{{ lu.ros_data_type }}>(
         "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}")
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown client interface.msgs: {{ interface.msgs }}
