@@ -1,0 +1,222 @@
+"""ROS 2 node bridging {{ args.package.name }} logic with rclpy."""
+
+from __future__ import annotations
+
+from typing import Any, Optional
+
+import rclpy
+from rclpy.node import Node
+from loguru import logger
+
+from {{ args.package.name }}.logic_module import LogicModule
+
+{%- set ns = namespace(imports=[]) %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- if parts|length >= 3 %}
+{%- set module_path = parts[0] + '.' + parts[1] %}
+{%- set class_name = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+{%- set import_line = module_path + '|' + class_name %}
+{%- if import_line not in ns.imports %}
+{%- set _ = ns.imports.append(import_line) %}
+{%- endif %}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- for entry in ns.imports %}
+{%- set module, cls = entry.split('|') %}
+from {{ module }} import {{ cls }}
+{%- endfor %}
+
+
+class ROSNode(Node):
+    """ROS-aware adapter around the LogicModule."""
+
+    def __init__(self) -> None:
+        super().__init__('{{ args.package.name }}')
+        self.logic_module = LogicModule()
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._pub_{{ identifier }} = None  # type: ignore[assignment]
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._client_{{ identifier }} = None  # type: ignore[assignment]
+{%- endfor %}
+{%- endif %}
+        self._init_parameters()
+        self._init_ros_interface_subscribers()
+        self._init_ros_interface_publishers()
+        self._init_ros_interface_services()
+        self._init_ros_interface_clients()
+        self._init_logic_module()
+
+    # ------------------------------------------------------------------
+    # Initialisation helpers
+    # ------------------------------------------------------------------
+    def _init_parameters(self) -> None:
+        log_level = self.declare_parameter('config.log_level', 'INFO').value
+        self.logic_module.set_logger_level(str(log_level))
+
+    def _init_ros_interface_subscribers(self) -> None:
+        self._subscriptions = []
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+        subscription = self.create_subscription(
+            {{ cls }},
+            '{{ interface.name }}',
+            self._callback_sub_{{ identifier }},
+            10,
+        )
+        self._subscriptions.append(subscription)
+        logger.debug('Created subscriber for %s', '{{ interface.name }}')
+{%- else %}
+        logger.warning('Interface %s not in lookup table, skipping subscriber', '{{ interface.name }}')
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _init_ros_interface_publishers(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+        self._pub_{{ identifier }} = self.create_publisher(
+            {{ cls }},
+            '{{ interface.name }}',
+            10,
+        )
+        logger.debug('Created publisher for %s', '{{ interface.name }}')
+{%- else %}
+        logger.warning('Interface %s not in lookup table, skipping publisher', '{{ interface.name }}')
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _init_ros_interface_services(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+        self.create_service(
+            {{ cls }},
+            '{{ interface.name }}',
+            self._callback_srv_{{ identifier }},
+        )
+        logger.debug('Created service server for %s', '{{ interface.name }}')
+{%- else %}
+        logger.warning('Interface %s not in lookup table, skipping service server', '{{ interface.name }}')
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _init_ros_interface_clients(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+        self._client_{{ identifier }} = self.create_client(
+            {{ cls }},
+            '{{ interface.name }}',
+        )
+        logger.debug('Created service client for %s', '{{ interface.name }}')
+{%- else %}
+        logger.warning('Interface %s not in lookup table, skipping service client', '{{ interface.name }}')
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _init_logic_module(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self.logic_module.set_pub_callback_{{ identifier }}(self._interface_pub_{{ identifier }})
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Callbacks bridging ROS <-> logic module
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    def _callback_sub_{{ identifier }}(self, msg: Any) -> None:
+        logger.debug('Forwarding message from %s to logic module', '{{ interface.name }}')
+        self.logic_module.process_sub_{{ identifier }}(msg)
+
+{%- endif %}
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    def _callback_srv_{{ identifier }}(self, request: Any, response: Any) -> Any:
+        logger.debug('Forwarding service call %s to logic module', '{{ interface.name }}')
+        return self.logic_module.process_srv_{{ identifier }}(request, response)
+
+{%- endif %}
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+{%- set field_defs = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type %}
+    def _interface_pub_{{ identifier }}(self, **payload: Any) -> None:
+        if self._pub_{{ identifier }} is None:
+            logger.error('Publisher for %s not initialised', '{{ interface.name }}')
+            return
+        message = payload.get('message')
+        if message is None:
+            message = {{ cls }}()
+{%- if field_defs %}
+{%- for field in field_defs %}
+            if '{{ field.name }}' in payload:
+                setattr(message, '{{ field.name }}', payload['{{ field.name }}'])
+{%- endfor %}
+{%- endif %}
+        self._pub_{{ identifier }}.publish(message)
+        logger.debug('Published message on %s', '{{ interface.name }}')
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+
+def main(args: Optional[list[str]] = None) -> None:
+    """Entry point for console_scripts."""
+    rclpy.init(args=args)
+    node = ROSNode()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        logger.info('Shutting down {{ args.package.name }} node')
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

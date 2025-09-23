@@ -1,0 +1,162 @@
+# === Robot Mindset Setup Assistant === 
+# This file is used to configure the setup assistant for the robot_ur package.
+# It contains information about the package, capabilities, and launch configurations.
+
+# This YAML file acts as both the template and the data source for generating a final
+# configuration. It uses Jinja2 syntax (e.g., {{ args.package.name }}) to allow referencing
+# values defined earlier in the file.
+# The file is first loaded as a dictionary using yaml.safe_load(), then passed to a
+# Jinja2 template created from the same file. The template is rendered with this dictionary
+# as context, and the result is parsed again into the final YAML structure.
+
+package:
+  name: robot_mindset_joint_state_publisher
+  description: A package to examine the test_pgk.
+  version: "0.0.1"
+  maintainer: Robot Mindset
+  maintainer_email: robot.mindset@robot-mindset.com
+  license:
+    value: MIT
+    options: [BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3]
+  language: python # python, cpp
+  environment: ros.humble # ros.noetic, ros.humble, (debian)
+  dependencies:
+    # System dependencies
+    apt:
+      - python3-catkin-tools
+      - libspdlog-dev
+    # Python dependencies
+    pip: []
+    # ROS 2 dependencies (target: package.xml)
+    ros:
+      - joint_state_publisher
+      - rclcpp
+      - std_msgs
+      - std_srvs
+    # repositories to be cloned into the workspace via vcs tool (target: .rosinstall)
+    git: []
+      # - name: sim2real_gap
+      #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
+      #   version: main
+    # CMakeLists.txt modifications
+    packages: 
+      - name: rclcpp
+      - name: std_msgs
+      - name: std_srvs
+      - name: spdlog # https://github.com/gabime/spdlog
+        target_link: spdlog::spdlog
+      - name: fmt
+
+# ============================ serve ============================
+# List of packages to be launched. The instance
+# launch file will be used.
+# 
+# There are three types of serving modes:
+# 
+# link_serve
+# ----
+# Starts the instance in the root namespace '/'.
+# It connects multiple nodes, such as the
+# joint_state_publisher, which joins the joint_state
+# from different namespaces (e.g. /robot_1/joint_states
+# and /robot_2/joint_states).
+# 
+# single_serve
+# ----
+# Starts the instance in the root namespace '/'.
+# Example applications: rviz, robot_state_publisher, move_group.
+# 
+# multi_serve
+# ---- 
+# Always starts the instance in the '/<name>' namespace.
+# Example applications: ROS controllers (e.g. robot_1).
+# ===============================================================
+
+
+# link_serve:
+#   - name: Joint State Publisher
+#     package: robot_mindset_joint_state_publisher
+
+# single_serve:
+#   - name: rviz
+#     package: robot_mindset_rviz
+#   - name: controller manager
+#     package: robot_mindset_controller_manager
+
+multi_serve:
+ - name: joint_state_publisher
+   package: robot_mindset_joint_state_publisher
+
+# ============================ ROS Interfaces ============================
+# Define the ROS interfaces (topics, services, actions) for the node.
+# Each interface has a direction (in/out), a message type,
+# and a type (topic/service/action).
+#
+# direction | topic       | service  | action
+# --------------------------------------------
+#    in     | subscriber  | client   | client
+#    out    | pubublisher | service  | server
+#
+# out: Something that the node provides to other nodes.
+#      Normally, only one topic, service or action can be published
+#      under the service name.
+# in: Something the node can consume from other nodes.
+#     One of multiple topic/service/action subscribers/clients
+#     connecting to the service name.
+# ========================================================================
+ros:
+  interfaces:
+    - name: interface/topic-string_in
+      direction: in
+      msgs: std_msgs/msg/string
+      type: topic
+      description: A ROS Topic interface.
+    - name: interface_topic_string_out
+      direction: out
+      msgs: std_msgs/msg/string
+      type: topic
+      description: A string interface.
+    # - name: test_empty
+    #   direction: out
+    #   msgs: std_srvs/srv/empty
+    #   type: service
+    #   description: A service interface.
+    - name: set_controller_state
+      direction: out
+      msgs: std_srvs/srv/set_bool
+      type: service
+      description: A service interface.
+    - name: get_controller_state
+      direction: in
+      msgs: std_srvs/srv/set_bool
+      type: service
+      description: A service interface.
+    - name: interface_topic_float_out2
+      direction: out
+      msgs: std_msgs/msg/float64
+      type: topic
+      description: A service interface2.
+    - name: interface_topic_float_in2
+      direction: in
+      msgs: std_msgs/msg/float64
+      type: topic
+      description: A ROS Topic interface.2
+    # - name: set_controller
+    #   direction: in
+    #   msgs: my_msgs/controller_config
+    #   type: topic
+    #   description: A string interface for the robot.
+    # - name: get_controller
+    #   direction: out
+    #   msgs: my_msgs/controller_config
+    #   type: topic
+    #   description: A string interface for the robot.
+    # - name: action_interface
+    #   direction: in
+    #   msgs: my_msgs/action_conig
+    #   type: action
+    #   description: An action interface for the robot.
+
+spark:
+  capabilities:
+    - type: data_processing

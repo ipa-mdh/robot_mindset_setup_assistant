@@ -1,0 +1,46 @@
+import os
+from glob import glob
+from setuptools import setup
+
+package_name = '{{ args.package.name }}'
+
+
+def package_files(directory):
+    paths = []
+    for path in glob(os.path.join(directory, '**'), recursive=True):
+        if os.path.isfile(path):
+            paths.append(path)
+    return paths
+
+setup(
+    name=package_name,
+    version='{{ args.package.version }}',
+    packages=[package_name],
+    data_files=[
+        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+        ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/launch', glob('launch/*.py')),
+        ('share/' + package_name + '/example', package_files('example')),
+        ('share/' + package_name + '/resource', package_files('resource')),
+    ],
+    install_requires=[
+        'setuptools',
+        'loguru',
+{%- if args.package is defined and args.package.dependencies is defined and args.package.dependencies.python is defined %}
+{%- for dep in args.package.dependencies.python %}
+        '{{ dep }}',
+{%- endfor %}
+{%- endif %}
+    ],
+    zip_safe=True,
+    maintainer='{{ args.package.maintainer }}',
+    maintainer_email='{{ args.package.maintainer_email }}',
+    description='{{ args.package.description }}',
+    license='{{ args.package.license }}',
+    tests_require=['pytest'],
+    entry_points={
+        'console_scripts': [
+            '{{ args.package.name }}_node = {{ args.package.name }}.ros_node:main',
+        ],
+    },
+)
