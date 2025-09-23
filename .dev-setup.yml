@@ -8,9 +8,7 @@ version: "1.0"
 
 # Docker registry configuration
 docker:
-    registry:
-        url: "container-registry.gitlab.cc-asp.fraunhofer.de"
-        path: "multirobot"
+    registry: "container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant"
 #   -- example for additional docker run arguments
 #    runArgs:
 #        - "--cap-add=sys_nice"

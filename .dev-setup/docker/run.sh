@@ -55,13 +55,13 @@ fi
 
 function run_container_with_arguments {
     docker run -it \
-        robot_fanuc:run-1.0 \
+        robot_mindset_setup_assistant:run-1.0 \
         "${CONTAINER_ARGS[@]}"
 }
 
 function run_container_without_arguments {
     docker run -it \
-        robot_fanuc:run-1.0
+        robot_mindset_setup_assistant:run-1.0
 }
 
 # If CONTAINER_ARGS empty
