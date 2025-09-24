@@ -93,7 +93,24 @@ def generate_custom_launch_description(context, *args, **kwargs):
     #     logger.info(f'Instance log level: {config.get('log_level', 'INFO')}')
     # ==========================================================================
     # JINJA-BEGIN:customer-section
-
+    
+    # Launch the main node
+    node_executable = launch_ros.actions.Node(
+        package='{{ args.package.name }}',
+        executable='node',
+        name='{{ args.package.name }}_node',
+        namespace=namespace,
+        output='screen',
+        parameters=[
+            {'log_level': config.get('log_level', 'INFO')},
+            # Add any other parameters from config here
+        ],
+        remappings=[
+            # Add any topic remappings here if needed
+        ]
+    )
+    
+    launch_description.append(node_executable)
 
     # JINJA-END:customer-section
     # --------------------------------------------

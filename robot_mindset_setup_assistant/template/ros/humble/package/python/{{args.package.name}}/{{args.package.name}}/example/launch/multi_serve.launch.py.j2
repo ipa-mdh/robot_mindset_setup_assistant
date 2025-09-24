@@ -117,10 +117,11 @@ def generate_custom_launch_description(context, *args, **kwargs):
 {%- for multi in args.multi_serve %}
     # --- {{multi.name}} ---
     copy_instance_config_folder(instance_config_folder, '{{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}', '{{ multi.package }}')
-    {{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}_launch = Path(launch.substitutions.FindPackageShare('{{ multi.package }}')) / "launch" / "instance.launch.py"
+    {{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}_share_dir = launch_ros.substitutions.FindPackageShare('{{ multi.package }}').perform(context)
+    {{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}_launch = Path({{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}_share_dir) / "launch" / "instance.launch.py"
 
     {{ multi.name | lower | replace(' ', '_') | replace('-', '_') }} = launch.actions.IncludeLaunchDescription(
-        launch.launch_description_sources.PythonLaunchDescriptionSource({{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}_launch),
+        launch.launch_description_sources.PythonLaunchDescriptionSource(str({{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}_launch)),
         launch_arguments={
             'namespace': '{{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}',
             'simulation': simulation,
