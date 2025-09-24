@@ -10,7 +10,7 @@ namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}
 ROSNode::ROSNode() : Node("{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}")
 {
     // Initialize the node
-    init();
+    init_parameters();
     init_ros_interface_subscribers();
     init_ros_interface_publishers();
     init_ros_interface_services();
@@ -26,24 +26,51 @@ ROSNode::~ROSNode()
 }
 
 /****************** Initialization Functions ******************/
-void ROSNode::init()
+void ROSNode::init_parameters()
 {
-    // Initialize private parameters
-    std::vector<RosParam> params = get_private_parameters();
+    // Declare and initialize ROS2 parameters based on interface definitions
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+    {%- if interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- for field in lu.cpp_data_type %}
+    // {{ interface.description }}
+    {%- if field.type == "std::string" %}
+    this->declare_parameter("{{ interface.name }}", "INFO");
+    param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->get_parameter("{{ interface.name }}").as_string();
+    {%- elif field.type == "double" %}
+    this->declare_parameter("{{ interface.name }}", 0.0);
+    param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->get_parameter("{{ interface.name }}").as_double();
+    {%- elif field.type == "int" or field.type == "int32_t" %}
+    this->declare_parameter("{{ interface.name }}", 0);
+    param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->get_parameter("{{ interface.name }}").as_int();
+    {%- elif field.type == "bool" %}
+    this->declare_parameter("{{ interface.name }}", false);
+    param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->get_parameter("{{ interface.name }}").as_bool();
+    {%- else %}
+    this->declare_parameter("{{ interface.name }}", "");
+    param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->get_parameter("{{ interface.name }}").as_string();
+    {%- endif %}
+    
+    // Set up parameter callback for runtime updates
+    param_callback_handle_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->add_on_set_parameters_callback(
+        std::bind(&ROSNode::parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1));
+    
+    RCLCPP_INFO(this->get_logger(), "Declared parameter '{{ interface.name }}' with value: %s", 
+                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.c_str());
+    {%- endfor %}
+    {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown parameter interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
 
-    // get log_level from params
-    std::string log_level;
-    for (const auto& param : params)
-    {
-        // find config/log_level in a longer stirng
-        if (param.name.find("config/log_level") != std::string::npos)
-        {
-            log_level = param.value;
-            break;
-        }
-    }
-    // set log level
-    logic_module_.set_logger_level(log_level);
+    // Apply initial parameter values to logic module
+    apply_parameters_to_logic_module();
 }
 
 void ROSNode::init_ros_interface_subscribers()
@@ -391,11 +418,151 @@ bool ROSNode::interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_')
 
     return true;
 }
+
+/****************** Parameter Callback Functions ******************/
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+// Parameter callback for {{ interface.description }}
+rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    const std::vector<rclcpp::Parameter> &parameters)
+{
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    
+    for (const auto &param : parameters)
+    {
+        if (param.get_name() == "{{ interface.name }}")
+        {
+            {%- for field in lu.cpp_data_type %}
+            {%- if field.type == "std::string" %}
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING)
+            {
+                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_string();
+                RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %s", 
+                           param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.c_str());
+                
+                // Apply parameter change to logic module
+                apply_parameters_to_logic_module();
+                
+                result.successful = true;
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a string");
+                result.successful = false;
+                result.reason = "Parameter must be a string";
+            }
+            {%- elif field.type == "double" %}
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE)
+            {
+                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_double();
+                RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %f", 
+                           param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_);
+                
+                // Apply parameter change to logic module
+                apply_parameters_to_logic_module();
+                
+                result.successful = true;
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a double");
+                result.successful = false;
+                result.reason = "Parameter must be a double";
+            }
+            {%- elif field.type == "int" or field.type == "int32_t" %}
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER)
+            {
+                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_int();
+                RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %d", 
+                           param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_);
+                
+                // Apply parameter change to logic module
+                apply_parameters_to_logic_module();
+                
+                result.successful = true;
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be an integer");
+                result.successful = false;
+                result.reason = "Parameter must be an integer";
+            }
+            {%- elif field.type == "bool" %}
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_BOOL)
+            {
+                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_bool();
+                RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %s", 
+                           param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ ? "true" : "false");
+                
+                // Apply parameter change to logic module
+                apply_parameters_to_logic_module();
+                
+                result.successful = true;
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a boolean");
+                result.successful = false;
+                result.reason = "Parameter must be a boolean";
+            }
+            {%- else %}
+            if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING)
+            {
+                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_string();
+                RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %s", 
+                           param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.c_str());
+                
+                // Apply parameter change to logic module
+                apply_parameters_to_logic_module();
+                
+                result.successful = true;
+            }
+            else
+            {
+                RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a string");
+                result.successful = false;
+                result.reason = "Parameter must be a string";
+            }
+            {%- endif %}
+            {%- endfor %}
+        }
+    }
+    
+    return result;
+}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// Apply all parameters to the logic module
+void ROSNode::apply_parameters_to_logic_module()
+{
+    // JINJA-BEGIN:apply-parameters-to-logic-module
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+    {%- if interface.name == "log_level" %}
+    // Set log level in logic module
+    logic_module_.set_logger_level(param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_);
+    {%- else %}
+    // Apply {{ interface.name }} parameter to logic module
+    // TODO: Implement parameter application for {{ interface.name }}
+    // logic_module_.set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_);
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+}
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
     {%- endif %}
 {% endfor %}
 {%- endif %}
 {%- endif %}
-
+    // JINJA-END:apply-parameters-to-logic-module
 }

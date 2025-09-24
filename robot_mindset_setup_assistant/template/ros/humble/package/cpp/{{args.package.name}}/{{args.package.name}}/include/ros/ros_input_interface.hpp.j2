@@ -4,7 +4,8 @@
 
 {#- Initialize an empty list to collect unique message types #}
 {%- set unique_msgs = [] %}
-{%- set ns = namespace(add_actionlib=false) -%}
+{%- set ns = namespace(add_actionlib=false,
+                       add_parameterslib=false) -%}
 
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
@@ -19,6 +20,10 @@
 {%- if interface.type == "action" -%}
 {%- set ns.add_actionlib = true -%}
 {%- endif -%}
+{#- Check if the interface is a parameter and set the flag #}
+{%- if interface.type == "parameter" -%}
+{%- set ns.add_parameterslib = true -%}
+{%- endif -%}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
@@ -26,7 +31,10 @@
 // Include message headers based on the Robot Mindset Setup Assistant configuration
 {%- if ns.add_actionlib %}
 #include <rclcpp_action /rclcpp_action.hpp>
-{% endif %}
+{%- endif %}
+{%- if ns.add_parameterslib %}
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
+{%- endif %}
 
 {%- for msgs in unique_msgs|sort %}
 {%- if msgs in args.lookup.interfaces.msgs %}
