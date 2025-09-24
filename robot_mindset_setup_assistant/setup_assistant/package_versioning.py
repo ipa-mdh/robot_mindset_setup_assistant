@@ -125,7 +125,7 @@ class GitFlowRepo:
             if not (self.repo_path / path).exists():
                 run(["git", "submodule", "add", url, path], cwd=self.repo_path)
                 run(["git", "checkout", branch], cwd=self.repo_path / path)
-                run(["git", "submodule", "update", "--init", "--recursive"], cwd=self.repo_path)
+                run(["git", "submodule", "update", "--init", "--recursive", "--depth", "1"], cwd=self.repo_path)
             
     def create_tag(self, tag_name, message=""):
         logger.info(f"Creating tag: {tag_name}")
