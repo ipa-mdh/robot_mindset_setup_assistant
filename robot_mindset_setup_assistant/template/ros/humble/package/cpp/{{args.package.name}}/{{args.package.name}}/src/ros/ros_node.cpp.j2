@@ -114,9 +114,9 @@ void ROSNode::init_ros_interface_clients()
     // {{ interface.description }}
     client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->create_client<{{ lu.ros_data_type }}>(
         "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}");
-    while (!client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_->wait_for_service(std::chrono::seconds(1)))
+    if (!client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_->wait_for_service(std::chrono::seconds(1)))
     {
-        RCLCPP_INFO(this->get_logger(), "Service %s not available, waiting again...", "{{ interface.name }}");
+        RCLCPP_WARN(this->get_logger(), "Service %s not available.", "{{ interface.name }}");
     }
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown client interface.msgs: {{ interface.msgs }}
