@@ -3,10 +3,10 @@
 #include <string>
 #include <spdlog/spdlog.h>
 
-#include "{{args.package.name}}/{{args.package.name}}_input_interface.hpp"
-#include "{{args.package.name}}/{{args.package.name}}_output_interface.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_input_interface.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_output_interface.hpp"
 
-namespace {{args.package.name}} {
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
 class LogicModule : public LogicModuleInputInterface, public LogicModuleOutputInterface
 {

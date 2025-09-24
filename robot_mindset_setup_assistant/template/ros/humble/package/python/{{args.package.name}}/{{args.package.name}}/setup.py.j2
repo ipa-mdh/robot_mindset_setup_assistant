@@ -2,7 +2,7 @@ import os
 from glob import glob
 from setuptools import setup
 
-package_name = '{{ args.package.name }}'
+package_name = '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'
 
 
 def package_files(directory):
@@ -40,7 +40,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            '{{ args.package.name }}_node = {{ args.package.name }}.ros_node:main',
+            '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node = {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.ros_node:main',
         ],
     },
 )

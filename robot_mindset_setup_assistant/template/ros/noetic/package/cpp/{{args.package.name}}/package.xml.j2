@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>{{ args.package.name }}</name>
+  <name>{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}</name>
   <version>{{ args.package.version }}</version>
   <description>{{ args.package.description }}</description>
 
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/{{ args.package.name }}</url> -->
+  <!-- <url type="website">http://wiki.ros.org/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->

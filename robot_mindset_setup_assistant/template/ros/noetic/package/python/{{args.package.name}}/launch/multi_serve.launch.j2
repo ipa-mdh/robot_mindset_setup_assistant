@@ -6,8 +6,8 @@ with the corresponding instance configurations. -->
 <launch>
     <!-- Default arguments -->
     <arg  name="namespace"
-        default="{{ args.package.name }}"
-            doc="Namespace for the {{ args.package.name }} nodes." />
+        default="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}"
+            doc="Namespace for the {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} nodes." />
     <arg  name="simulation"
         default="true"
             doc="Flag to start the application as a simulation or not." />
@@ -17,7 +17,7 @@ with the corresponding instance configurations. -->
 
     <!-- Specific arguments -->
     <arg name="instance_config_folder"
-    default="$(find {{ args.package.name }})/example/instance_config/$(arg namespace)"
+    default="$(find {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})/example/instance_config/$(arg namespace)"
         doc="Location of the instance config folder." />
 
 {%- if args.multi_serve  %}{%- if args.multi_serve.launch  %}{%- if args.multi_serve.launch.arguements  %}
@@ -28,8 +28,8 @@ with the corresponding instance configurations. -->
 {% endfor %}{% endif %}{% endif %}{% endif %}
 
     <!--  Place the main part in the instance/{{ args.package_name }}.launch file. -->
-    <group ns="{{ args.package.name }}">
-        <include file="$(find {{ args.package.name }})/launch/instance/{{ args.package.name }}.launch" pass_all_args="true"/>
+    <group ns="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}">
+        <include file="$(find {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})/launch/instance/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.launch" pass_all_args="true"/>
     </group>
 
 </launch>

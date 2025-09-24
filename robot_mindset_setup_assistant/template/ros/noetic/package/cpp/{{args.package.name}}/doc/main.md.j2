@@ -1,5 +1,5 @@
-@mainpage {{ args.package.name }}
-# {{ args.package.name }}
+@mainpage {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+# {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
 
 {{ args.package.description }}
 
@@ -40,15 +40,15 @@ digraph InheritanceDiagram {
     rankdir="LR";
     node [shape=box];
     
-    ROSNode [label="{{ args.package.name }}::ROSNode"]
-    LogicModule [label="{{ args.package.name }}::LogicModule"]
+    ROSNode [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::ROSNode"]
+    LogicModule [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModule"]
 
     node [style=filled, fillcolor="#eeeeee"]
-    RosOutputInterface [label="{{ args.package.name }}::RosOutputInterface"]
-    RosInputInterface [label="{{ args.package.name }}::RosInputInterface"]
+    RosOutputInterface [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosOutputInterface"]
+    RosInputInterface [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosInputInterface"]
 
-    LogicModuleInputInterface[label="{{ args.package.name }}::LogicModuleInputInterface"]
-    LogicModuleOutputInterface[label="{{ args.package.name }}::LogicModuleOutputInterface"]
+    LogicModuleInputInterface[label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleInputInterface"]
+    LogicModuleOutputInterface[label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleOutputInterface"]
     
     // Inheritance arrows
     edge [fillcolor="white", style="filled"]
@@ -61,15 +61,15 @@ digraph InheritanceDiagram {
 @enddot
 
 #### ROS Layer
-- `{{ args.package.name }}::ROSNode` inherits from:
-  - `{{ args.package.name }}::RosInputInterface`
-  - `{{ args.package.name }}::RosOutputInterface`
+- `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::ROSNode` inherits from:
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosInputInterface`
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosOutputInterface`
 - These interfaces abstract the input/output mechanisms related to ROS topics, services, or actions. This design isolates ROS dependencies, enabling cleaner unit testing and improved maintainability.
 
 #### Logic Layer (Non-ROS)
-- `{{ args.package.name }}::LogicModule` inherits from:
-  - `{{ args.package.name }}::LogicModuleInputInterface`
-  - `{{ args.package.name }}::LogicModuleOutputInterface`
+- `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModule` inherits from:
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleInputInterface`
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleOutputInterface`
 - These interfaces define contracts for core business logic or decision-making independent of ROS. They can be reused or tested without requiring a ROS runtime.
 
 ---
@@ -164,13 +164,13 @@ bash .dev-setup/docker/push-image.sh
 To run the main launch file:
 
 ```bash
-roslaunch {{ args.package.name }} {{ args.package.name }}.launch
+roslaunch {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.launch
 ```
 
 To test package integration (from another project):
 
 ```bash
-roslaunch {{ args.package.name }}/example/main.launch
+roslaunch {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/example/main.launch
 ```
 
 ---

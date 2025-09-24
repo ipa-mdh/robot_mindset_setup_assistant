@@ -1,4 +1,4 @@
 from loguru import logger
 
 def test(message = "Hello, World!"):
-    logger.info(f"This is a test log message from src/{{args.package.name}}/{{args.package.name}}: {message}")
+    logger.info(f"This is a test log message from src/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}: {message}")

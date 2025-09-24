@@ -25,13 +25,13 @@ def generate_standard_launch_description():
     Generate a standard launch description.
     """
     # Set default launch arguments
-    namespace = LaunchConfiguration('namespace', default='{{ args.package.name }}')
+    namespace = LaunchConfiguration('namespace', default='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}')
     simulation = LaunchConfiguration('simulation', default='true')
     simulation_with_gazebo = LaunchConfiguration('simulation_with_gazebo', default='false')
     gazebo_classic = LaunchConfiguration('gazebo_classic', default='true')
 
     # get path of package
-    package_path = Path(get_package_share_directory('{{ args.package.name }}'))
+    package_path = Path(get_package_share_directory('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'))
 
     default_instance_config = package_path / 'example' / 'instance_config'
     instance_config_folder = LaunchConfiguration('instance_config_folder', default=str(default_instance_config))
@@ -62,7 +62,7 @@ def generate_custom_launch_description(context, *args, **kwargs):
     # -----------------------------
 
     single_serve_launch = os.path.join(
-        get_package_share_directory('{{ args.package.name }}'),
+        get_package_share_directory('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'),
         'example',
         'launch',
         'single_serve.launch.py'
@@ -86,7 +86,7 @@ def generate_custom_launch_description(context, *args, **kwargs):
     # -----------------------------
 
     link_serve_launch = os.path.join(
-        get_package_share_directory('{{ args.package.name }}'),
+        get_package_share_directory('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'),
         'example',
         'launch',
         'link_serve.launch.py'
@@ -111,7 +111,7 @@ def generate_custom_launch_description(context, *args, **kwargs):
     # -----------------------------
 
     multi_serve_launch = os.path.join(
-        get_package_share_directory('{{ args.package.name }}'),
+        get_package_share_directory('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'),
         'example',
         'launch',
         'multi_serve.launch.py'

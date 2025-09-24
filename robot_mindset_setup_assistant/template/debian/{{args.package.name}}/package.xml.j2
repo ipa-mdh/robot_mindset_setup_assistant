@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>{{ args.package.name }}</name>
+  <name>{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}</name>
   <version>{{ args.package.version }}</version>
   <description>{{ args.package.description }}</description>
 

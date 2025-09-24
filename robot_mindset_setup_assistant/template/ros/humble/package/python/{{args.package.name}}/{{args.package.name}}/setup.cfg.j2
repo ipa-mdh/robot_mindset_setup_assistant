@@ -1,4 +1,4 @@
 [develop]
-script_dir=$base/lib/{{ args.package.name }}
+script_dir=$base/lib/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
 [install]
-install_scripts=$base/lib/{{ args.package.name }}
+install_scripts=$base/lib/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

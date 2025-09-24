@@ -1,4 +1,4 @@
-"""{{ args.package.name }} package."""
+"""{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} package."""
 
 from .logic_module import LogicModule  # noqa: F401
 from .ros_node import ROSNode  # noqa: F401

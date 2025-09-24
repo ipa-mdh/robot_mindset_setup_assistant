@@ -3,7 +3,7 @@ from loguru import logger
 import rospy
 from std_msgs.msg import String
 
-from {{args.package.name}}.{{args.package.name}} import test
+from {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} import test
 
 def get_parameters():
      # fetch topic_name from the ~private namespace
@@ -15,7 +15,7 @@ def main():
     logger.info("This is a test log message from node_py.")
     
     # initialize the ROS node
-    rospy.init_node('{{args.package.name}}_node')
+    rospy.init_node('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node')
     
     config = get_parameters()
     test(config['hello'])

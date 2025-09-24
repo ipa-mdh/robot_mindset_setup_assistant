@@ -7,7 +7,7 @@ namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}
 {
 
 /****************** Constructor & Destructor ******************/
-ROSNode::ROSNode() : Node("{{ args.package.name }}")
+ROSNode::ROSNode() : Node("{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}")
 {
     // Initialize the node
     init();

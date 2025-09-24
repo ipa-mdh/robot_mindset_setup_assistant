@@ -4,7 +4,7 @@
 #include <spdlog/spdlog.h>
 // #include "rosidl_generator_traits/traits.hpp"
 
-namespace {{ args.package.name }} 
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} 
 {
 
 class LogicModuleInputInterface 
@@ -84,4 +84,4 @@ public:
 
 };
 
-} // namespace {{ args.package.name }}
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

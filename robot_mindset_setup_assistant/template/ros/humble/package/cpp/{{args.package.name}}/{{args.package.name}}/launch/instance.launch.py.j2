@@ -19,17 +19,17 @@ def generate_standard_launch_description():
     """
     Generate a standard launch description.
     """
-    logger.info("---- {{ args.package.name }}/instance.launch -----")
+    logger.info("---- {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/instance.launch -----")
     # Set default launch arguments
-    namespace = launch.substitutions.LaunchConfiguration('namespace', default='{{ args.package.name }}')
+    namespace = launch.substitutions.LaunchConfiguration('namespace', default='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}')
     simulation = launch.substitutions.LaunchConfiguration('simulation', default='true')
     simulation_with_gazebo = launch.substitutions.LaunchConfiguration('simulation_with_gazebo', default='false')
     gazebo_classic = launch.substitutions.LaunchConfiguration('gazebo_classic', default='true')
 
     # get path of package
-    package_path = Path(get_package_share_directory('{{ args.package.name }}'))
+    package_path = Path(get_package_share_directory('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'))
 
-    default_instance_config = package_path / 'example' / 'instance_config' / '{{ args.package.name }}'
+    default_instance_config = package_path / 'example' / 'instance_config' / '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'
     instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder', default=str(default_instance_config))
 
     return [
@@ -96,9 +96,9 @@ def generate_custom_launch_description(context, *args, **kwargs):
     
     # Launch the main node
     node_executable = launch_ros.actions.Node(
-        package='{{ args.package.name }}',
+        package='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}',
         executable='node',
-        name='{{ args.package.name }}_node',
+        name='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node',
         namespace=namespace,
         output='screen',
         parameters=[

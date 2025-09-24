@@ -6,13 +6,13 @@
 # -----------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.8)
-project({{ args.package.name }})
+project({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 
 # install the Python package
-ament_python_install_package({{ args.package.name }})
+ament_python_install_package({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})
 
 # Install launch and example assets
 install(
@@ -27,7 +27,7 @@ install(
 # Install executable scripts
 install(
   PROGRAMS
-    scripts/{{ args.package.name }}_node.py
+    scripts/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node.py
   DESTINATION lib/${PROJECT_NAME}
   PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )

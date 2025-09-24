@@ -1,4 +1,4 @@
-#include "{{args.package.name}}/{{args.package.name}}.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp"
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
 {

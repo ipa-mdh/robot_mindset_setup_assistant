@@ -1,23 +1,23 @@
 #include <ros/ros.h>
 
 #include "ros/ros_node.hpp"
-#include "{{args.package.name}}/{{args.package.name}}.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp"
 
 int main(int argc, char** argv)
 {
     spdlog::set_level(spdlog::level::info); 
 
-    ros::init(argc, argv, "{{ args.package.name }}_node");
-    {{args.package.name}}::ROSNode node;
+    ros::init(argc, argv, "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node");
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::ROSNode node;
 
     // Get private parameters
-    std::vector<{{args.package.name}}::RosParam> params = node.get_private_parameters();
+    std::vector<{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosParam> params = node.get_private_parameters();
     
     for (const auto& param : params)
     {
         RCLCPP_INFO_STREAM(this->nh_->get_logger(), "Private parameter: " << param.name << " = " << param.value);
     }
-    {{args.package.name}}::LogicModule logic;
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModule logic;
 
     std::string message = logic.greet("ROS User");
     // std::string message = "Hello, ROS User!";

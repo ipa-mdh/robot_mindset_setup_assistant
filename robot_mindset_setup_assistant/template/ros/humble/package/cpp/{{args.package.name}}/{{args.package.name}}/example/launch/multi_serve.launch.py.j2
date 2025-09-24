@@ -27,13 +27,13 @@ def generate_standard_launch_description():
     """
     logger.info("---- Multi Serve -----")
     # Set default launch arguments
-    namespace = launch.substitutions.LaunchConfiguration('namespace', default='{{args.package.name}}')
+    namespace = launch.substitutions.LaunchConfiguration('namespace', default='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}')
     simulation = launch.substitutions.LaunchConfiguration('simulation', default='true')
     simulation_with_gazebo = launch.substitutions.LaunchConfiguration('simulation_with_gazebo', default='false')
     gazebo_classic = launch.substitutions.LaunchConfiguration('gazebo_classic', default='true')
 
     # get path of package
-    package_path = Path(get_package_share_directory('{{args.package.name}}'))
+    package_path = Path(get_package_share_directory('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'))
 
     default_instance_config = package_path / 'example' / 'instance_config'
     instance_config_folder = launch.substitutions.LaunchConfiguration('instance_config_folder', default=str(default_instance_config))
@@ -154,6 +154,26 @@ def generate_custom_launch_description(context, *args, **kwargs):
     # =======================================================================================
     # JINJA-BEGIN:customer-section
 
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_share_dir = launch_ros.substitutions.FindPackageShare('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}').perform(context)
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_launch = Path({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_share_dir) / "launch" / "instance.launch.py"
+
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} = launch.actions.IncludeLaunchDescription(
+        launch.launch_description_sources.PythonLaunchDescriptionSource(str({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_launch)),
+        launch_arguments={
+            'namespace': '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}',
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_folder': str(instance_config_folder / '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}')
+        }.items()
+    )
+    launch_description.append(launch.actions.GroupAction(
+        actions=[
+            # push-ros-namespace to set namespace of included nodes
+            launch_ros.actions.PushRosNamespace('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'),
+            {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+        ]
+    ))
 
     # JINJA-END:customer-section
     # --------------------------------------------
