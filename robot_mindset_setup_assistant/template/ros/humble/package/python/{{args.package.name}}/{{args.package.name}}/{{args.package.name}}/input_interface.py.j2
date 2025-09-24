@@ -26,9 +26,11 @@ class LogicModuleInputInterface(ABC):
 {%- endfor %}
     ) -> None:
         """Handle inbound topic: {{ interface.description }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-subscriber-base
 {%- for field in lu.cpp_data_type %}
         logger.debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {{ field.name }}: {}", msg_{{ field.name }})
 {%- endfor %}
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-subscriber-base
 
 {%- else %}
     # For other message types, implementation is required
@@ -58,6 +60,7 @@ class LogicModuleInputInterface(ABC):
 {%- endfor %}
     ) -> dict[str, Any]:
         """Handle service server request: {{ interface.description }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server-base
         logger.debug("Logic Module (non-ROS): Received service {{ interface.name }}:")
 {%- for field in lu.cpp_data_type.req %}
         logger.debug(" {{ field.name }}: {}", req_{{ field.name }})
@@ -68,6 +71,7 @@ class LogicModuleInputInterface(ABC):
 {%- for field in lu.cpp_data_type.res %}
         response["{{ field.name }}"] = True if "{{ field.type }}" in ("bool", "boolean") else "OK"
 {%- endfor %}
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server-base
         return response
 
 {%- endif %}

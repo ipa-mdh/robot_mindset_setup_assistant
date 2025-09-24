@@ -83,6 +83,7 @@ class LogicModuleOutputInterface(ABC):
 {%- endfor %}
     ) -> None:
         """Emit data on outbound topic {{ interface.name }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-publisher-base
         if self._pub_callback_{{ identifier }} is None:
             logger.warning("No publisher callback registered for {{ interface.name }}")
             return
@@ -91,6 +92,7 @@ class LogicModuleOutputInterface(ABC):
             {{ field.name }},
 {%- endfor %}
         )
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-publisher-base
 
 {%- else %}
     # For other message types, implementation is required
@@ -117,6 +119,7 @@ class LogicModuleOutputInterface(ABC):
 {%- endfor %}
     ) -> Any:
         """Invoke the outbound service {{ interface.name }} using the registered client."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client-base
         if self._srv_client_call_{{ identifier }} is None:
             logger.warning("No service client callback registered for {{ interface.name }}")
             return None
@@ -125,6 +128,7 @@ class LogicModuleOutputInterface(ABC):
             {{ field.name }}={{ field.name }},
 {%- endfor %}
         )
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client-base
 
 {%- else %}
     # For other message types, implementation is required  

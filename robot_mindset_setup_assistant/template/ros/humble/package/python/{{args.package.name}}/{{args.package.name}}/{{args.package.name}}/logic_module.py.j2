@@ -47,6 +47,7 @@ class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
     # ------------------------------------------------------------------
     def example_business_logic(self) -> None:
         """Example method showing how to use the output interfaces."""
+        # JINJA-BEGIN:business-logic-example
         logger.info("Executing business logic...")
         
         # Example: publish to all output topics
@@ -101,6 +102,7 @@ class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
 {%- else %}
         logger.info("No interfaces defined - pure business logic only")
 {%- endif %}
+        # JINJA-END:business-logic-example
 
     # ------------------------------------------------------------------
     # Override input interface methods with business logic
@@ -117,6 +119,7 @@ class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
 {%- endfor %}
     ) -> None:
         """Handle inbound topic with business logic: {{ interface.description }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-subscriber
         # Call parent implementation for logging
         super().process_sub_{{ identifier }}(
 {%- for field in lu.cpp_data_type %}
@@ -128,6 +131,7 @@ class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
         logger.info("Processing {{ interface.name }} in business logic")
         # Example: trigger business logic based on input
         self.example_business_logic()
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-subscriber
 
 {%- endif %}
 {%- endfor %}
@@ -143,6 +147,7 @@ class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
 {%- endfor %}
     ) -> dict[str, Any]:
         """Handle service server request with business logic: {{ interface.description }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
         # Call parent implementation for logging  
         response = super().process_srv_{{ identifier }}(
 {%- for field in lu.cpp_data_type.req %}
@@ -159,6 +164,7 @@ class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
             # Customize response based on business requirements
             response["{{ field.name }}"] = True if "{{ field.type }}" in ("bool", "boolean") else "Business Logic Response"
 {%- endfor %}
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
         
         return response
 

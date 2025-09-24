@@ -278,6 +278,7 @@ class ROSNode(Node):
     
     def _apply_parameters_to_logic_module(self) -> None:
         """Apply current parameter values to the logic module."""
+        # JINJA-BEGIN:parameter-application-logic
 {%- if args.ros is defined and args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
         {%- if interface.name == "log_level" %}
@@ -293,6 +294,7 @@ class ROSNode(Node):
         # Apply default log_level parameter to logic module
         self.logic_module.set_logger_level(str(self.log_level_param))
 {%- endif %}
+        # JINJA-END:parameter-application-logic
 
     # ------------------------------------------------------------------
     # Callbacks bridging ROS <-> logic module
@@ -303,6 +305,7 @@ class ROSNode(Node):
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
 {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     def _callback_sub_{{ identifier }}(self, msg: Any) -> None:
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-subscriber-bridge
         logger.debug(f'Forwarding message from {{ interface.name }} to logic module')
         # Extract message fields and pass to logic module
         self.logic_module.process_sub_{{ identifier }}(
@@ -310,6 +313,7 @@ class ROSNode(Node):
             getattr(msg, '{{ field.name }}', None),
 {%- endfor %}
         )
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-subscriber-bridge
 
 {%- endif %}
 {%- endfor %}
@@ -319,6 +323,7 @@ class ROSNode(Node):
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
 {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     def _callback_srv_{{ identifier }}(self, request: Any, response: Any) -> Any:
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server-bridge
         logger.debug(f'Forwarding service call {{ interface.name }} to logic module')
         # Extract request fields and pass to logic module
         result_dict = self.logic_module.process_srv_{{ identifier }}(
@@ -333,6 +338,7 @@ class ROSNode(Node):
             if '{{ field.name }}' in result_dict:
                 setattr(response, '{{ field.name }}', result_dict['{{ field.name }}'])
 {%- endfor %}
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server-bridge
         
         return response
 
@@ -352,6 +358,7 @@ class ROSNode(Node):
         {{ field.name }}: Any,
 {%- endfor %}
     ) -> None:
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-publisher-bridge
         if self._pub_{{ identifier }} is None:
             logger.error(f'Publisher for {{ interface.name }} not initialised')
             return
@@ -363,6 +370,7 @@ class ROSNode(Node):
         
         self._pub_{{ identifier }}.publish(message)
         logger.debug(f'Published message on {{ interface.name }}')
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-topic-publisher-bridge
 
 {%- endif %}
 {%- endfor %}
@@ -380,6 +388,7 @@ class ROSNode(Node):
         {{ field.name }}: Any,
 {%- endfor %}
     ) -> Any:
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client-bridge
         if self._client_{{ identifier }} is None:
             logger.error(f'Service client for {{ interface.name }} not initialised')
             return None
@@ -392,6 +401,7 @@ class ROSNode(Node):
         future = self._client_{{ identifier }}.call_async(request)
         logger.debug(f'Dispatched async request on {{ interface.name }}')
         return future
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client-bridge
 
 {%- endif %}
 {%- endfor %}
