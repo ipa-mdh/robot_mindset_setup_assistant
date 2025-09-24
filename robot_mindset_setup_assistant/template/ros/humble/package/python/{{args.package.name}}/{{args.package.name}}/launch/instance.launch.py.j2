@@ -52,12 +52,12 @@ def load_yaml(file: Path):
 def get_config(config_file: Path):
     config = load_yaml(config_file)
     
-    # if key config is not in config
-    if 'config' not in config:
-        logger.warning(f"Key 'config' not found in config file. Using empty config.")
-        return {}
-    else:
-        return config['config']
+    # if key parameters is not in config
+    if 'parameters' not in config:
+        logger.warning(f"Key 'parameters' not found in config file. Using empty parameters.")
+        config.update({'parameters': {}})
+    
+    return config
 
 def generate_custom_launch_description(context, *args, **kwargs):
     """
