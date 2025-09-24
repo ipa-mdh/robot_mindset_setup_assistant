@@ -60,8 +60,43 @@ class ROSNode(Node):
     # Initialisation helpers
     # ------------------------------------------------------------------
     def _init_parameters(self) -> None:
-        log_level = self.declare_parameter('config.log_level', 'INFO').value
-        self.logic_module.set_logger_level(str(log_level))
+        """Initialize ROS2 parameters based on interface definitions."""
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+{%- for field in lu.cpp_data_type %}
+        # {{ interface.description }}
+        {%- if field.type == "std::string" %}
+        self.declare_parameter('{{ interface.name }}', 'INFO')
+        {%- elif field.type == "double" %}
+        self.declare_parameter('{{ interface.name }}', 0.0)
+        {%- elif field.type == "int" or field.type == "int32_t" %}
+        self.declare_parameter('{{ interface.name }}', 0)
+        {%- elif field.type == "bool" %}
+        self.declare_parameter('{{ interface.name }}', False)
+        {%- else %}
+        self.declare_parameter('{{ interface.name }}', '')
+        {%- endif %}
+        self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param = self.get_parameter('{{ interface.name }}').value
+        logger.info(f"Declared parameter '{{ interface.name }}' with value: {self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param}")
+{%- endfor %}
+{%- else %}
+        # {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown parameter interface.msgs: {{ interface.msgs }}
+{%- endif %}
+{%- endfor %}
+{%- else %}
+        # No parameter interfaces defined, using default log_level parameter
+        self.declare_parameter('log_level', 'INFO')
+        self.log_level_param = self.get_parameter('log_level').value
+        logger.info(f"Declared default parameter 'log_level' with value: {self.log_level_param}")
+{%- endif %}
+
+        # Set up parameter callback for runtime updates
+        self.add_on_set_parameters_callback(self._parameter_callback)
+        
+        # Apply initial parameter values to logic module
+        self._apply_parameters_to_logic_module()
 
     def _init_ros_interface_subscribers(self) -> None:
         self._subscriptions = []
@@ -161,6 +196,103 @@ class ROSNode(Node):
         self.logic_module.set_srv_client_{{ identifier }}(self._interface_srv_{{ identifier }})
 {%- endif %}
 {%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Parameter handling methods
+    # ------------------------------------------------------------------
+    def _parameter_callback(self, params):
+        """Handle parameter updates at runtime."""
+        from rclpy.parameter import Parameter
+        
+        successful = True
+        reason = ""
+        
+        for param in params:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+{%- for field in lu.cpp_data_type %}
+            if param.name == '{{ interface.name }}':
+                {%- if field.type == "std::string" %}
+                if param.type_ == Parameter.Type.STRING:
+                    self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param = param.value
+                    logger.info(f"Parameter '{{ interface.name }}' updated to: {param.value}")
+                else:
+                    successful = False
+                    reason = f"Parameter '{{ interface.name }}' must be a string"
+                    logger.error(reason)
+                {%- elif field.type == "double" %}
+                if param.type_ == Parameter.Type.DOUBLE:
+                    self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param = param.value
+                    logger.info(f"Parameter '{{ interface.name }}' updated to: {param.value}")
+                else:
+                    successful = False
+                    reason = f"Parameter '{{ interface.name }}' must be a double"
+                    logger.error(reason)
+                {%- elif field.type == "int" or field.type == "int32_t" %}
+                if param.type_ == Parameter.Type.INTEGER:
+                    self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param = param.value
+                    logger.info(f"Parameter '{{ interface.name }}' updated to: {param.value}")
+                else:
+                    successful = False
+                    reason = f"Parameter '{{ interface.name }}' must be an integer"
+                    logger.error(reason)
+                {%- elif field.type == "bool" %}
+                if param.type_ == Parameter.Type.BOOL:
+                    self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param = param.value
+                    logger.info(f"Parameter '{{ interface.name }}' updated to: {param.value}")
+                else:
+                    successful = False
+                    reason = f"Parameter '{{ interface.name }}' must be a boolean"
+                    logger.error(reason)
+                {%- else %}
+                if param.type_ == Parameter.Type.STRING:
+                    self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param = param.value
+                    logger.info(f"Parameter '{{ interface.name }}' updated to: {param.value}")
+                else:
+                    successful = False
+                    reason = f"Parameter '{{ interface.name }}' must be a string"
+                    logger.error(reason)
+                {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endfor %}
+{%- else %}
+            if param.name == 'log_level':
+                if param.type_ == Parameter.Type.STRING:
+                    self.log_level_param = param.value
+                    logger.info(f"Parameter 'log_level' updated to: {param.value}")
+                else:
+                    successful = False
+                    reason = "Parameter 'log_level' must be a string"
+                    logger.error(reason)
+{%- endif %}
+        
+        if successful:
+            # Apply parameter changes to logic module
+            self._apply_parameters_to_logic_module()
+        
+        from rcl_interfaces.msg import SetParametersResult
+        return SetParametersResult(successful=successful, reason=reason)
+    
+    def _apply_parameters_to_logic_module(self) -> None:
+        """Apply current parameter values to the logic module."""
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+        {%- if interface.name == "log_level" %}
+        # Set log level in logic module
+        self.logic_module.set_logger_level(str(self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param))
+        {%- else %}
+        # Apply {{ interface.name }} parameter to logic module
+        # TODO: Implement parameter application for {{ interface.name }}
+        # self.logic_module.set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(self.{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_param)
+        {%- endif %}
+{%- endfor %}
+{%- else %}
+        # Apply default log_level parameter to logic module
+        self.logic_module.set_logger_level(str(self.log_level_param))
 {%- endif %}
 
     # ------------------------------------------------------------------

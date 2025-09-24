@@ -12,22 +12,15 @@ custom sections instead.
   <description>{{ args.package.description }}</description>
 
   <maintainer email="{{ args.package.maintainer_email }}">{{ args.package.maintainer }}</maintainer>
-  <license>{{ args.package.license }}</license>
+  <license>{{ args.package.license.value }}</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
-  <exec_depend>python3</exec_depend>
-  <exec_depend>rclpy</exec_depend>
 {%- if args.package is defined and args.package.dependencies is defined %}
 {%- if args.package.dependencies.ros is defined %}
 {%- for dep in args.package.dependencies.ros %}
   <depend>{{ dep }}</depend>
-{%- endfor %}
-{%- endif %}
-{%- if args.package.dependencies.packages is defined %}
-{%- for dep in args.package.dependencies.packages %}
-  <depend>{{ dep.name }}</depend>
 {%- endfor %}
 {%- endif %}
 {%- endif %}

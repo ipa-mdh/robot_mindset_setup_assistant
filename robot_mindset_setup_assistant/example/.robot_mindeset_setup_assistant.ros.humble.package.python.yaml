@@ -153,6 +153,11 @@ ros:
     #   msgs: my_msgs/action_conig
     #   type: action
     #   description: An action interface for the robot.
+    - name: log_level
+      direction: in
+      msgs: std_msgs/msg/string
+      type: parameter
+      description: A log level interface for the robot.
 
 spark:
   capabilities:
