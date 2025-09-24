@@ -64,7 +64,7 @@ def get_config(config_file: Path):
         logger.warning(f"Key 'parameters' not found in config file. Using empty parameters.")
         config.update({'parameters': {}})
     
-    return config['parameters']
+    return config
 
 def get_instance_config(path: Path, instance: str):
     config = {}
@@ -130,7 +130,6 @@ def generate_custom_launch_description(context, *args, **kwargs):
             'instance_config_folder': str(instance_config_folder / '{{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}')
         }.items()
     )
-    # launch_description.append(robot_fanuc)
     launch_description.append(launch.actions.GroupAction(
         actions=[
             # push-ros-namespace to set namespace of included nodes
@@ -155,6 +154,26 @@ def generate_custom_launch_description(context, *args, **kwargs):
     # =======================================================================================
     # JINJA-BEGIN:customer-section
 
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_share_dir = launch_ros.substitutions.FindPackageShare('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}').perform(context)
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_launch = Path({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_share_dir) / "launch" / "instance.launch.py"
+
+    {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} = launch.actions.IncludeLaunchDescription(
+        launch.launch_description_sources.PythonLaunchDescriptionSource(str({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_launch)),
+        launch_arguments={
+            'namespace': '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}',
+            'simulation': simulation,
+            'simulation_with_gazebo': simulation_with_gazebo,
+            'gazebo_classic': gazebo_classic,
+            'instance_config_folder': str(instance_config_folder / '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}')
+        }.items()
+    )
+    launch_description.append(launch.actions.GroupAction(
+        actions=[
+            # push-ros-namespace to set namespace of included nodes
+            launch_ros.actions.PushRosNamespace('{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'),
+            {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+        ]
+    ))
 
     # JINJA-END:customer-section
     # --------------------------------------------

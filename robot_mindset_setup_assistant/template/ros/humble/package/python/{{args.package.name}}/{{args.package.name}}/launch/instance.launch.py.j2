@@ -54,9 +54,8 @@ def get_config(config_file: Path):
     
     # if key parameters is not in config
     if 'parameters' not in config:
-        logger.warning(f"Key 'parameters' not found in config file. Using empty parameters.")
+        logger.warning(f"Key 'parameters' not found in config file. Using empty config.")
         config.update({'parameters': {}})
-    
     return config
 
 def generate_custom_launch_description(context, *args, **kwargs):
@@ -97,7 +96,7 @@ def generate_custom_launch_description(context, *args, **kwargs):
     # Launch the main node
     node_executable = launch_ros.actions.Node(
         package='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}',
-        executable='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node',  # Python packages typically use package_name_node
+        executable='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node',
         name='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node',
         namespace=namespace,
         output='screen',

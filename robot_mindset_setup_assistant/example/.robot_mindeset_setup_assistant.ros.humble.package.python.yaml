@@ -31,6 +31,7 @@ package:
     ros:
       - joint_state_publisher
       - rclpy
+      - rcl_interfaces
       - std_msgs
       - std_srvs
     # repositories to be cloned into the workspace via vcs tool (target: .rosinstall)
@@ -80,9 +81,9 @@ package:
 #   - name: controller manager
 #     package: robot_mindset_controller_manager
 
-multi_serve:
- - name: joint_state_publisher
-   package: robot_mindset_joint_state_publisher
+# multi_serve:
+#  - name: joint_state_publisher
+#    package: robot_mindset_joint_state_publisher
 
 # ============================ ROS Interfaces ============================
 # Define the ROS interfaces (topics, services, actions) for the node.

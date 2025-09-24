@@ -5,24 +5,45 @@ from setuptools import setup
 package_name = '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'
 
 
-def package_files(directory):
-    paths = []
-    for path in glob(os.path.join(directory, '**'), recursive=True):
-        if os.path.isfile(path):
-            paths.append(path)
-    return paths
+def get_data_files_with_structure(directory, prefix):
+    """Get data files preserving directory structure."""
+    data_files = []
+    if os.path.exists(directory):
+        for root, dirs, files in os.walk(directory):
+            if files:
+                # Calculate relative path from the directory
+                rel_dir = os.path.relpath(root, directory)
+                if rel_dir == '.':
+                    target_dir = f'share/{package_name}/{prefix}'
+                else:
+                    target_dir = f'share/{package_name}/{prefix}/{rel_dir}'
+                
+                file_paths = [os.path.join(root, f) for f in files]
+                data_files.append((target_dir, file_paths))
+    return data_files
+
+# Collect all data files
+data_files = [
+    ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
+    ('share/' + package_name, ['package.xml']),
+]
+
+# Add launch files
+launch_files = glob('launch/*.py')
+if launch_files:
+    data_files.append(('share/' + package_name + '/launch', launch_files))
+
+# Add example files with directory structure
+data_files.extend(get_data_files_with_structure('example', 'example'))
+
+# Add resource files with directory structure  
+data_files.extend(get_data_files_with_structure('resource', 'resource'))
 
 setup(
     name=package_name,
     version='{{ args.package.version }}',
     packages=[package_name],
-    data_files=[
-        ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
-        ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', glob('launch/*.py')),
-        ('share/' + package_name + '/example', package_files('example')),
-        ('share/' + package_name + '/resource', package_files('resource')),
-    ],
+    data_files=data_files,
     install_requires=[
         'setuptools',
         'loguru',
