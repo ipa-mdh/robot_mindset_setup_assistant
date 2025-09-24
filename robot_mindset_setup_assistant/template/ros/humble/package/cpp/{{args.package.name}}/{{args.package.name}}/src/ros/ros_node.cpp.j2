@@ -1,3 +1,6 @@
+#include <chrono>
+#include <functional>
+#include <memory>
 #include "ros/ros_node.hpp"
 
 namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}
@@ -90,7 +93,7 @@ void ROSNode::init_ros_interface_services()
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
-    service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->create_service<{{ lu.ros_data_type }}(
+    service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->create_service<{{ lu.ros_data_type }}>(
         "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}", 
         std::bind(&ROSNode::callback_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1, std::placeholders::_2));
     {%- else %}
@@ -109,8 +112,12 @@ void ROSNode::init_ros_interface_clients()
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
-    client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =  this->create_client<{{ lu.ros_data_type }}>(
-        "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}")
+    client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->create_client<{{ lu.ros_data_type }}>(
+        "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}");
+    while (!client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_->wait_for_service(std::chrono::seconds(1)))
+    {
+        RCLCPP_INFO(this->get_logger(), "Service %s not available, waiting again...", "{{ interface.name }}");
+    }
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown client interface.msgs: {{ interface.msgs }}
     {%- endif %}
@@ -137,8 +144,16 @@ void ROSNode::init_logic_module()
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     logic_module_.set_pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-        [this](const {{ lu.cpp_data_type }} &msg) {
-        this->interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(msg);
+        [this](
+        {%- for field in lu.cpp_data_type -%}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+        ) {
+        this->interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+        {%- for field in lu.cpp_data_type -%}
+        {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+        );
         }
     );
 {%- else %}
@@ -158,26 +173,20 @@ void ROSNode::init_logic_module()
 /// @return private_params
 std::vector<RosParam> ROSNode::get_private_parameters()
 {
-    std::vector<std::string> all_params;
     std::vector<RosParam> private_params;
-
-    nh_private_.getParamNames(all_params);
-
-    std::string node_ns = nh_private_.getNamespace();  // e.g., /my_ns/my_node
-    // RCLCPP_DEBUG_STREAM(this->get_logger(), "Private namespace: " << node_ns);
-    for (const auto& param : all_params)
+    
+    auto parameter_names = this->list_parameters({}, 0);
+    
+    for (const auto& param_name : parameter_names.names)
     {
-        // RCLCPP_DEBUG_STREAM(this->get_logger(), "param: " << param);
-        if (param.find(node_ns + "/") == 0)  // check if it's in the private scope
-        {
-            // RCLCPP_DEBUG_STREAM(this->get_logger(), "Private param: " << param);
-            RosParam buffer;
-            buffer.name = param;
-            // Get the parameter value
-            nh_private_.getParam(param, buffer.value);
-            // Add the parameter to the vector
-            private_params.push_back(buffer);
-        }
+        RosParam buffer;
+        buffer.name = param_name;
+        
+        // Get the parameter value
+        auto param = this->get_parameter(param_name);
+        buffer.value = param.value_to_string();
+        
+        private_params.push_back(buffer);
     }
 
     return private_params;
@@ -194,16 +203,13 @@ bool ROSNode::set_private_parameter(const std::string& param_name, const std::st
         return false;
     }
 
-    // Set the parameter
-    nh_private_.setParam(param_name, param_value);
-
-    // Check if the parameter was set successfully
-    std::string value;
-    if (nh_private_.getParam(param_name, value)) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "Private parameter set: " << param_name << " = " << value);
+    try {
+        // Set the parameter in ROS2
+        this->set_parameter(rclcpp::Parameter(param_name, param_value));
+        RCLCPP_INFO_STREAM(this->get_logger(), "Private parameter set: " << param_name << " = " << param_value);
         return true;
-    } else {
-        RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to set private parameter: " << param_name);
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR_STREAM(this->get_logger(), "Failed to set private parameter: " << param_name << " - " << e.what());
         return false;
     }
 }
@@ -253,7 +259,7 @@ void ROSNode::callback_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') 
     {{ field.type }} req_{{ field.name }};
 {%- endfor %}
 {%- for field in lu.cpp_data_type.res %}
-    {{ field.type }} res_{{ field.name }};
+    {{ field.type }} res_{{ field.name }}{% if field.type == 'bool' %} = false{% elif field.type.startswith('std::string') %} = ""{% endif %};  // Initialize response variables
 {%- endfor %}
 
 {%- if lu.cpp_data_type.req|length > 0 %}
@@ -317,7 +323,7 @@ void ROSNode::callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') 
 // {{ interface.description }}
 void ROSNode::interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
 {%- for field in lu.cpp_data_type %}
-    {{ field.type }} msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+    const {{ field.type }} &msg_{{ field.name }}{% if not loop.last %}, {% endif %}
 {%- endfor %})
 {
     {{ lu.ros_data_type }} msg;
@@ -326,7 +332,7 @@ void ROSNode::interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_')
     msg.{{ field.name }} = msg_{{ field.name }};
     {%- endfor %}
 
-    this->pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}->publish(msg);
+    this->pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_->publish(msg);
 }
     {%- else %}
 // Implementation is required: virtual void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ interface.msgs }} &msg) = 0;
@@ -353,18 +359,37 @@ bool ROSNode::interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_')
     {%- endfor -%}
     )
 {
-    {{ lu.ros_data_type }}::Request req;
-    {{ lu.ros_data_type }}::Response res;
+    auto client = client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    if (!client)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Service client %s is not available", "{{ interface.name }}");
+        return false;
+    }
 
+    auto request = std::make_shared<{{ lu.ros_data_type }}::Request>();
     {%- for field in lu.cpp_data_type.req %}
-    req.{{ field.name }} = req_{{field.name}};
+    request->{{ field.name }} = req_{{field.name}};
+    {%- endfor %}
+    auto future = client->async_send_request(request);
+    
+    // Use executor to spin until the future is complete
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(shared_from_this());
+    auto result = executor.spin_until_future_complete(future, std::chrono::seconds(5));
+    
+    if (result != rclcpp::FutureReturnCode::SUCCESS)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Failed to call service %s", "{{ interface.name }}");
+        return false;
+    }
+
+    auto response = future.get();
+
+    {%- for field in lu.cpp_data_type.res %}
+    res_{{ field.name }} = response->{{ field.name }};
     {%- endfor %}
 
-    this->client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(req, res);
-
-    {%- for field in lu. cpp_data_type.res %}
-    res_{{ field.name }} = res.{{ field.name }};
-    {%- endfor %}
+    return true;
 }
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}

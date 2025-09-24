@@ -5,6 +5,7 @@
 
 #pragma once
 #include <string>
+#include <vector>
 #include <rclcpp/rclcpp.hpp>
 
 #include "ros/ros_input_interface.hpp"
@@ -189,9 +190,9 @@ private:
   // {{ interface.description }}
   void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
     {%- for field in lu.cpp_data_type -%}
-        {{ field.type }} msg_{{field.name}}{% if not loop.last %}, {% endif %}
+        const {{ field.type }} &msg_{{field.name}}{% if not loop.last %}, {% endif %}
     {%- endfor -%}
-  );
+  ) override;
   {%- else %}
   // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
   {%- endif %}
@@ -202,7 +203,7 @@ private:
   // === Service call ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
   {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
   {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
   // {{ interface.description }}

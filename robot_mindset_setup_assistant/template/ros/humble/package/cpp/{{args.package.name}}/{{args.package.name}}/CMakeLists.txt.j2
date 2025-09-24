@@ -42,7 +42,13 @@ endforeach()
 ######################
 # --- node ---
 set(NODE node)
-file(GLOB node_SRC CONFIGURE_DEPENDS "*.h" "*.hpp" "*.cpp")
+file(GLOB_RECURSE node_SRC CONFIGURE_DEPENDS 
+  "src/*.h" 
+  "src/*.hpp" 
+  "src/*.cpp"
+  "include/*.h" 
+  "include/*.hpp"
+)
 
 add_executable(${NODE} src/node.cpp ${node_SRC})
 target_include_directories(${NODE} PUBLIC
@@ -72,13 +78,9 @@ install(
   lib/${PROJECT_NAME}
 )
 
-install(
-  DIRECTORY hardware/include/
-  DESTINATION include/${PROJECT_NAME}
-)
-
 install(DIRECTORY launch config example urdf
   DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
 )
 
 if(BUILD_TESTING)
