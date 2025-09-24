@@ -99,7 +99,6 @@ class ROSNode(Node):
         self._apply_parameters_to_logic_module()
 
     def _init_ros_interface_subscribers(self) -> None:
-        self._subscriptions = []
 {%- if args.ros is defined and args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
@@ -107,13 +106,13 @@ class ROSNode(Node):
 {%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
 {%- set parts = include.split('/') %}
 {%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
-        subscription = self.create_subscription(
+        # Create subscriber - ROS will manage subscription lifecycle automatically
+        self.create_subscription(
             {{ cls }},
             '{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}',
             self._callback_sub_{{ identifier }},
             10,
         )
-        self._subscriptions.append(subscription)
         logger.debug(f'Created subscriber for {{ interface.name }}')
 {%- else %}
         logger.warning(f'Interface {{ interface.name }} not in lookup table, skipping subscriber')
@@ -402,14 +401,26 @@ class ROSNode(Node):
 def main(args: Optional[list[str]] = None) -> None:
     """Entry point for console_scripts."""
     rclpy.init(args=args)
-    node = ROSNode()
+    node = None
     try:
+        node = ROSNode()
         rclpy.spin(node)
     except KeyboardInterrupt:
         logger.info('Shutting down {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} node')
+    except Exception as e:
+        logger.error('Unexpected error in {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} node: {}', e)
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        # Cleanup node and shutdown ROS
+        if node is not None:
+            try:
+                node.destroy_node()
+            except Exception as e:
+                logger.warning('Error during node cleanup: {}', e)
+        
+        try:
+            rclpy.shutdown()
+        except Exception as e:
+            logger.warning('Error during ROS shutdown: {}', e)
 
 
 if __name__ == '__main__':
