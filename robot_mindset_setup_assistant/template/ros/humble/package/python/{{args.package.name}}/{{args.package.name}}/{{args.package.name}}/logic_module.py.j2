@@ -3,26 +3,19 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable, Optional, Awaitable
+from typing import Any
 
 from loguru import logger
+from {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.input_interface import LogicModuleInputInterface
+from {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.output_interface import LogicModuleOutputInterface
 
 
-class LogicModule:
+class LogicModule(LogicModuleInputInterface, LogicModuleOutputInterface):
     """Application logic that stays independent from ROS plumbing."""
 
     def __init__(self) -> None:
+        super().__init__()
         self._configure_logger('INFO')
-{%- if args.ros is defined and args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
-{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
-        self._pub_callback_{{ identifier }}: Optional[Callable[..., None]] = None
-{%- endfor %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
-        self._srv_client_call_{{ identifier }}: Optional[Callable[..., Awaitable[Any]]] = None
-{%- endfor %}
-{%- endif %}
 
     def _configure_logger(self, level: str) -> None:
         """Reset loguru sinks and apply the requested level."""
@@ -50,63 +43,125 @@ class LogicModule:
         logger.success("Binary output: {:b}", 42)
 
     # ------------------------------------------------------------------
-    # Callbacks invoked from ROS adapters
+    # Business logic methods - these can call inherited interface methods
     # ------------------------------------------------------------------
-{%- if args.ros is defined and args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
-{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
-    def process_sub_{{ identifier }}(self, msg: Any) -> None:
-        """Handle inbound topic: {{ interface.description }}."""
-        logger.debug("[topic: {{ interface.name }}] received %s", msg)
-
-{%- endfor %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
-{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
-    def process_srv_{{ identifier }}(self, request: Any, response: Any) -> Any:
-        """Handle service server request: {{ interface.description }}."""
-        logger.debug("[service: {{ interface.name }}] request=%s", request)
-        # Default implementation just acknowledges the call.
-{%- if interface.msgs in args.lookup.interfaces.msgs and args.lookup.interfaces.msgs[interface.msgs].cpp_data_type.res %}
-{%- for field in args.lookup.interfaces.msgs[interface.msgs].cpp_data_type.res %}
-        if hasattr(response, '{{ field.name }}'):
-            setattr(response, '{{ field.name }}', getattr(response, '{{ field.name }}', None) or (True if '{{ field.type }}' in ('bool', 'boolean') else 'OK'))
-{%- endfor %}
-{%- endif %}
-        return response
-
-{%- endfor %}
-{%- endif %}
-
-    # ------------------------------------------------------------------
-    # Hooks for outbound communication (publishers, clients, actions)
-    # ------------------------------------------------------------------
+    def example_business_logic(self) -> None:
+        """Example method showing how to use the output interfaces."""
+        logger.info("Executing business logic...")
+        
+        # Example: publish to all output topics
 {%- if args.ros is defined and args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
-    def set_pub_callback_{{ identifier }}(self, callback: Callable[..., None]) -> None:
-        """Register ROS publisher bridge for {{ interface.description }}."""
-        self._pub_callback_{{ identifier }} = callback
-
-    def interface_pub_{{ identifier }}(self, **fields: Any) -> None:
-        """Emit data on outbound topic {{ interface.name }}."""
-        if self._pub_callback_{{ identifier }} is None:
-            logger.warning("No publisher callback registered for {{ interface.name }}")
-            return
-        self._pub_callback_{{ identifier }}(**fields)
-
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+        # Publish to {{ interface.name }}
+        self._publish_{{ identifier }}(
+{%- for field in lu.cpp_data_type %}
+{%- if field.type in ['std::string', 'string'] %}
+            {{ field.name }}="Hello from business logic!",
+{%- elif field.type in ['double', 'float64'] %}
+            {{ field.name }}=42.0,
+{%- elif field.type in ['int', 'int32', 'int64'] %}
+            {{ field.name }}=42,
+{%- elif field.type in ['bool', 'boolean'] %}
+            {{ field.name }}=True,
+{%- else %}
+            {{ field.name }}="default_value",
+{%- endif %}
 {%- endfor %}
+        )
+{%- endif %}
+{%- endfor %}
+
+        # Example: call all service clients
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
-    def set_srv_client_{{ identifier }}(self, caller: Callable[..., Awaitable[Any]]) -> None:
-        """Register the ROS service client bridge for {{ interface.description }}."""
-        self._srv_client_call_{{ identifier }} = caller
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+        # Call service {{ interface.name }}
+        result = self._call_service_{{ identifier }}(
+{%- for field in lu.cpp_data_type.req %}
+{%- if field.type in ['std::string', 'string'] %}
+            {{ field.name }}="service_request",
+{%- elif field.type in ['double', 'float64'] %}
+            {{ field.name }}=1.0,
+{%- elif field.type in ['int', 'int32', 'int64'] %}
+            {{ field.name }}=1,
+{%- elif field.type in ['bool', 'boolean'] %}
+            {{ field.name }}=True,
+{%- else %}
+            {{ field.name }}="default",
+{%- endif %}
+{%- endfor %}
+        )
+        logger.info("Service {{ interface.name }} result: {}", result)
+{%- endif %}
+{%- endfor %}
+{%- else %}
+        logger.info("No interfaces defined - pure business logic only")
+{%- endif %}
 
-    def interface_srv_{{ identifier }}(self, **fields: Any):
-        """Invoke the outbound service {{ interface.name }} using the registered client."""
-        if self._srv_client_call_{{ identifier }} is None:
-            logger.warning("No service client callback registered for {{ interface.name }}")
-            return None
-        return self._srv_client_call_{{ identifier }}(**fields)
+    # ------------------------------------------------------------------
+    # Override input interface methods with business logic
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def process_sub_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type %}
+        msg_{{ field.name }}: Any,
+{%- endfor %}
+    ) -> None:
+        """Handle inbound topic with business logic: {{ interface.description }}."""
+        # Call parent implementation for logging
+        super().process_sub_{{ identifier }}(
+{%- for field in lu.cpp_data_type %}
+            msg_{{ field.name }},
+{%- endfor %}
+        )
+        
+        # Add your business logic here
+        logger.info("Processing {{ interface.name }} in business logic")
+        # Example: trigger business logic based on input
+        self.example_business_logic()
 
+{%- endif %}
+{%- endfor %}
+
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def process_srv_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type.req %}
+        req_{{ field.name }}: Any,
+{%- endfor %}
+    ) -> dict[str, Any]:
+        """Handle service server request with business logic: {{ interface.description }}."""
+        # Call parent implementation for logging  
+        response = super().process_srv_{{ identifier }}(
+{%- for field in lu.cpp_data_type.req %}
+            req_{{ field.name }},
+{%- endfor %}
+        )
+        
+        # Add your business logic here
+        logger.info("Processing service {{ interface.name }} in business logic")
+        
+        # Example: modify response based on business logic
+{%- for field in lu.cpp_data_type.res %}
+        if "{{ field.name }}" in response:
+            # Customize response based on business requirements
+            response["{{ field.name }}"] = True if "{{ field.type }}" in ("bool", "boolean") else "Business Logic Response"
+{%- endfor %}
+        
+        return response
+
+{%- endif %}
 {%- endfor %}
 {%- endif %}

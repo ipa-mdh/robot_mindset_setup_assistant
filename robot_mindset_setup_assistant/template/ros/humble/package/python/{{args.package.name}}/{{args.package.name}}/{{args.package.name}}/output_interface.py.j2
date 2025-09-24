@@ -1,0 +1,140 @@
+"""Output interface for {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}."""
+
+from __future__ import annotations
+
+from abc import ABC
+from typing import Any, Callable, Optional
+
+from loguru import logger
+
+
+class LogicModuleOutputInterface(ABC):
+    """Abstract interface for outbound communication from the logic module."""
+
+    def __init__(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._pub_callback_{{ identifier }}: Optional[Callable[..., None]] = None
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._srv_client_call_{{ identifier }}: Optional[Callable[..., Any]] = None
+{%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Callback registration methods for publishers
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_pub_callback_{{ identifier }}(
+        self, 
+        callback: Callable[
+            [
+{%- for field in lu.cpp_data_type %}
+                Any,  # {{ field.name }}: {{ field.type }}
+{%- endfor %}
+            ], 
+            None
+        ]
+    ) -> None:
+        """Register ROS publisher callback for {{ interface.description }}."""
+        self._pub_callback_{{ identifier }} = callback
+
+{%- else %}
+    # For other message types, implementation is required
+    # def set_pub_callback_{{ identifier }}(self, callback: Callable[..., None]) -> None:
+    #     """Register ROS publisher callback for {{ interface.description }}."""
+    #     self._pub_callback_{{ identifier }} = callback
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Callback registration methods for service clients
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    def set_srv_client_{{ identifier }}(self, caller: Callable[..., Any]) -> None:
+        """Register the ROS service client callback for {{ interface.description }}."""
+        self._srv_client_call_{{ identifier }} = caller
+
+{%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Protected methods to trigger outbound communication
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def _publish_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type %}
+        {{ field.name }}: Any,
+{%- endfor %}
+    ) -> None:
+        """Emit data on outbound topic {{ interface.name }}."""
+        if self._pub_callback_{{ identifier }} is None:
+            logger.warning("No publisher callback registered for {{ interface.name }}")
+            return
+        self._pub_callback_{{ identifier }}(
+{%- for field in lu.cpp_data_type %}
+            {{ field.name }},
+{%- endfor %}
+        )
+
+{%- else %}
+    # For other message types, implementation is required
+    # def _publish_{{ identifier }}(self, **fields: Any) -> None:
+    #     """Emit data on outbound topic {{ interface.name }}."""
+    #     if self._pub_callback_{{ identifier }} is None:
+    #         logger.warning("No publisher callback registered for {{ interface.name }}")
+    #         return
+    #     self._pub_callback_{{ identifier }}(**fields)
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def _call_service_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type.req %}
+        {{ field.name }}: Any,
+{%- endfor %}
+    ) -> Any:
+        """Invoke the outbound service {{ interface.name }} using the registered client."""
+        if self._srv_client_call_{{ identifier }} is None:
+            logger.warning("No service client callback registered for {{ interface.name }}")
+            return None
+        return self._srv_client_call_{{ identifier }}(
+{%- for field in lu.cpp_data_type.req %}
+            {{ field.name }}={{ field.name }},
+{%- endfor %}
+        )
+
+{%- else %}
+    # For other message types, implementation is required  
+    # def _call_service_{{ identifier }}(self, **fields: Any) -> Any:
+    #     """Invoke the outbound service {{ interface.name }} using the registered client."""
+    #     if self._srv_client_call_{{ identifier }} is None:
+    #         logger.warning("No service client callback registered for {{ interface.name }}")
+    #         return None
+    #     return self._srv_client_call_{{ identifier }}(**fields)
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}

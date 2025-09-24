@@ -1,0 +1,87 @@
+"""Input interface for {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import Any
+
+from loguru import logger
+
+
+class LogicModuleInputInterface(ABC):
+    """Abstract interface for handling inbound data in the logic module."""
+
+    # ------------------------------------------------------------------
+    # Topic subscription handlers
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def process_sub_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type %}
+        msg_{{ field.name }}: Any,
+{%- endfor %}
+    ) -> None:
+        """Handle inbound topic: {{ interface.description }}."""
+{%- for field in lu.cpp_data_type %}
+        logger.debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {{ field.name }}: {}", msg_{{ field.name }})
+{%- endfor %}
+
+{%- else %}
+    # For other message types, implementation is required
+    # Interface:
+    # - name: {{ interface.name }}  
+    # - msgs: {{ interface.msgs }}
+    # def process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(self, msg: {{ interface.msgs }}) -> None:
+    #     """Handle inbound topic: {{ interface.description }}."""
+    #     logger.debug("Logic Module (non-ROS): Received on topic {{ interface.name }}: {}", msg)
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Service request handlers
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def process_srv_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type.req %}
+        req_{{ field.name }}: Any,
+{%- endfor %}
+    ) -> dict[str, Any]:
+        """Handle service server request: {{ interface.description }}."""
+        logger.debug("Logic Module (non-ROS): Received service {{ interface.name }}:")
+{%- for field in lu.cpp_data_type.req %}
+        logger.debug(" {{ field.name }}: {}", req_{{ field.name }})
+{%- endfor %}
+        
+        # Default implementation - return empty response
+        response = {}
+{%- for field in lu.cpp_data_type.res %}
+        response["{{ field.name }}"] = True if "{{ field.type }}" in ("bool", "boolean") else "OK"
+{%- endfor %}
+        return response
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    # ------------------------------------------------------------------
+    # Action server callbacks  
+    # ------------------------------------------------------------------
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    def process_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(self, goal: Any) -> None:
+        """Handle action server goal: {{ interface.description }}."""
+        logger.debug("Logic Module (non-ROS): Received action goal {{ interface.name }}: {}", goal)
+
+{%- endfor %}
+{%- endif %}

@@ -114,9 +114,9 @@ class ROSNode(Node):
             10,
         )
         self._subscriptions.append(subscription)
-        logger.debug(f'Created subscriber for { interface.name }')
+        logger.debug(f'Created subscriber for {{ interface.name }}')
 {%- else %}
-        logger.warning(f'Interface { interface.name } not in lookup table, skipping subscriber')
+        logger.warning(f'Interface {{ interface.name }} not in lookup table, skipping subscriber')
 {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -134,9 +134,9 @@ class ROSNode(Node):
             '{{ interface.name }}',
             10,
         )
-        logger.debug(f'Created publisher for { interface.name }')
+        logger.debug(f'Created publisher for {{ interface.name }}')
 {%- else %}
-        logger.warning(f'Interface { interface.name } not in lookup table, skipping publisher')
+        logger.warning(f'Interface {{ interface.name }} not in lookup table, skipping publisher')
 {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -154,9 +154,9 @@ class ROSNode(Node):
             '{{ interface.name }}',
             self._callback_srv_{{ identifier }},
         )
-        logger.debug(f'Created service server for { interface.name }')
+        logger.debug(f'Created service server for {{ interface.name }}')
 {%- else %}
-        logger.warning(f'Interface { interface.name } not in lookup table, skipping service server')
+        logger.warning(f'Interface {{ interface.name }} not in lookup table, skipping service server')
 {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -173,11 +173,11 @@ class ROSNode(Node):
             {{ cls }},
             '{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}',
         )
-        while not self._client_{{ identifier }}.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info(f'Service { interface.name } not available, waiting again...')
-        logger.debug(f'Created service client for { interface.name }')
+        if not self._client_{{ identifier }}.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info(f'Service {{ interface.name }} not available, waiting again...')
+        logger.debug(f'Created service client for {{ interface.name }}')
 {%- else %}
-        logger.warning(f'Interface { interface.name } not in lookup table, skipping service client')
+        logger.warning(f'Interface {{ interface.name }} not in lookup table, skipping service client')
 {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -302,47 +302,72 @@ class ROSNode(Node):
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     def _callback_sub_{{ identifier }}(self, msg: Any) -> None:
-        logger.debug(f'Forwarding message from { interface.name } to logic module')
-        self.logic_module.process_sub_{{ identifier }}(msg)
+        logger.debug(f'Forwarding message from {{ interface.name }} to logic module')
+        # Extract message fields and pass to logic module
+        self.logic_module.process_sub_{{ identifier }}(
+{%- for field in lu.cpp_data_type %}
+            getattr(msg, '{{ field.name }}', None),
+{%- endfor %}
+        )
 
 {%- endif %}
 {%- endfor %}
+
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     def _callback_srv_{{ identifier }}(self, request: Any, response: Any) -> Any:
-        logger.debug(f'Forwarding service call { interface.name } to logic module')
-        result = self.logic_module.process_srv_{{ identifier }}(request, response)
-        return result if result is not None else response
+        logger.debug(f'Forwarding service call {{ interface.name }} to logic module')
+        # Extract request fields and pass to logic module
+        result_dict = self.logic_module.process_srv_{{ identifier }}(
+{%- for field in lu.cpp_data_type.req %}
+            getattr(request, '{{ field.name }}', None),
+{%- endfor %}
+        )
+        
+        # Map result dictionary back to response fields
+        if result_dict:
+{%- for field in lu.cpp_data_type.res %}
+            if '{{ field.name }}' in result_dict:
+                setattr(response, '{{ field.name }}', result_dict['{{ field.name }}'])
+{%- endfor %}
+        
+        return response
 
 {%- endif %}
 {%- endfor %}
+
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
 {%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
 {%- set parts = include.split('/') %}
 {%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
-{%- set field_defs = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type %}
-    def _interface_pub_{{ identifier }}(self, **payload: Any) -> None:
-        if self._pub_{{ identifier }} is None:
-            logger.error(f'Publisher for { interface.name } not initialised')
-            return
-        message = payload.get('message')
-        if message is None:
-            message = {{ cls }}()
-{%- if field_defs %}
-{%- for field in field_defs %}
-            if '{{ field.name }}' in payload:
-                setattr(message, '{{ field.name }}', payload['{{ field.name }}'])
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def _interface_pub_{{ identifier }}(
+        self, 
+{%- for field in lu.cpp_data_type %}
+        {{ field.name }}: Any,
 {%- endfor %}
-{%- endif %}
+    ) -> None:
+        if self._pub_{{ identifier }} is None:
+            logger.error(f'Publisher for {{ interface.name }} not initialised')
+            return
+        
+        message = {{ cls }}()
+{%- for field in lu.cpp_data_type %}
+        setattr(message, '{{ field.name }}', {{ field.name }})
+{%- endfor %}
+        
         self._pub_{{ identifier }}.publish(message)
-        logger.debug(f'Published message on { interface.name }')
+        logger.debug(f'Published message on {{ interface.name }}')
 
 {%- endif %}
 {%- endfor %}
+
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
@@ -350,19 +375,23 @@ class ROSNode(Node):
 {%- set parts = include.split('/') %}
 {%- set cls = parts[2].replace('_', ' ') | title | replace(' ', '') %}
 {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    def _interface_srv_{{ identifier }}(self, **payload: Any):
+    def _interface_srv_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type.req %}
+        {{ field.name }}: Any,
+{%- endfor %}
+    ) -> Any:
         if self._client_{{ identifier }} is None:
-            logger.error(f'Service client for { interface.name } not initialised')
+            logger.error(f'Service client for {{ interface.name }} not initialised')
             return None
+        
         request = {{ cls }}.Request()
 {%- for field in lu.cpp_data_type.req %}
-        if '{{ field.name }}' in payload:
-            setattr(request, '{{ field.name }}', payload['{{ field.name }}'])
-        else:
-            logger.debug(f'Missing field { field.name } for service { interface.name }, using default')
+        setattr(request, '{{ field.name }}', {{ field.name }})
 {%- endfor %}
+        
         future = self._client_{{ identifier }}.call_async(request)
-        logger.debug(f'Dispatched async request on { interface.name }')
+        logger.debug(f'Dispatched async request on {{ interface.name }}')
         return future
 
 {%- endif %}
