@@ -98,7 +98,7 @@ def generate_custom_launch_description(context, *args, **kwargs):
         package='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}',
         executable='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node',
         name='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node',
-        namespace=namespace,
+        #namespace=namespace, # This is managed in multi_serve.launch.py
         output='screen',
         parameters=[
             config.get('parameters', {}),
