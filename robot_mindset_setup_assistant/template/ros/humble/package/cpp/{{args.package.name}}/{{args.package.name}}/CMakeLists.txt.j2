@@ -26,6 +26,14 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
 {%- endif %}
 {%- endif %}
 {%- endif %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- set has_actions = args.ros.interfaces | selectattr('type', 'equalto', 'action') | list | length > 0 %}
+  {%- if has_actions %}
+rclcpp_action
+  {%- endif %}
+{%- endif %}
+{%- endif %}
 )
 
 # find dependencies

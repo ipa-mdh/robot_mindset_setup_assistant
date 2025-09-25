@@ -2,7 +2,41 @@
 
 #include <string>
 #include <spdlog/spdlog.h>
-// #include "rosidl_generator_traits/traits.hpp"
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.direction == "in" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+
+{#- Check if the interface is an action and set the flag #}
+{%- if interface.type == "action" -%}
+{%- set ns.add_actionlib = true -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// Include message headers based on the Robot Mindset Setup Assistant configuration
+{%- if ns.add_actionlib %}
+#include <rclcpp_action/rclcpp_action.hpp>
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} 
 {
@@ -72,12 +106,22 @@ public:
 {%- endif %}
 
 
-// === Action server callbacks ===
+// === Action client callbacks ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
-    virtual void process_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ interface.msgs.split('/')[0] }}::{{interface.msgs.split('/')[1] }}::GoalConstPtr&) {}
+    // Action client callbacks for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
+    virtual void goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {}
+    virtual void feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {}
+    virtual void result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) {}
+{%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+{%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}

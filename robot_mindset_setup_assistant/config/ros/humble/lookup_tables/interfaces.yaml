@@ -105,3 +105,32 @@ msgs:
           type: bool
         - name: message
           type: std::string
+
+  # Action interfaces
+  example_interfaces/action/fibonacci:
+    include: example_interfaces/action/fibonacci
+    ros_data_type: example_interfaces::action::Fibonacci
+    cpp_data_type:
+      goal:
+        - name: order
+          type: std::int32_t
+      result:
+        - name: sequence
+          type: std::vector<std::int32_t>
+      feedback:
+        - name: partial_sequence
+          type: std::vector<std::int32_t>
+
+  turtlesim/action/rotate_absolute:
+    include: turtlesim/action/rotate_absolute
+    ros_data_type: turtlesim::action::RotateAbsolute
+    cpp_data_type:
+      goal:
+        - name: theta
+          type: float
+      result:
+        - name: delta
+          type: float
+      feedback:
+        - name: remaining
+          type: float

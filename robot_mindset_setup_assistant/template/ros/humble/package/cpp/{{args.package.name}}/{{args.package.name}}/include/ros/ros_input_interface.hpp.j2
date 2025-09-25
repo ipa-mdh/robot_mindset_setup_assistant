@@ -30,7 +30,7 @@
 
 // Include message headers based on the Robot Mindset Setup Assistant configuration
 {%- if ns.add_actionlib %}
-#include <rclcpp_action /rclcpp_action.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 {%- endif %}
 {%- if ns.add_parameterslib %}
 #include <rcl_interfaces/msg/set_parameters_result.hpp>
@@ -80,7 +80,19 @@ protected:
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-    // virtual void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ lu.ros_data_type }}::GoalConstPtr &goal) = 0;
+    // Action server callbacks for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
+    virtual rclcpp_action::GoalResponse handle_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+        const rclcpp_action::GoalUUID & uuid,
+        std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal) = 0;
+    
+    virtual rclcpp_action::CancelResponse handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+        const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) = 0;
+    
+    virtual void handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+        const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) = 0;
+    
+    virtual void execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+        const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) = 0;
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
     {%- endif %}

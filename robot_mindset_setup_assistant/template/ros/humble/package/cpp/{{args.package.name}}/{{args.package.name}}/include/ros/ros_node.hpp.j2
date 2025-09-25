@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
 
 #include "ros/ros_input_interface.hpp"
 #include "ros/ros_output_interface.hpp"
@@ -177,6 +178,24 @@ private:
   // Service interfaces: servers and clients
 
   // Action interfaces: servers and clients (using dynamic allocation)
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" %}
+  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+  {%- if interface.direction == "out" %}
+  // Action Server: {{ interface.description }}
+  rclcpp_action::Server<{{ lu.ros_data_type }}>::SharedPtr action_server_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+  {%- elif interface.direction == "in" %}
+  // Action Client: {{ interface.description }}
+  rclcpp_action::Client<{{ lu.ros_data_type }}>::SharedPtr action_client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+  {%- endif %}
+  {%- else %}
+  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+  {%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 
   /****************** Callback Functions ******************/
 {%- if args.ros is defined %}
@@ -205,55 +224,41 @@ private:
 {% endfor %}
 
   // === Action server callbacks ===
-{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  // void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ lu.ros_data_type }}::GoalConstPtr &goal) override;
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
+  // (Moved to RosInputInterface - see ros_input_interface.hpp.j2)
 {%- endif %}
 {%- endif %}
 
   /****************** Interface Functions ******************/
-  // === Topic publisher ===
+  // === Topic publisher interface functions ===
+  // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
   {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
   {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-  // {{ interface.description }}
-  void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
-    {%- for field in lu.cpp_data_type -%}
-        const {{ field.type }} &msg_{{field.name}}{% if not loop.last %}, {% endif %}
-    {%- endfor -%}
-  ) override;
+  {%- for field in lu.cpp_data_type %}
+  void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ field.type }} &msg_{{ field.name }}) override;
+  {%- endfor %}
   {%- else %}
   // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
   {%- endif %}
 {% endfor %}
 {%- endif %}
 {%- endif %}
-
-  // === Service call ===
+  
+  // === Service call interface functions ===
+  // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
   {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
   {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-  // {{ interface.description }}
   {%- set decl = "bool interface_srv_" ~ interface.name|regex_replace('[^A-Za-z0-9]', '_') ~ "_(" %}
   {%- set indent = " " * (decl|length) %}
-  {{ decl }}
-  {%- for req in lu.cpp_data_type.req %}
-  {%- if not loop.first %}{{ indent }}{% endif %}{{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
-  {%- endfor -%}
-  {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif %}
-  {%- for res in lu.cpp_data_type.res %}
-  {{ indent }}{{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
-  {%- endfor -%}
-  ) override;
+  {{ decl }}{%- for field in lu.cpp_data_type.req %}{{ field.type }} req_{{ field.name }}{%- if not loop.last %},
+  {{ indent }}{% elif lu.cpp_data_type.res|length > 0 %},
+  {{ indent }}{% endif %}{%- endfor %}{%- for field in lu.cpp_data_type.res %}{{ field.type }} &res_{{ field.name }}{%- if not loop.last %},
+  {{ indent }}{% endif %}{%- endfor %}) override;
   {%- else %}
   // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
   {%- endif %}
@@ -261,16 +266,9 @@ private:
 {%- endif %}
 {%- endif %}
 
-  // === Action server callbacks ===
-  {%- if args.ros is defined %}
-  {%- if args.ros.interfaces is defined %}
-  {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in"
-  %}
-  void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{
-  interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) override;
-  {% endfor %}
-  {%- endif %}
-  {%- endif %}
-  };
-  
-  } // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+  // === Action client interface functions ===
+  // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
+  // TODO: Add action client interface function declarations if needed
+};
+
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

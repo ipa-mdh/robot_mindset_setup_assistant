@@ -33,6 +33,8 @@ package:
       - rclcpp
       - std_msgs
       - std_srvs
+      - example_interfaces  # For Fibonacci action
+      - turtlesim          # For RotateAbsolute action
     # repositories to be cloned into the workspace via vcs tool (target: .rosinstall)
     git: []
       # - name: sim2real_gap
@@ -43,6 +45,8 @@ package:
       - name: rclcpp
       - name: std_msgs
       - name: std_srvs
+      - name: example_interfaces   # For action types
+      - name: turtlesim           # For action types
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
       - name: fmt
@@ -151,11 +155,27 @@ ros:
     #   msgs: my_msgs/controller_config
     #   type: topic
     #   description: A string interface for the robot.
-    # - name: action_interface
-    #   direction: in
-    #   msgs: my_msgs/action_conig
-    #   type: action
-    #   description: An action interface for the robot.
+    # Action interfaces - using standard ROS2 action types
+    - name: fibonacci_action_server
+      direction: out
+      msgs: example_interfaces/action/Fibonacci
+      type: action
+      description: An action server that computes Fibonacci sequences (provides this action to other nodes).
+    - name: fibonacci_action_client
+      direction: in
+      msgs: example_interfaces/action/Fibonacci
+      type: action
+      description: An action client that calls Fibonacci sequences (consumes this action from other nodes).
+    - name: turtle_rotating_server
+      direction: out
+      msgs: turtlesim/action/RotateAbsolute
+      type: action
+      description: An action server for rotating turtle to absolute angle.
+    - name: turtle_rotating_client  
+      direction: in
+      msgs: turtlesim/action/RotateAbsolute
+      type: action
+      description: An action client for rotating turtle (calls rotation actions on other nodes).
     - name: log_level
       direction: in
       msgs: std_msgs/msg/string

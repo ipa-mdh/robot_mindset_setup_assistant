@@ -54,11 +54,25 @@ protected:
 {%- endif %}
 {%- endif %}
 
-    // === Action server callbacks ===
+    // === Action client interface ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-    virtual void callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) = 0;
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    // {{ interface.description }}
+    virtual bool interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    {%- if lu.cpp_data_type.goal is defined %}
+    {%- for field in lu.cpp_data_type.goal %}
+        const {{ field.type }} &goal_{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    {%- else %}
+        const {{ lu.ros_data_type }}::Goal &goal
+    {%- endif %}) = 0;
+    {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+    {%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}

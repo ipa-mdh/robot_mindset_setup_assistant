@@ -1,6 +1,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <thread>
 #include "ros/ros_node.hpp"
 
 namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}
@@ -153,11 +154,50 @@ void ROSNode::init_ros_interface_clients()
 }
 void ROSNode::init_ros_interface_action_services()
 {
-    // Initialize action servces
+    // Initialize action servers
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    
+    // Initialize action server: {{ interface.description }}
+    action_server_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = rclcpp_action::create_server<{{ lu.ros_data_type }}>(
+        this,
+        "{{ interface.name }}",
+        std::bind(&ROSNode::handle_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&ROSNode::handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1),
+        std::bind(&ROSNode::handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1));
+    
+    RCLCPP_INFO(this->get_logger(), "Action server '%s' initialized", "{{ interface.name }}");
+  {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+  {%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 }
 void ROSNode::init_ros_interface_action_clients()
 {
     // Initialize action clients
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    
+    // Initialize action client: {{ interface.description }}
+    action_client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = rclcpp_action::create_client<{{ lu.ros_data_type }}>(
+        this,
+        "{{ interface.name }}");
+    
+    RCLCPP_INFO(this->get_logger(), "Action client '%s' initialized", "{{ interface.name }}");
+  {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+  {%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 }
 void ROSNode::init_logic_module()
 {
@@ -321,21 +361,93 @@ void ROSNode::callback_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') 
 {%- endif %}
 
 // === Action server callbacks ===
-{# {%- if args.ros is defined %}
+{%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-void ROSNode::callback_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::GoalConstPtr &goal) 
+  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+
+// Action server callbacks for {{ interface.name }}
+rclcpp_action::GoalResponse ROSNode::handle_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    const rclcpp_action::GoalUUID & uuid,
+    std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal)
 {
-    // Create a new goal
-    {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}::Goal goal_out;
-    // Set the goal
-    goal_out = *goal;
-    // Process the goal
-    logic_module_.process_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(goal_out);
+    RCLCPP_INFO(this->get_logger(), "Received goal request for action {{ interface.name }}");
+    (void)uuid;
+    
+    // You can add validation logic here
+    // For now, accept all goals
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
-{%- endfor %}
+
+rclcpp_action::CancelResponse ROSNode::handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle)
+{
+    RCLCPP_INFO(this->get_logger(), "Received request to cancel goal for action {{ interface.name }}");
+    (void)goal_handle;
+    return rclcpp_action::CancelResponse::ACCEPT;
+}
+
+void ROSNode::handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle)
+{
+    using namespace std::placeholders;
+    // This needs to return quickly to avoid blocking the executor, so spin up a new thread
+    std::thread{std::bind(&ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, _1), goal_handle}.detach();
+}
+
+void ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+    const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle)
+{
+    RCLCPP_INFO(this->get_logger(), "Executing goal for action {{ interface.name }}");
+    
+    const auto goal = goal_handle->get_goal();
+    auto feedback = std::make_shared<{{ lu.ros_data_type }}::Feedback>();
+    auto result = std::make_shared<{{ lu.ros_data_type }}::Result>();
+    
+    // Check if there is a cancel request
+    if (goal_handle->is_canceling()) {
+        result->success = false;
+        goal_handle->canceled(result);
+        RCLCPP_INFO(this->get_logger(), "Goal canceled for action {{ interface.name }}");
+        return;
+    }
+    
+    // TODO: Implement your action server logic here
+    // This is a template - replace with your actual implementation
+    
+    // Example: Simple loop with feedback
+    rclcpp::Rate loop_rate(1);  // 1 Hz
+    for (int i = 0; i < 10 && rclcpp::ok(); ++i) {
+        // Check if there is a cancel request
+        if (goal_handle->is_canceling()) {
+            result->success = false;
+            goal_handle->canceled(result);
+            RCLCPP_INFO(this->get_logger(), "Goal canceled for action {{ interface.name }}");
+            return;
+        }
+        
+        // Update progress in feedback
+        // feedback->current_progress = i;  // Adjust based on your action definition
+        goal_handle->publish_feedback(feedback);
+        RCLCPP_INFO(this->get_logger(), "Publishing feedback for action {{ interface.name }}");
+        
+        loop_rate.sleep();
+    }
+    
+    // Check if goal is done
+    if (rclcpp::ok()) {
+        result->success = true;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Goal succeeded for action {{ interface.name }}");
+    }
+}
+  {%- else %}
+// {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+  {%- endif %}
+{% endfor %}
 {%- endif %}
-{%- endif %} #}
+{%- endif %}
 
 
 /****************** Interface Functions ******************/

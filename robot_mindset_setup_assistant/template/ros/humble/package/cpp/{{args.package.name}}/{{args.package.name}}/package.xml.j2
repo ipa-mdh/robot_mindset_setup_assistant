@@ -28,6 +28,15 @@ custom sections instead.
 
   <exec_depend>gazebo_ros</exec_depend>
 
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+  {%- set has_actions = args.ros.interfaces | selectattr('type', 'equalto', 'action') | list | length > 0 %}
+  {%- if has_actions %}
+  <depend>rclcpp_action</depend>
+  {%- endif %}
+{%- endif %}
+{%- endif %}
+
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
