@@ -225,6 +225,25 @@ private:
 
   // === Action server callbacks ===
   // (Moved to RosInputInterface - see ros_input_interface.hpp.j2)
+
+  // === Action server callback implementations (declared here for ROSNode) ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+  rclcpp_action::GoalResponse handle_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+      const rclcpp_action::GoalUUID & uuid,
+      std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal) override;
+  
+  rclcpp_action::CancelResponse handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) override;
+  
+  void handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) override;
+
+  void execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+      const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle);
+  {%- endif %}
+{% endfor %}
 {%- endif %}
 {%- endif %}
 
@@ -268,7 +287,21 @@ private:
 
   // === Action client interface functions ===
   // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
-  // TODO: Add action client interface function declarations if needed
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+  {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+  {%- set decl = "bool interface_act_" ~ interface.name|regex_replace('[^A-Za-z0-9]', '_') ~ "_(" %}
+  {%- set indent = " " * (decl|length) %}
+  {{ decl }}{%- for field in lu.cpp_data_type.goal %}const {{ field.type }} &{{ field.name }}{%- if not loop.last %},
+  {{ indent }}{% endif %}{%- endfor %}) override;
+  {%- else %}
+  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+  {%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 };
 
 } // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

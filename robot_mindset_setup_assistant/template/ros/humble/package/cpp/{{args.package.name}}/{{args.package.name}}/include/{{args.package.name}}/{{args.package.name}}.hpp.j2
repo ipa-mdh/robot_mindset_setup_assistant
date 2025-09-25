@@ -17,6 +17,21 @@ public:
     // test functions
     std::string greet(const std::string& name) const;
     void spdlog_test(double number) const;
+
+    // Action client interface implementations
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+    void interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) override;
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
 };
 
 }

@@ -61,4 +61,25 @@ void LogicModule::set_logger_level(std::string level_str)
     }
 }
 
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+
+// Action client interface implementations
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+void LogicModule::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) {
+    // Call the ROS layer action client callback (with underscore)
+    if (act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_param);
+    }
+}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
 }

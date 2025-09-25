@@ -36,6 +36,62 @@ public:
 {%- endif %}
 {%- endif %}
 
+    // === Action client interface functions ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    // {{ interface.description }} - Action client interface function
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    virtual void interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        {%- if lu.cpp_data_type.goal %}
+        {%- for field in lu.cpp_data_type.goal -%}
+        const {{ field.type }}&{% if not loop.last %} param_{{ loop.index0 }}, {% endif %}
+        {%- endfor %}
+        {%- else %}
+        // No goal parameters defined for {{ interface.msgs }}
+        {%- endif %}
+    ) = 0;
+    {%- else %}
+    // For other action types, implementation is required
+    // virtual void interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(<goal-parameters>) = 0;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // === Setter for action client callback interface functions ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    // {{ interface.description }} - Action client callback setter
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    void set_act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const std::function<void(
+        {%- if lu.cpp_data_type.goal %}
+        {%- for field in lu.cpp_data_type.goal -%}
+        const {{ field.type }}&{% if not loop.last %}, {% endif %}
+        {%- endfor %}
+        {%- else %}
+        // No goal parameters defined for {{ interface.msgs }}
+        {%- endif %}
+    )> callback)
+    {
+        act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
+    }
+    {%- else %}
+    // For other action types, implementation is required
+    // void set_act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const std::function<void(<goal-parameters>)> callback)
+    // {
+    //   act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
+    // }
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
 protected:
     // === Callback function for the interface ===
 {%- if args.ros is defined %}
@@ -54,6 +110,31 @@ protected:
     {%- else %}
 // For other message types, implemetnation is required
 // std::function <const {{ interface.msgs.split('/')[0] }}::{{ interface.msgs.split('/')[1] }}> pub_callback_{{ interface.name }}_;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // === Action client callback functions ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    // {{ interface.description }} - Action client callback
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    std::function<void(
+    {%- if lu.cpp_data_type.goal %}
+    {%- for field in lu.cpp_data_type.goal -%}
+        const {{ field.type }}&{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    {%- else %}
+        // No goal parameters defined for {{ interface.msgs }}
+    {%- endif %}
+        )> act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- else %}
+// For other action types, implementation is required
+// std::function<void(<goal-parameters>)> act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
     {%- endif %}
 {%- endfor %}
 {%- endif %}

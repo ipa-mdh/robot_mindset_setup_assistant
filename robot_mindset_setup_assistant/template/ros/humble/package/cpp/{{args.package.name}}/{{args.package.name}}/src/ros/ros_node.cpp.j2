@@ -231,6 +231,43 @@ void ROSNode::init_logic_module()
 {% endfor %}
 {%- endif %}
 {%- endif %}
+
+    // Set external callbacks: action clients
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{% for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    logic_module_.set_act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        [this](
+        {%- if lu.cpp_data_type.goal %}
+        {%- for field in lu.cpp_data_type.goal -%}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+        {%- else %}
+        // No goal parameters defined for {{ interface.msgs }}
+        {%- endif %}
+        ) {
+        this->interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+        {%- if lu.cpp_data_type.goal %}
+        {%- for field in lu.cpp_data_type.goal -%}
+        {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+        {%- else %}
+        // No goal parameters
+        {%- endif %}
+        );
+        }
+    );
+{%- else %}
+    // For other action types, implementation is required
+    //   interface: {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
+    //   ros_data_type: {{ interface.msgs }}
+{%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 }
 
 /****************** Parameter Functions ******************/
@@ -407,7 +444,15 @@ void ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
     
     // Check if there is a cancel request
     if (goal_handle->is_canceling()) {
-        result->success = false;
+        {% if interface.msgs == "example_interfaces/action/Fibonacci" -%}
+        // For Fibonacci action, just return empty sequence on cancel
+        result->sequence.clear();
+        {% elif interface.msgs == "turtlesim/action/RotateAbsolute" -%}
+        // For RotateAbsolute action, return zero delta on cancel
+        result->delta = 0.0;
+        {% else -%}
+        // Generic action cancel - adjust based on your action definition
+        {% endif -%}
         goal_handle->canceled(result);
         RCLCPP_INFO(this->get_logger(), "Goal canceled for action {{ interface.name }}");
         return;
@@ -416,19 +461,92 @@ void ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
     // TODO: Implement your action server logic here
     // This is a template - replace with your actual implementation
     
-    // Example: Simple loop with feedback
+    {% if interface.msgs == "example_interfaces/action/Fibonacci" -%}
+    // Example Fibonacci sequence implementation
     rclcpp::Rate loop_rate(1);  // 1 Hz
-    for (int i = 0; i < 10 && rclcpp::ok(); ++i) {
+    std::vector<int32_t> sequence;
+    sequence.push_back(0);
+    sequence.push_back(1);
+    
+    for (int32_t i = 1; i < goal->order && rclcpp::ok(); ++i) {
         // Check if there is a cancel request
         if (goal_handle->is_canceling()) {
-            result->success = false;
+            result->sequence.clear();
             goal_handle->canceled(result);
             RCLCPP_INFO(this->get_logger(), "Goal canceled for action {{ interface.name }}");
             return;
         }
         
-        // Update progress in feedback
-        // feedback->current_progress = i;  // Adjust based on your action definition
+        // Calculate next Fibonacci number
+        sequence.push_back(sequence[i] + sequence[i-1]);
+        
+        // Update feedback with current sequence
+        feedback->sequence = sequence;
+        goal_handle->publish_feedback(feedback);
+        RCLCPP_INFO(this->get_logger(), "Publishing Fibonacci feedback: sequence length = %lu", sequence.size());
+        
+        loop_rate.sleep();
+    }
+    
+    // Set final result
+    if (rclcpp::ok()) {
+        result->sequence = sequence;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "Fibonacci goal succeeded with sequence length = %lu", sequence.size());
+    }
+    {% elif interface.msgs == "turtlesim/action/RotateAbsolute" -%}
+    // Example RotateAbsolute implementation
+    rclcpp::Rate loop_rate(10);  // 10 Hz
+    float target_theta = goal->theta;
+    float current_theta = 0.0;  // This should come from actual turtle pose
+    float initial_theta = current_theta;
+    
+    RCLCPP_INFO(this->get_logger(), "Rotating to target angle: %f radians", target_theta);
+    
+    // Simulate rotation progress
+    const float rotation_speed = 1.0;  // radians per second
+    const float dt = 0.1;  // 10Hz update rate
+    
+    while (std::abs(target_theta - current_theta) > 0.01 && rclcpp::ok()) {
+        // Check if there is a cancel request
+        if (goal_handle->is_canceling()) {
+            result->delta = current_theta - initial_theta;
+            goal_handle->canceled(result);
+            RCLCPP_INFO(this->get_logger(), "Goal canceled for action {{ interface.name }}");
+            return;
+        }
+        
+        // Simulate rotation progress
+        float remaining = target_theta - current_theta;
+        float step = std::copysign(std::min(std::abs(remaining), rotation_speed * dt), remaining);
+        current_theta += step;
+        
+        // Update feedback
+        feedback->remaining = target_theta - current_theta;
+        goal_handle->publish_feedback(feedback);
+        RCLCPP_INFO(this->get_logger(), "Rotating: current=%.2f, remaining=%.2f", current_theta, feedback->remaining);
+        
+        loop_rate.sleep();
+    }
+    
+    // Set final result
+    if (rclcpp::ok()) {
+        result->delta = current_theta - initial_theta;
+        goal_handle->succeed(result);
+        RCLCPP_INFO(this->get_logger(), "RotateAbsolute goal succeeded with delta = %f radians", result->delta);
+    }
+    {% else -%}
+    // Generic action server implementation
+    rclcpp::Rate loop_rate(1);  // 1 Hz
+    for (int i = 0; i < 10 && rclcpp::ok(); ++i) {
+        // Check if there is a cancel request
+        if (goal_handle->is_canceling()) {
+            goal_handle->canceled(result);
+            RCLCPP_INFO(this->get_logger(), "Goal canceled for action {{ interface.name }}");
+            return;
+        }
+        
+        // Update progress in feedback (adjust based on your action definition)
         goal_handle->publish_feedback(feedback);
         RCLCPP_INFO(this->get_logger(), "Publishing feedback for action {{ interface.name }}");
         
@@ -437,10 +555,10 @@ void ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
     
     // Check if goal is done
     if (rclcpp::ok()) {
-        result->success = true;
         goal_handle->succeed(result);
         RCLCPP_INFO(this->get_logger(), "Goal succeeded for action {{ interface.name }}");
     }
+    {% endif -%}
 }
   {%- else %}
 // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
@@ -662,5 +780,27 @@ void ROSNode::apply_parameters_to_logic_module()
 {%- endif %}
     // JINJA-END:apply-parameters-to-logic-module
 }
+
+/****************** RosOutputInterface Implementation ******************/
+
+// === Action client interface implementations ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+{%- set goal_param_name = lu.cpp_data_type.goal[0].name %}
+bool ROSNode::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ goal_param_type }}& goal_{{ goal_param_name }}) {
+    // Call the LogicModule interface action function
+    logic_module_.interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(goal_{{ goal_param_name }});
+    return true;
+}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
 
 } // namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}
