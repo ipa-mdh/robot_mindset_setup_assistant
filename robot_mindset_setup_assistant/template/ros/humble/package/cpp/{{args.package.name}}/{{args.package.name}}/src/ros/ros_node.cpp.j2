@@ -54,12 +54,7 @@ void ROSNode::init_parameters()
     param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->get_parameter("{{ interface.name }}").as_string();
     {%- endif %}
     
-    // Set up parameter callback for runtime updates
-    param_callback_handle_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = this->add_on_set_parameters_callback(
-        std::bind(&ROSNode::parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, this, std::placeholders::_1));
-    
-    RCLCPP_INFO(this->get_logger(), "Declared parameter '{{ interface.name }}' with value: %s", 
-                param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.c_str());
+    RCLCPP_INFO(this->get_logger(), "Declared parameter '{{ interface.name }}' with default value");
     {%- endfor %}
     {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown parameter interface.msgs: {{ interface.msgs }}
@@ -68,6 +63,10 @@ void ROSNode::init_parameters()
 {%- endfor %}
 {%- endif %}
 {%- endif %}
+
+    // Set up unified parameter callback for runtime updates  
+    param_callback_handle_ = this->add_on_set_parameters_callback(
+        std::bind(&ROSNode::parameters_callback, this, std::placeholders::_1));
 
     // Apply initial parameter values to logic module
     apply_parameters_to_logic_module();
@@ -418,15 +417,16 @@ bool ROSNode::interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_')
 
     return true;
 }
+    {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{% endfor %}
+{%- endif %}
+{%- endif %}
 
 /****************** Parameter Callback Functions ******************/
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
-{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-// Parameter callback for {{ interface.description }}
-rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+// Unified parameter callback for all parameters
+rcl_interfaces::msg::SetParametersResult ROSNode::parameters_callback(
     const std::vector<rclcpp::Parameter> &parameters)
 {
     rcl_interfaces::msg::SetParametersResult result;
@@ -434,26 +434,27 @@ rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interfac
     
     for (const auto &param : parameters)
     {
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+{%- for field in lu.cpp_data_type %}
         if (param.get_name() == "{{ interface.name }}")
         {
-            {%- for field in lu.cpp_data_type %}
             {%- if field.type == "std::string" %}
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING)
             {
                 param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_string();
                 RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %s", 
                            param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.c_str());
-                
-                // Apply parameter change to logic module
-                apply_parameters_to_logic_module();
-                
-                result.successful = true;
             }
             else
             {
                 RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a string");
                 result.successful = false;
                 result.reason = "Parameter must be a string";
+                return result;
             }
             {%- elif field.type == "double" %}
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE)
@@ -461,17 +462,13 @@ rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interfac
                 param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_double();
                 RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %f", 
                            param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_);
-                
-                // Apply parameter change to logic module
-                apply_parameters_to_logic_module();
-                
-                result.successful = true;
             }
             else
             {
                 RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a double");
                 result.successful = false;
                 result.reason = "Parameter must be a double";
+                return result;
             }
             {%- elif field.type == "int" or field.type == "int32_t" %}
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER)
@@ -479,17 +476,13 @@ rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interfac
                 param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_int();
                 RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %d", 
                            param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_);
-                
-                // Apply parameter change to logic module
-                apply_parameters_to_logic_module();
-                
-                result.successful = true;
             }
             else
             {
                 RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be an integer");
                 result.successful = false;
                 result.reason = "Parameter must be an integer";
+                return result;
             }
             {%- elif field.type == "bool" %}
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_BOOL)
@@ -497,17 +490,13 @@ rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interfac
                 param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_bool();
                 RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %s", 
                            param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ ? "true" : "false");
-                
-                // Apply parameter change to logic module
-                apply_parameters_to_logic_module();
-                
-                result.successful = true;
             }
             else
             {
                 RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a boolean");
                 result.successful = false;
                 result.reason = "Parameter must be a boolean";
+                return result;
             }
             {%- else %}
             if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING)
@@ -515,29 +504,31 @@ rcl_interfaces::msg::SetParametersResult ROSNode::parameter_callback_{{ interfac
                 param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = param.as_string();
                 RCLCPP_INFO(this->get_logger(), "Parameter '{{ interface.name }}' updated to: %s", 
                            param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.c_str());
-                
-                // Apply parameter change to logic module
-                apply_parameters_to_logic_module();
-                
-                result.successful = true;
             }
             else
             {
                 RCLCPP_ERROR(this->get_logger(), "Parameter '{{ interface.name }}' must be a string");
                 result.successful = false;
                 result.reason = "Parameter must be a string";
+                return result;
             }
             {%- endif %}
-            {%- endfor %}
         }
-    }
-    
-    return result;
-}
+{%- endfor %}
 {%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
+    }
+    
+    // Apply parameter changes to logic module
+    if (result.successful)
+    {
+        apply_parameters_to_logic_module();
+    }
+    
+    return result;
+}
 
 // Apply all parameters to the logic module
 void ROSNode::apply_parameters_to_logic_module()
@@ -557,12 +548,7 @@ void ROSNode::apply_parameters_to_logic_module()
 {%- endfor %}
 {%- endif %}
 {%- endif %}
-}
-    {%- else %}
-    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
-    {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
     // JINJA-END:apply-parameters-to-logic-module
 }
+
+} // namespace {{ args.package.name|regex_replace('[^A-Za-z0-9]', '_') }}

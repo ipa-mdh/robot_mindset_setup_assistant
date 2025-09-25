@@ -85,12 +85,14 @@ private:
   {%- else %}
   std::string param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_{""};
   {%- endif %}
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
   {%- endfor %}
   {%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
+
+  // === Single parameter callback handle for all parameters ===
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
 
   /****************** ROS Node Initialization ******************/
   void init();
@@ -105,15 +107,10 @@ private:
 
   /****************** Parameter Functions ******************/
   void apply_parameters_to_logic_module();
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
-  // Parameter callback for {{ interface.description }}
-  rcl_interfaces::msg::SetParametersResult parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+  
+  // Single parameter callback for all parameters
+  rcl_interfaces::msg::SetParametersResult parameters_callback(
       const std::vector<rclcpp::Parameter> &parameters);
-{%- endfor %}
-{%- endif %}
-{%- endif %}
 
   /****************** Interface Members ******************/
   // === Initialize publishers and subscribers ===
