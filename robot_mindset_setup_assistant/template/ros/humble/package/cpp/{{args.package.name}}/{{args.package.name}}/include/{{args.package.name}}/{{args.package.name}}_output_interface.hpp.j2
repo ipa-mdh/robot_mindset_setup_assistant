@@ -61,6 +61,41 @@ public:
 {%- endif %}
 {%- endif %}
 
+    // === Service client interface functions ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    // {{ interface.description }} - Service client interface function
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    virtual void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call(
+        std::shared_ptr<{{ lu.ros_data_type }}::Request> request) = 0;
+    {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // === Topic publisher interface functions ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    // {{ interface.description }} - Topic publisher interface function
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- for field in lu.cpp_data_type %}
+    void interface_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_publish(const {{ field.type }}& data);
+    {%- endfor %}
+    {%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
     // === Setter for action client callback interface functions ===
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}

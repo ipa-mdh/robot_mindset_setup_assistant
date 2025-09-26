@@ -291,6 +291,122 @@ void LogicModule::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', 
 {%- endif %}
 
 // =============================================================================
+// ROS ACTION CLIENT CALLBACK IMPLEMENTATIONS
+// =============================================================================
+// These methods handle responses from action client calls to external servers.
+// They process goal responses, feedback, and final results.
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+
+/**
+ * @brief Action client goal response callback: {{ interface.name }}
+ * @param goal_handle Goal handle from action server
+ * 
+ * ACTION CLIENT GOAL RESPONSE: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Action Type: {{ lu.ros_data_type }}
+ * 
+ * This callback is invoked when the action server responds to a goal request.
+ * It indicates whether the goal was accepted or rejected by the server.
+ */
+void {{ args.package.name }}::LogicModule::goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_callback_implementation
+    spdlog::debug("Logic Module (non-ROS): Goal response received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, accepted={}", 
+        (void*)goal_handle.get(), (goal_handle ? "true" : "false"));
+    
+    // TODO: Handle goal response here
+    // Check if goal was accepted or rejected and take appropriate action
+    
+    if (goal_handle) {
+        spdlog::info("Logic Module (non-ROS): Action goal {{ interface.name }} was ACCEPTED");
+        // TODO: Add logic for when goal is accepted
+    } else {
+        spdlog::warn("Logic Module (non-ROS): Action goal {{ interface.name }} was REJECTED");
+        // TODO: Add logic for when goal is rejected
+    }
+    
+    // Optional: Update internal state based on goal response
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_callback_implementation
+}
+
+/**
+ * @brief Action client feedback callback: {{ interface.name }}
+ * @param goal_handle Goal handle from action server
+ * @param feedback Feedback from action server
+ * 
+ * ACTION CLIENT FEEDBACK: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Action Type: {{ lu.ros_data_type }}
+ * 
+ * This callback is invoked when feedback is received from the action server.
+ * It provides periodic updates on the action's progress.
+ */
+void {{ args.package.name }}::LogicModule::feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr goal_handle,
+    const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_feedback_callback_implementation
+    spdlog::debug("Logic Module (non-ROS): Feedback received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, feedback={}", 
+        (void*)goal_handle.get(), (void*)feedback.get());
+    
+    // TODO: Process feedback from action server
+    // Use feedback to update progress, display status, etc.
+    
+    spdlog::info("Logic Module (non-ROS): Action feedback {{ interface.name }} - implement your logic here");
+    
+    // Optional: Update internal state based on feedback
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_feedback_callback_implementation
+}
+
+/**
+ * @brief Action client result callback: {{ interface.name }}
+ * @param result Result from action server
+ * 
+ * ACTION CLIENT RESULT: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Action Type: {{ lu.ros_data_type }}
+ * 
+ * This callback is invoked when the final result is received from the action server.
+ * It indicates completion (success or failure) and provides result data.
+ */
+void {{ args.package.name }}::LogicModule::result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) {
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_result_callback_implementation
+    spdlog::debug("Logic Module (non-ROS): Result received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: status={}", 
+        (int)result.code);
+    
+    // TODO: Process final result from action server
+    // Handle both success and failure cases
+    
+    switch (result.code) {
+        case rclcpp_action::ResultCode::SUCCEEDED:
+            spdlog::info("Logic Module (non-ROS): Action {{ interface.name }} SUCCEEDED");
+            // TODO: Handle successful completion
+            break;
+        case rclcpp_action::ResultCode::ABORTED:
+            spdlog::warn("Logic Module (non-ROS): Action {{ interface.name }} was ABORTED");
+            // TODO: Handle aborted action
+            break;
+        case rclcpp_action::ResultCode::CANCELED:
+            spdlog::info("Logic Module (non-ROS): Action {{ interface.name }} was CANCELED");
+            // TODO: Handle canceled action
+            break;
+        default:
+            spdlog::error("Logic Module (non-ROS): Action {{ interface.name }} completed with unknown status: {}", (int)result.code);
+            break;
+    }
+    
+    // Optional: Update internal state based on final result
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_result_callback_implementation
+}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// =============================================================================
 // ROS TOPIC PUBLISHER INTERFACE IMPLEMENTATIONS
 // =============================================================================
 // These methods publish data to ROS topics from your business logic.

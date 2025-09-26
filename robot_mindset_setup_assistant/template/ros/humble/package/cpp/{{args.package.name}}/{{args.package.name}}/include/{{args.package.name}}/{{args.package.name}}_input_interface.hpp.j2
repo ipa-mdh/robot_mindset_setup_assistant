@@ -58,12 +58,7 @@ public:
     virtual void process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     {%- for field in lu.cpp_data_type %}
         const {{ field.type }} &msg_{{ field.name }}{%if not loop.last %}, {% endif %}
-    {%- endfor %})
-    {
-        {%- for field in lu.cpp_data_type %}
-        spdlog::debug("Logic Module (non-ROS): Received on topic {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: {{ field.name }}: {}", msg_{{ field.name }});
-        {%- endfor %}
-    }
+    {%- endfor %}) = 0;
 {%- else %}
     // For other message types, implementation is required
     // interface:
@@ -93,16 +88,7 @@ public:
     {%- endfor %}
     {%- for field in lu.cpp_data_type.res %}
         {{ field.type }} &res_{{ field.name }}{%- if not loop.last %}, {% endif %}
-    {%- endfor %})
-    {
-        spdlog::debug("Logic Module (non-ROS): Received service {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}:");
-        {%- for field in lu.cpp_data_type.req %}
-        spdlog::debug(" {{ field.name }}: {}", req_{{ field.name }});
-        {%- endfor %}
-        {%- for field in lu.cpp_data_type.res %}
-        (void)res_{{ field.name }};
-        {%- endfor %}
-    }
+    {%- endfor %}) = 0;
 {%- endif %}
 {% endfor %}
 {%- endif %}
@@ -123,24 +109,7 @@ public:
         std::shared_ptr<{{ lu.ros_data_type }}::Result> result,
         std::function<bool()> is_canceling,
         std::function<void(std::shared_ptr<{{ lu.ros_data_type }}::Feedback>)> publish_feedback,
-        std::function<bool()> is_ok) {
-        spdlog::debug("Logic Module (non-ROS): Executing action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}");
-        
-        // Default implementation - check for cancellation and return empty result
-        if (is_canceling()) {
-            spdlog::info("Logic Module (non-ROS): Action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} was canceled");
-            return;
-        }
-        
-        // TODO: Override this method to implement your action server business logic
-        spdlog::warn("Logic Module (non-ROS): Default action execution for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} - override this method");
-        
-        (void)goal;
-        (void)feedback;
-        (void)result;
-        (void)publish_feedback;
-        (void)is_ok;
-    }
+        std::function<bool()> is_ok) = 0;
 {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
 {%- endif %}
@@ -156,26 +125,48 @@ public:
 {%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
     // Action client callbacks for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
-    virtual void goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
-        spdlog::debug("Logic Module (non-ROS): Goal response received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, accepted={}", 
-            (void*)goal_handle.get(), (goal_handle ? "true" : "false"));
-        (void)goal_handle;
-    }
+    virtual void goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) = 0;
     virtual void feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
         rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr goal_handle,
-        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {
-        spdlog::debug("Logic Module (non-ROS): Feedback received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, feedback={}", 
-            (void*)goal_handle.get(), (void*)feedback.get());
-        (void)goal_handle;
-        (void)feedback;
-    }
-    virtual void result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) {
-        spdlog::debug("Logic Module (non-ROS): Result received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: status={}", 
-            (int)result.code);
-        (void)result;
-    }
+        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) = 0;
+    virtual void result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) = 0;
 {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// === Service client callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    // {{ interface.description }}
+    // Service client callback for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
+    virtual void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+        rclcpp::Client<{{ lu.ros_data_type }}>::SharedFuture response) = 0;
+{%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// === Parameter callbacks ===
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    // {{ interface.description }}
+    // Parameter callback for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
+    {%- for field in lu.cpp_data_type %}
+    virtual void process_param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ field.type }}& data) = 0;
+    {%- endfor %}
+{%- else %}
+    // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown parameter interface.msgs: {{ interface.msgs }}
 {%- endif %}
 {%- endfor %}
 {%- endif %}

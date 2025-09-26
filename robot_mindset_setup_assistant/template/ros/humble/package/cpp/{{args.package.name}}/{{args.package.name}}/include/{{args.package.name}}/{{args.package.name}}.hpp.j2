@@ -127,6 +127,60 @@ public:
 {%- endif %}
 
     // =========================================================================
+    // ACTION CLIENT CALLBACK METHODS
+    // =========================================================================
+    // These methods handle responses from action client calls to external servers.
+    // Override them to process action responses.
+    
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    /**
+     * @brief Action client goal response callback: {{ interface.name }}
+     * @param goal_handle Goal handle from action server
+     * 
+     * {{ interface.description }}
+     * Action Type: {{ lu.ros_data_type }}
+     * 
+     * This callback is invoked when a goal response is received from the action server.
+     * Override this method to handle goal acceptance/rejection.
+     */
+    void goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) override;
+    
+    /**
+     * @brief Action client feedback callback: {{ interface.name }}
+     * @param goal_handle Goal handle from action server
+     * @param feedback Feedback from action server
+     * 
+     * {{ interface.description }}
+     * Action Type: {{ lu.ros_data_type }}
+     * 
+     * This callback is invoked when feedback is received from the action server.
+     * Override this method to process action feedback.
+     */
+    void feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr goal_handle,
+        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) override;
+    
+    /**
+     * @brief Action client result callback: {{ interface.name }}
+     * @param result Result from action server
+     * 
+     * {{ interface.description }}
+     * Action Type: {{ lu.ros_data_type }}
+     * 
+     * This callback is invoked when the final result is received from the action server.
+     * Override this method to process action results.
+     */
+    void result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) override;
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // =========================================================================
     // TOPIC PUBLISHER INTERFACE METHODS
     // =========================================================================
     // These methods publish data to ROS topics. Call them from your business
@@ -275,7 +329,7 @@ public:
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call(
-        std::shared_ptr<{{ lu.ros_data_type }}::Request> request);
+        std::shared_ptr<{{ lu.ros_data_type }}::Request> request) override;
     {%- else %}
     // For other service types, implementation is required
     // void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call(<corresponding-request-type>);
@@ -303,7 +357,7 @@ public:
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
                            cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
-        rclcpp::Client<{{ lu.ros_data_type }}>::SharedFuture response);
+        rclcpp::Client<{{ lu.ros_data_type }}>::SharedFuture response) override;
     {%- else %}
     // For other service types, implementation is required
     // void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(<corresponding-response-type>);
@@ -347,7 +401,7 @@ public:
         {%- for field in lu.cpp_data_type -%}
         const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
         {%- endfor -%}
-    );
+    ) override;
     {%- else %}
     // For other parameter types, implementation is required
     // void process_param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(<corresponding-cpp-data-type>) override;
