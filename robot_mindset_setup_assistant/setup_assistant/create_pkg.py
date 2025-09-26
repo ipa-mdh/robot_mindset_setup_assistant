@@ -84,8 +84,11 @@ def insert_custom_section(generated_content,
 
     return content
 
-def preserve_user_content(file_path: Path, new_rendered_output):
+def preserve_user_content(file_path: Path, new_rendered_output, preserve: bool = True):
     """Preserve user content between custom section markers."""
+    if not preserve:
+        return new_rendered_output
+
     if not file_path.exists():
         return new_rendered_output
 
@@ -116,7 +119,7 @@ def render_path(path: Path, context: dict) -> Path:
     logger.debug(f"Rendering path: {path} -> {parts}")
     return Path(*parts)
 
-def render_template_folder(template_root: Path, destination_root: Path, context: dict):
+def render_template_folder(template_root: Path, destination_root: Path, context: dict, *, preserve_customizations: bool = True):
     """Render the template folder and copy files to the destination."""
     for file in template_root.rglob("*"):
         logger.info(f"Processing file: {file}")
@@ -143,7 +146,7 @@ def render_template_folder(template_root: Path, destination_root: Path, context:
             rendered = template.render(args=context)
 
             dest_path = dest_path.with_suffix("")  # Remove .j2 extension
-            rendered = preserve_user_content(dest_path, rendered)
+            rendered = preserve_user_content(dest_path, rendered, preserve=preserve_customizations)
             # create parent directories if they don't exist
             dest_path.parent.mkdir(parents=True, exist_ok=True)
             with open(dest_path, "w") as f:
@@ -155,7 +158,7 @@ def render_template_folder(template_root: Path, destination_root: Path, context:
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(file) as f:
                     content = f.read()
-                content = preserve_user_content(dest_path, content)
+                content = preserve_user_content(dest_path, content, preserve=preserve_customizations)
                 with open(dest_path, "w") as f:
                     f.write(content)
                 # shutil.copy(src=file, dst=dest_path)
@@ -194,9 +197,10 @@ def get_template_folder(environment: str):
     return template_root
 
 class RosNoeticPackage(GitFlowRepo):
-    def __init__(self, destination: Path, config_path: Path):
+    def __init__(self, destination: Path, config_path: Path, preserve_customizations: bool = True):
         self.config_path = config_path
         self.context = get_config(self.config_path)
+        self.preserve_customizations = preserve_customizations
 
         lookup_tables = get_lookup_tables(self.context["package"]["environment"])
         self.context.update({"lookup": lookup_tables})
@@ -222,7 +226,12 @@ class RosNoeticPackage(GitFlowRepo):
         template_root = get_template_folder(env)
         
         # Render the template folder
-        render_template_folder(template_root, self.working_dir, self.context)
+        render_template_folder(
+            template_root,
+            self.working_dir,
+            self.context,
+            preserve_customizations=self.preserve_customizations,
+        )
         
         # Copy config to working dir
         dest = self.working_dir / ".robot_mindeset_setup_assistant.yaml"
@@ -241,4 +250,3 @@ class RosNoeticPackage(GitFlowRepo):
         Add Doxygen Awesome to the package.
         """
         apply_doxygen_awesome(self)
-

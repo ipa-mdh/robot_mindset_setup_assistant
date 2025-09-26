@@ -22,6 +22,11 @@ if __name__ == "__main__":
         default="/workspace/src",
         help='Working directory where the package will be generated (default: /workspace/src)'
     )
+    parser.add_argument(
+        '--no-preserve-customizations',
+        action='store_true',
+        help='Do not restore content between JINJA-BEGIN/JINJA-END markers when regenerating files'
+    )
     
     args = parser.parse_args()
     
@@ -54,4 +59,6 @@ if __name__ == "__main__":
     logger.info(f"Using configuration: {config_path}")
     logger.info(f"Working directory: {working_dir}")
 
-    pkg = RosNoeticPackage(working_dir, config_path)
+    preserve_customizations = not args.no_preserve_customizations
+
+    pkg = RosNoeticPackage(working_dir, config_path, preserve_customizations=preserve_customizations)
