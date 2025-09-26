@@ -1,0 +1,146 @@
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/handlers/action_handler.hpp"
+
+/**
+ * @file action_handler.cpp
+ * @brief Implementation of action handler for server/client operations
+ */
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+ActionHandler::ActionHandler() {
+    spdlog::debug("ActionHandler initialized");
+}
+
+// =============================================================================
+// ACTION SERVER EXECUTION METHODS
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+
+void ActionHandler::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    const std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal,
+    std::shared_ptr<{{ lu.ros_data_type }}::Feedback> feedback,
+    std::shared_ptr<{{ lu.ros_data_type }}::Result> result,
+    std::function<bool()> is_canceling,
+    std::function<void(std::shared_ptr<{{ lu.ros_data_type }}::Feedback>)> publish_feedback,
+    std::function<bool()> is_ok) {
+    
+    spdlog::info("ActionHandler: Executing action {{ interface.name }}");
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_execute_action_implementation
+    // TODO: Implement the core business logic for action server: {{ interface.name }}
+    
+{%- if lu.cpp_data_type.result %}
+    // Default implementation - set result fields based on action type
+{%- for result_field in lu.cpp_data_type.result %}
+    // result->{{ result_field.name }} = /* your implementation */;
+{%- endfor %}
+{%- else %}
+    // Action has no result fields
+{%- endif %}
+    spdlog::info("ActionHandler: Action {{ interface.name }} completed (default implementation)");
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_execute_action_implementation
+}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+// =============================================================================
+// ACTION CLIENT METHODS  
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+
+void ActionHandler::trigger_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) {
+    spdlog::info("ActionHandler: Triggering action client {{ interface.name }} with goal: {}", goal_param);
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_trigger_action_implementation
+    // TODO: Add your business logic for preparing and triggering action client calls
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_trigger_action_implementation
+    
+    // Delegate to ROS layer for actual action call
+    if (act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_param);
+    } else {
+        spdlog::warn("ActionHandler: No action callback registered for {{ interface.name }}");
+    }
+}
+
+void ActionHandler::set_action_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(const {{ goal_param_type }}&)> callback) {
+    act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
+    spdlog::debug("ActionHandler: Action callback registered for {{ interface.name }}");
+}
+
+void ActionHandler::handle_goal_response_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
+    if (!goal_handle) {
+        spdlog::error("ActionHandler: Goal rejected for {{ interface.name }}");
+        return;
+    }
+    spdlog::info("ActionHandler: Goal accepted for {{ interface.name }}");
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_implementation
+    // TODO: Add your business logic for when the goal is accepted
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_implementation
+}
+
+void ActionHandler::handle_feedback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+    const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {
+    spdlog::info("ActionHandler: Received feedback for {{ interface.name }}");
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_feedback_implementation
+    // TODO: Add your business logic for processing feedback
+{%- if lu.cpp_data_type.feedback %}
+    // Available feedback fields:
+{%- for feedback_field in lu.cpp_data_type.feedback %}
+    // feedback->{{ feedback_field.name }} (type: {{ feedback_field.type }})
+{%- endfor %}
+{%- endif %}
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_feedback_implementation
+}
+
+void ActionHandler::handle_result_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) {
+    switch (result.code) {
+        case rclcpp_action::ResultCode::SUCCEEDED:
+            spdlog::info("ActionHandler: Action {{ interface.name }} succeeded");
+            break;
+        case rclcpp_action::ResultCode::ABORTED:
+            spdlog::warn("ActionHandler: Action {{ interface.name }} was aborted");
+            break;
+        case rclcpp_action::ResultCode::CANCELED:
+            spdlog::warn("ActionHandler: Action {{ interface.name }} was canceled");
+            break;
+        default:
+            spdlog::error("ActionHandler: Action {{ interface.name }} failed with unknown result code");
+            break;
+    }
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_result_implementation
+    // TODO: Add your business logic for processing final results
+{%- if lu.cpp_data_type.result %}
+    // Available result fields:
+{%- for result_field in lu.cpp_data_type.result %}
+    // result.result->{{ result_field.name }} (type: {{ result_field.type }})
+{%- endfor %}
+{%- endif %}
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_result_implementation
+}
+
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+}  // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

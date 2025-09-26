@@ -2,10 +2,25 @@
 
 /**
  * @file {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.cpp
- * @brief LogicModule implementation containing non-ROS business logic
+ * @brief LogicModule implementation using composition and delegation pattern
  * 
  * This file contains the core business logic implementation, separated from
  * ROS-specific code for better testability and maintainability.
+ * 
+ * ARCHITECTURE:
+ * The LogicModule uses composition and delegation to organize interface handling:
+ * - TopicHandler: Manages all topic-related business logic
+ * - ServiceHandler: Manages all service-related business logic  
+ * - ActionHandler: Manages all action-related business logic
+ * - ParameterHandler: Manages all parameter-related business logic
+ * 
+ * This provides better organization, testability, and maintainability compared
+ * to having all interface logic mixed in a single class.
+ * 
+ * DELEGATION PATTERN:
+ * The LogicModule implements the interface methods but delegates the actual
+ * business logic to the appropriate specialized handlers. This maintains
+ * backward compatibility while providing better internal organization.
  * 
  * =============================================================================
  * ROS ACTION SERVER INTERFACE DESCRIPTION
@@ -94,7 +109,10 @@
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
 {
 
-LogicModule::LogicModule() {}
+LogicModule::LogicModule() {
+    spdlog::info("LogicModule initialized with composition pattern");
+    spdlog::debug("Handlers initialized: TopicHandler, ServiceHandler, ActionHandler, ParameterHandler");
+}
 
 std::string LogicModule::greet(const std::string& name) const {
     fmt::print("This is a non-ROS module.\n");
@@ -191,25 +209,13 @@ void LogicModule::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]',
     std::function<bool()> is_canceling,
     std::function<void(std::shared_ptr<{{ lu_ros.ros_data_type }}::Feedback>)> publish_feedback,
     std::function<bool()> is_ok) {
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_execute_action_implementation
-    spdlog::info("Logic Module (non-ROS): Executing action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}");
     
-    // Check if there is a cancel request
-    if (is_canceling()) {
-        spdlog::info("Logic Module (non-ROS): Action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} was canceled before execution");
-        return;
-    }
+    spdlog::debug("LogicModule: Delegating action execution {{ interface.name }} to ActionHandler");
     
-    // TODO: Implement your action server business logic here
-    // This is a template - replace with your actual implementation
-    
-    // Example implementation pattern:
-    // 1. Extract goal parameters
-    // auto param = goal->parameter_name;
-    
-    // 2. Implement your business logic with progress updates
-    // for (int i = 0; i < steps && is_ok(); ++i) {
-    //     if (is_canceling()) {
+    // Delegate to the specialized action handler
+    action_handler_.execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        goal, feedback, result, is_canceling, publish_feedback, is_ok);
+}
     //         spdlog::info("Action canceled during execution");
     //         return;
     //     }
@@ -266,23 +272,10 @@ void LogicModule::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]',
  *    - result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
  */
 void LogicModule::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) {
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_interface_act_implementation
-    spdlog::info("Logic Module (non-ROS): Triggering action client {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} with parameter: {}", goal_param);
+    spdlog::debug("LogicModule: Delegating action client {{ interface.name }} to ActionHandler");
     
-    // TODO: Add any pre-processing logic here before sending the goal
-    // Example: validation, parameter transformation, state updates, etc.
-    
-    // Call the ROS layer action client callback (with underscore)
-    if (act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
-        act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_param);
-        spdlog::debug("Logic Module (non-ROS): Action client goal sent for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}");
-    } else {
-        spdlog::error("Logic Module (non-ROS): Action client callback not set for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}");
-    }
-    
-    // TODO: Add any post-processing logic here after triggering the goal
-    // Example: state updates, logging, etc.
-    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_interface_act_implementation
+    // Delegate to the specialized action handler
+    action_handler_.trigger_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(goal_param);
 }
 {%- endif %}
 {%- endif %}
@@ -313,23 +306,12 @@ void LogicModule::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', 
  * This callback is invoked when the action server responds to a goal request.
  * It indicates whether the goal was accepted or rejected by the server.
  */
-void {{ args.package.name }}::LogicModule::goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_callback_implementation
-    spdlog::debug("Logic Module (non-ROS): Goal response received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, accepted={}", 
-        (void*)goal_handle.get(), (goal_handle ? "true" : "false"));
+void LogicModule::goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
+    spdlog::debug("LogicModule: Delegating goal response callback {{ interface.name }} to ActionHandler");
     
-    // TODO: Handle goal response here
-    // Check if goal was accepted or rejected and take appropriate action
-    
-    if (goal_handle) {
-        spdlog::info("Logic Module (non-ROS): Action goal {{ interface.name }} was ACCEPTED");
-        // TODO: Add logic for when goal is accepted
-    } else {
-        spdlog::warn("Logic Module (non-ROS): Action goal {{ interface.name }} was REJECTED");
-        // TODO: Add logic for when goal is rejected
-    }
-    
-    // Optional: Update internal state based on goal response
+    // Delegate to the specialized action handler
+    action_handler_.handle_goal_response_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(goal_handle);
+}
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_callback_implementation
 }
 

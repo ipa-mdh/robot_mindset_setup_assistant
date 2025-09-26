@@ -1,0 +1,131 @@
+#pragma once
+
+#include <string>
+#include <functional>
+#include <memory>
+#include <spdlog/spdlog.h>
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+#include <{{ lu.include }}.hpp>
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+/**
+ * @file topic_handler.hpp
+ * @brief Topic interface handler for publish/subscribe operations
+ * 
+ * This class handles all topic-related business logic, including:
+ * - Processing incoming topic messages (subscribers)
+ * - Publishing outgoing topic messages (publishers)
+ * - Data transformation and validation
+ */
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+/**
+ * @class TopicHandler
+ * @brief Handles all topic-related business logic
+ * 
+ * This class encapsulates topic-specific operations, providing a clean
+ * interface for publish/subscribe functionality while maintaining
+ * separation from ROS infrastructure concerns.
+ */
+class TopicHandler {
+public:
+    TopicHandler();
+    virtual ~TopicHandler() = default;
+
+    // =============================================================================
+    // PUBLISHER METHODS
+    // =============================================================================
+    // These methods handle outgoing topic publications
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+{%- set data_type = lu.cpp_data_type[0].type %}
+    /**
+     * @brief Publish data to topic: {{ interface.name }}
+     * @param data The data to publish
+     * 
+     * Description: {{ interface.description }}
+     * Topic Type: {{ lu.ros_data_type }}
+     */
+    void publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ data_type }}& data);
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // SUBSCRIBER CALLBACK METHODS
+    // =============================================================================
+    // These methods process incoming topic messages
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+{%- set data_type = lu.cpp_data_type[0].type %}
+    /**
+     * @brief Process incoming message from topic: {{ interface.name }}
+     * @param data The received message data
+     * 
+     * Description: {{ interface.description }}
+     * Topic Type: {{ lu.ros_data_type }}
+     */
+    void process_subscription_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ data_type }}& data);
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // CALLBACK REGISTRATION
+    // =============================================================================
+    // Methods to register ROS-layer callbacks for publishing
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+{%- set data_type = lu.cpp_data_type[0].type %}
+    void set_publish_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const {{ data_type }}&)> callback);
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+private:
+    // =============================================================================
+    // PUBLISHER CALLBACK FUNCTIONS
+    // =============================================================================
+    // These callbacks are provided by the ROS layer for actual publishing
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+{%- set data_type = lu.cpp_data_type[0].type %}
+    std::function<void(const {{ data_type }}&)> pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+};
+
+}  // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

@@ -5,6 +5,10 @@
 
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_input_interface.hpp"
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_output_interface.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/handlers/topic_handler.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/handlers/service_handler.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/handlers/action_handler.hpp"
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/handlers/parameter_handler.hpp"
 
 /**
  * @file {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp
@@ -32,12 +36,13 @@ namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
  * @brief Core business logic class for {{ args.package.name }}
  * 
  * This class implements the actual business logic for your ROS node,
- * separated from ROS infrastructure concerns. It handles:
+ * separated from ROS infrastructure concerns. It uses composition and
+ * delegation patterns to organize interface handling:
  * 
- * - Action server execution (the actual work done by action servers)
- * - Action client triggering (initiating requests to external action servers)
- * - Topic message processing
- * - Service request handling
+ * - TopicHandler: Manages topic publish/subscribe operations
+ * - ServiceHandler: Manages service server/client operations
+ * - ActionHandler: Manages action server/client operations
+ * - ParameterHandler: Manages runtime parameter changes
  * 
  * All ROS communication is handled through callback functions provided
  * by the ROS layer, maintaining clean separation of concerns.
@@ -46,6 +51,39 @@ class LogicModule : public LogicModuleInputInterface, public LogicModuleOutputIn
 {
 public:
     LogicModule();
+    
+    // =============================================================================
+    // HANDLER ACCESS METHODS
+    // =============================================================================
+    // Provide access to the specialized handlers for each interface type
+    
+    /**
+     * @brief Get the topic handler for publish/subscribe operations
+     * @return Reference to the topic handler
+     */
+    TopicHandler& topic_handler() { return topic_handler_; }
+    const TopicHandler& topic_handler() const { return topic_handler_; }
+    
+    /**
+     * @brief Get the service handler for server/client operations
+     * @return Reference to the service handler
+     */
+    ServiceHandler& service_handler() { return service_handler_; }
+    const ServiceHandler& service_handler() const { return service_handler_; }
+    
+    /**
+     * @brief Get the action handler for server/client operations
+     * @return Reference to the action handler
+     */
+    ActionHandler& action_handler() { return action_handler_; }
+    const ActionHandler& action_handler() const { return action_handler_; }
+    
+    /**
+     * @brief Get the parameter handler for runtime configuration
+     * @return Reference to the parameter handler
+     */
+    ParameterHandler& parameter_handler() { return parameter_handler_; }
+    const ParameterHandler& parameter_handler() const { return parameter_handler_; }
     
     /**
      * @brief Set the logging level for spdlog
@@ -409,6 +447,17 @@ public:
 {%- endfor %}
 {%- endif %}
 {%- endif %}
+
+private:
+    // =============================================================================
+    // COMPOSITION: SPECIALIZED HANDLERS
+    // =============================================================================
+    // Each handler encapsulates the business logic for a specific interface type
+    
+    TopicHandler topic_handler_;      ///< Handles topic publish/subscribe operations
+    ServiceHandler service_handler_;  ///< Handles service server/client operations
+    ActionHandler action_handler_;    ///< Handles action server/client operations
+    ParameterHandler parameter_handler_; ///< Handles runtime parameter changes
 };
 
 }
