@@ -1,17 +1,17 @@
 #pragma once
 
-#include "../interfaces/topic_handler.hpp"
 #include <unordered_map>
 #include <functional>
+#include "../interfaces/topic_handler.hpp"
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
 /**
- * @brief Concrete implementation of TopicHandler using ROS2 publishers and subscribers
+ * @brief Concrete implementation of InterfaceTopicHandler using ROS2 publishers and subscribers
  * 
  * This class manages all topic-related ROS2 communication through composition
  */
-class RosTopicHandler : public TopicHandler {
+class RosTopicHandler : public InterfaceTopicHandler {
 public:
     explicit RosTopicHandler(rclcpp::Node* node);
     ~RosTopicHandler() override = default;

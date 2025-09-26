@@ -9,8 +9,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 
-#include "ros/ros_input_interface.hpp"
-#include "ros/ros_output_interface.hpp"
+#include "ros/handlers/ros_topic_handler.hpp"
+#include "ros/handlers/ros_service_handler.hpp"
+#include "ros/handlers/ros_action_handler.hpp"
+#include "ros/handlers/ros_parameter_handler.hpp"
 
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp"
 
@@ -52,7 +54,7 @@ std::string value;
  *                  ---------------------------------------       ----------------------------------- 
  */
 
-class ROSNode : public RosInputInterface, public RosOutputInterface, public rclcpp::Node
+class ROSNode : public rclcpp::Node
 {
 public:
   ROSNode();
@@ -60,6 +62,10 @@ public:
 
   std::vector<RosParam> get_private_parameters();
   bool set_private_parameter(const std::string& param_name, const std::string& param_value);
+
+  // === Logic Module Access ===
+  LogicModule& logic_module() { return logic_module_; }
+  const LogicModule& logic_module() const { return logic_module_; }
 
 private:
   // === Handler composition ===
@@ -70,6 +76,16 @@ private:
 
   // === Logic module instance ===
   LogicModule logic_module_;
+
+  // === Initialization methods ===
+  void init_parameters();
+  void init_ros_interface_subscribers();
+  void init_ros_interface_publishers();
+  void init_ros_interface_services();
+  void init_ros_interface_clients();
+  void init_ros_interface_action_services();
+  void init_ros_interface_action_clients();
+  void init_logic_module();
 };
 
 } // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

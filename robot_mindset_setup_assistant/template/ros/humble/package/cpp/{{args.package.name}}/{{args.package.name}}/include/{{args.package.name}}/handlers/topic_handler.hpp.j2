@@ -64,15 +64,19 @@ public:
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
-{%- set data_type = lu.cpp_data_type[0].type %}
     /**
      * @brief Publish data to topic: {{ interface.name }}
-     * @param data The data to publish
+    {%- for field in lu.cpp_data_type %}
+     * @param {{ field.name }} The data to publish
+    {%- endfor %}
      * 
      * Description: {{ interface.description }}
      * Topic Type: {{ lu.ros_data_type }}
      */
-    void publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ data_type }}& data);
+    void publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %});
 {%- endif %}
 
 {%- endif %}
@@ -89,15 +93,19 @@ public:
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
-{%- set data_type = lu.cpp_data_type[0].type %}
     /**
      * @brief Process incoming message from topic: {{ interface.name }}
-     * @param data The received message data
+    {%- for field in lu.cpp_data_type %}
+     * @param {{ field.name }} The received message data
+    {%- endfor %}
      * 
      * Description: {{ interface.description }}
      * Topic Type: {{ lu.ros_data_type }}
      */
-    void process_subscription_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ data_type }}& data);
+    void process_subscription_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %});
 {%- endif %}
 
 {%- endif %}
@@ -114,9 +122,11 @@ public:
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
-{%- set data_type = lu.cpp_data_type[0].type %}
     void set_publish_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-        std::function<void(const {{ data_type }}&)> callback);
+        std::function<void(
+        {%- for field in lu.cpp_data_type %}
+            const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor %})> callback);
 {%- endif %}
 
 {%- endif %}
@@ -134,8 +144,10 @@ private:
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
-{%- set data_type = lu.cpp_data_type[0].type %}
-    std::function<void(const {{ data_type }}&)> pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    std::function<void(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
 {%- endif %}
 
 {%- endif %}
