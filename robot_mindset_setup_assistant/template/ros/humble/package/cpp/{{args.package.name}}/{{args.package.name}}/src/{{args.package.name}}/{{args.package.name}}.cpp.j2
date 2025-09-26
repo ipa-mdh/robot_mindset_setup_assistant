@@ -71,10 +71,15 @@ void LogicModule::set_logger_level(std::string level_str)
 {%- if lu.cpp_data_type.goal %}
 {%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
 void LogicModule::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) {
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_interface_act_implementation
+    // TODO: Implement your action client interface logic here
+    // This method is called when the action client interface is triggered
+    
     // Call the ROS layer action client callback (with underscore)
     if (act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
         act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_param);
     }
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_interface_act_implementation
 }
 {%- endif %}
 {%- endif %}

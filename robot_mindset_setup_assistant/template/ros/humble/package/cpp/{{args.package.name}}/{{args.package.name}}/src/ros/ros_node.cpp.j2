@@ -409,20 +409,25 @@ rclcpp_action::GoalResponse ROSNode::handle_goal_{{ interface.name|regex_replace
     const rclcpp_action::GoalUUID & uuid,
     std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal)
 {
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_handle_goal_implementation
     RCLCPP_INFO(this->get_logger(), "Received goal request for action {{ interface.name }}");
     (void)uuid;
     
     // You can add validation logic here
     // For now, accept all goals
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_handle_goal_implementation
 }
 
 rclcpp_action::CancelResponse ROSNode::handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
     const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle)
 {
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_handle_cancel_implementation
     RCLCPP_INFO(this->get_logger(), "Received request to cancel goal for action {{ interface.name }}");
     (void)goal_handle;
+    
     return rclcpp_action::CancelResponse::ACCEPT;
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_handle_cancel_implementation
 }
 
 void ROSNode::handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
@@ -441,6 +446,7 @@ void ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
     const auto goal = goal_handle->get_goal();
     auto feedback = std::make_shared<{{ lu.ros_data_type }}::Feedback>();
     auto result = std::make_shared<{{ lu.ros_data_type }}::Result>();
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_execute_implementation
     
     // Check if there is a cancel request
     if (goal_handle->is_canceling()) {
@@ -548,17 +554,18 @@ void ROSNode::execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
         
         // Update progress in feedback (adjust based on your action definition)
         goal_handle->publish_feedback(feedback);
-        RCLCPP_INFO(this->get_logger(), "Publishing feedback for action {{ interface.name }}");
+        RCLCPP_INFO(this->get_logger(), "Action {{ interface.name }} progress: %d/10", i + 1);
         
         loop_rate.sleep();
     }
     
-    // Check if goal is done
+    // Set final result (adjust based on your action definition)
     if (rclcpp::ok()) {
         goal_handle->succeed(result);
-        RCLCPP_INFO(this->get_logger(), "Goal succeeded for action {{ interface.name }}");
+        RCLCPP_INFO(this->get_logger(), "Action {{ interface.name }} goal succeeded");
     }
     {% endif -%}
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_execute_implementation
 }
   {%- else %}
 // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
