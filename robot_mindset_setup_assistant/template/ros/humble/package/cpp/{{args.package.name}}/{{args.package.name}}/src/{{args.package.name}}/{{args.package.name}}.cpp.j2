@@ -1,5 +1,96 @@
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp"
 
+/**
+ * @file {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.cpp
+ * @brief LogicModule implementation containing non-ROS business logic
+ * 
+ * This file contains the core business logic implementation, separated from
+ * ROS-specific code for better testability and maintainability.
+ * 
+ * =============================================================================
+ * ROS ACTION SERVER INTERFACE DESCRIPTION
+ * =============================================================================
+ * 
+ * This LogicModule implements action server execution methods that handle the
+ * core business logic for ROS action servers. The ROS node delegates action
+ * execution to these methods, providing a clean separation between ROS
+ * infrastructure and business logic.
+ * 
+ * ACTION SERVER EXECUTION PATTERN:
+ * --------------------------------
+ * 1. ROS node receives action goal
+ * 2. ROS node calls LogicModule::execute_action_*() method
+ * 3. LogicModule implements business logic using provided callbacks
+ * 4. ROS node handles final result (success/canceled/aborted)
+ * 
+ * AVAILABLE ACTION SERVERS:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+ * - {{ interface.name }} ({{ lu.ros_data_type }})
+ *   Description: {{ interface.description }}
+ *   Method: execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+ * 
+ * ACTION SERVER METHOD SIGNATURE:
+ * -------------------------------
+ * void execute_action_<name>(
+ *     const std::shared_ptr<const ActionType::Goal> goal,        // Input: Goal parameters
+ *     std::shared_ptr<ActionType::Feedback> feedback,           // Output: Progress updates
+ *     std::shared_ptr<ActionType::Result> result,               // Output: Final result
+ *     std::function<bool()> is_canceling,                       // Callback: Check cancellation
+ *     std::function<void(std::shared_ptr<Feedback>)> publish_feedback, // Callback: Send feedback
+ *     std::function<bool()> is_ok                               // Callback: Check ROS status
+ * )
+ * 
+ * IMPLEMENTATION GUIDELINES:
+ * -------------------------
+ * 1. Use is_canceling() regularly to check for cancellation requests
+ * 2. Use publish_feedback(feedback) to send progress updates to clients
+ * 3. Use is_ok() to check if ROS is still running (e.g., in loops)
+ * 4. Set result values before returning
+ * 5. Return early if is_canceling() returns true
+ * 6. Use JINJA preservation tags to preserve custom implementations
+ * 
+ * =============================================================================
+ * ROS ACTION CLIENT INTERFACE DESCRIPTION
+ * =============================================================================
+ * 
+ * This LogicModule also implements action client interface methods that can be
+ * called to trigger action client requests to external action servers.
+ * 
+ * ACTION CLIENT USAGE PATTERN:
+ * ----------------------------
+ * 1. Your business logic calls interface_act_*() method
+ * 2. LogicModule calls the ROS layer callback to send goal
+ * 3. ROS layer handles goal sending, feedback, and results
+ * 4. ROS layer calls LogicModule callback methods for responses
+ * 
+ * AVAILABLE ACTION CLIENTS:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+ * - {{ interface.name }} ({{ lu.ros_data_type }})
+ *   Description: {{ interface.description }}
+ *   Trigger: interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+ *   Callbacks: goal_response_callback_*, feedback_callback_*, result_callback_*
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+ * 
+ * ACTION CLIENT CALLBACK METHODS (Override these in your LogicModule):
+ * -------------------------------------------------------------------
+ * - goal_response_callback_<name>(): Called when goal is accepted/rejected
+ * - feedback_callback_<name>(): Called when feedback is received from server
+ * - result_callback_<name>(): Called when final result is received
+ * 
+ * =============================================================================
+ */
+
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
 {
 
@@ -69,6 +160,30 @@ void LogicModule::set_logger_level(std::string level_str)
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- set lu_ros = namespace(ros_data_type=lu.ros_data_type) %}
+
+/**
+ * @brief Execute action server: {{ interface.name }}
+ * @param goal Action goal containing input parameters
+ * @param feedback Feedback object to populate with progress updates
+ * @param result Result object to populate with final outcome
+ * @param is_canceling Callback function to check if action was canceled
+ * @param publish_feedback Callback function to send feedback updates
+ * @param is_ok Callback function to check if ROS is still running
+ * 
+ * Description: {{ interface.description }}
+ * Action Type: {{ lu_ros.ros_data_type }}
+ * 
+ * This method contains the core business logic for the {{ interface.name }} action server.
+ * It is called by the ROS node when a goal is received and should implement the
+ * actual work that needs to be done to achieve the goal.
+ * 
+ * IMPLEMENTATION CHECKLIST:
+ * - [ ] Check is_canceling() regularly in loops
+ * - [ ] Call publish_feedback() to update progress
+ * - [ ] Set result values before returning
+ * - [ ] Handle cancellation gracefully
+ * - [ ] Use is_ok() to check ROS status in long-running operations
+ */
 void LogicModule::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     const std::shared_ptr<const {{ lu_ros.ros_data_type }}::Goal> goal,
     std::shared_ptr<{{ lu_ros.ros_data_type }}::Feedback> feedback,
@@ -81,21 +196,38 @@ void LogicModule::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]',
     
     // Check if there is a cancel request
     if (is_canceling()) {
-        spdlog::info("Logic Module (non-ROS): Action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} was canceled");
+        spdlog::info("Logic Module (non-ROS): Action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} was canceled before execution");
         return;
     }
     
     // TODO: Implement your action server business logic here
     // This is a template - replace with your actual implementation
     
-    // Example default implementation - override this method in your LogicModule
-    spdlog::warn("Logic Module (non-ROS): Default action execution for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} - implement your logic here");
+    // Example implementation pattern:
+    // 1. Extract goal parameters
+    // auto param = goal->parameter_name;
     
-    // You can use the provided functions:
-    // - is_canceling() to check for cancellation
-    // - publish_feedback(feedback) to publish feedback
-    // - is_ok() to check if ROS is still running
-    // - Set values in result before returning
+    // 2. Implement your business logic with progress updates
+    // for (int i = 0; i < steps && is_ok(); ++i) {
+    //     if (is_canceling()) {
+    //         spdlog::info("Action canceled during execution");
+    //         return;
+    //     }
+    //     
+    //     // Do work here...
+    //     
+    //     // Update feedback
+    //     feedback->progress = i;
+    //     publish_feedback(feedback);
+    //     
+    //     // Optional: sleep or rate limiting
+    // }
+    
+    // 3. Set final result
+    // result->final_value = computed_result;
+    
+    // Default implementation - replace with your logic
+    spdlog::warn("Logic Module (non-ROS): Default action execution for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} - implement your logic here");
     
     // Example: Simple feedback publishing
     if (is_ok()) {
@@ -113,19 +245,627 @@ void LogicModule::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]',
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type.goal %}
 {%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+
+/**
+ * @brief Trigger action client: {{ interface.name }}
+ * @param goal_param Goal parameter to send to the action server
+ * 
+ * Description: {{ interface.description }}
+ * Action Type: {{ lu.ros_data_type }}
+ * 
+ * This method is called from your business logic to initiate an action client
+ * request to an external action server. It triggers the ROS layer to send the
+ * goal and handle the response asynchronously.
+ * 
+ * USAGE PATTERN:
+ * 1. Call this method with goal parameter
+ * 2. ROS layer sends goal to action server
+ * 3. Override callback methods to handle responses:
+ *    - goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+ *    - feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+ *    - result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+ */
 void LogicModule::interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) {
     // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_interface_act_implementation
-    // TODO: Implement your action client interface logic here
-    // This method is called when the action client interface is triggered
+    spdlog::info("Logic Module (non-ROS): Triggering action client {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} with parameter: {}", goal_param);
+    
+    // TODO: Add any pre-processing logic here before sending the goal
+    // Example: validation, parameter transformation, state updates, etc.
     
     // Call the ROS layer action client callback (with underscore)
     if (act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
         act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_param);
+        spdlog::debug("Logic Module (non-ROS): Action client goal sent for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}");
+    } else {
+        spdlog::error("Logic Module (non-ROS): Action client callback not set for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}");
     }
+    
+    // TODO: Add any post-processing logic here after triggering the goal
+    // Example: state updates, logging, etc.
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_interface_act_implementation
 }
 {%- endif %}
 {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// =============================================================================
+// ROS TOPIC PUBLISHER INTERFACE IMPLEMENTATIONS
+// =============================================================================
+// These methods publish data to ROS topics from your business logic.
+// They provide a clean interface to send data to other nodes in the network.
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+
+/**
+ * @brief Publish to topic: {{ interface.name }}
+ * @param msg Message to publish to the topic
+ * 
+ * TOPIC PUBLISHER: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Message Type: {{ interface.msgs }}
+ * Topic: /{{ args.package.name }}/{{ interface.name }}
+ * 
+ * This method publishes data from your business logic to subscribers.
+ * Call this method whenever you need to send data to other nodes.
+ * 
+ * Usage Pattern:
+ * --------------
+ * 1. Create and populate message in your business logic
+ * 2. Call this method to publish the message
+ * 3. ROS infrastructure handles delivery to subscribers
+ * 
+ * Guidelines:
+ * - Validate message data before publishing
+ * - Consider publishing frequency and system resources
+ * - Use meaningful message content for subscribers
+ * - Log publishing events for debugging when needed
+ */
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                       cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+void LogicModule::interface_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_publish(
+    {%- for field in lu.cpp_data_type -%}
+    const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+) {
+    
+    // Log the publishing event (with argument details)
+    {%- if 'string' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Publishing to {{ interface.name }}: data='{}'", data);
+    {%- elif 'int' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Publishing to {{ interface.name }}: data={}", data);
+    {%- elif 'float' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Publishing to {{ interface.name }}: data={:.3f}", data);
+    {%- elif 'bool' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Publishing to {{ interface.name }}: data={}", data ? "true" : "false");
+    {%- else %}
+    spdlog::info("Logic Module (non-ROS): Publishing to {{ interface.name }}");
+    {%- endif %}
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_topic_publish_implementation
+    // Optional: Add custom pre-publishing logic here
+    // Example: message validation, transformation, rate limiting, etc.
+    
+    // Call the ROS publisher callback
+    if (pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        {%- for field in lu.cpp_data_type %}
+        pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_({{ field.name }});
+        {%- endfor %}
+        spdlog::debug("Logic Module (non-ROS): Message published successfully to {{ interface.name }}");
+    } else {
+        spdlog::error("Logic Module (non-ROS): Publisher callback not set for {{ interface.name }}");
+    }
+    
+    // Optional: Add custom post-publishing logic here
+    // Example: state updates, statistics tracking, etc.
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_topic_publish_implementation
+}
+{%- else %}
+// For other message types, implementation is required for interface: {{ interface.name }}
+// void LogicModule::interface_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_publish(<corresponding-cpp-data-type>) {
+//     // Add your implementation here
+// }
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// =============================================================================
+// ROS TOPIC SUBSCRIBER INTERFACE IMPLEMENTATIONS  
+// =============================================================================
+// These methods handle incoming data from subscribed ROS topics.
+// Override them to implement your data processing and state update logic.
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+
+/**
+ * @brief Topic subscriber callback: {{ interface.name }}
+ * @param msg Message received from the subscribed topic
+ * 
+ * TOPIC SUBSCRIBER: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Message Type: {{ interface.msgs }}
+ * Topic: /{{ interface.name }}
+ * 
+ * This method is called whenever a message is received on the subscribed topic.
+ * It processes incoming data and updates internal state as needed.
+ * 
+ * Callback Pattern:
+ * ----------------
+ * 1. ROS node receives message from topic
+ * 2. ROS node calls this LogicModule method  
+ * 3. LogicModule processes data and updates state
+ * 4. Any dependent processing is triggered
+ * 
+ * Implementation Guidelines:
+ * -------------------------
+ * - Keep processing fast - don't block in callbacks
+ * - Validate input data before processing  
+ * - Update internal state consistently
+ * - Log meaningful information for debugging
+ * - Handle edge cases gracefully
+ * - Use JINJA preservation tags for custom code
+ */
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                       cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+void LogicModule::process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for field in lu.cpp_data_type -%}
+    const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+) {
+    
+    // Log the received message (with argument details)
+    {%- if 'string' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Received on {{ interface.name }}: data='{}'", data);
+    {%- elif 'int' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Received on {{ interface.name }}: data={}", data);
+    {%- elif 'float' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Received on {{ interface.name }}: data={:.3f}", data);
+    {%- elif 'bool' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Received on {{ interface.name }}: data={}", data ? "true" : "false");
+    {%- else %}
+    {%- for field in lu.cpp_data_type %}
+    spdlog::info("Logic Module (non-ROS): Received on {{ interface.name }}: {{ field.name }}={}", {{ field.name }});
+    {%- endfor %}
+    {%- endif %}
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_topic_callback_implementation
+    // TODO: Implement your custom topic processing logic here
+    // 
+    // Example implementation:
+    {%- if 'string' in interface.msgs.lower() %}
+    // if (msg.data.empty()) {
+    //     spdlog::warn("Received empty string on {{ interface.name }}, ignoring");
+    //     return;
+    // }
+    // 
+    // // Process the string data
+    // process_string_data(msg.data);
+    {%- elif 'float' in interface.msgs.lower() %}
+    // // Validate numeric range
+    // if (msg.data < 0.0 || msg.data > 100.0) {
+    //     spdlog::warn("{{ interface.name }} value out of range: {:.3f}", msg.data);
+    //     return;
+    // }
+    // 
+    // // Update internal state
+    // current_sensor_value_ = msg.data;
+    // 
+    // // Trigger dependent processing
+    // if (msg.data > threshold_) {
+    //     trigger_alert();
+    // }
+    {%- elif 'bool' in interface.msgs.lower() %}
+    // // Handle boolean state change
+    // if (current_state_ != msg.data) {
+    //     spdlog::info("{{ interface.name }} state changed: {} -> {}", 
+    //                  current_state_ ? "true" : "false",
+    //                  msg.data ? "true" : "false");
+    //     current_state_ = msg.data;
+    //     
+    //     // Apply state change
+    //     if (msg.data) {
+    //         enable_feature();
+    //     } else {
+    //         disable_feature();
+    //     }
+    // }
+    {%- else %}
+    // // Extract message fields according to {{ interface.msgs }} definition
+    // // auto field1 = msg.field1;
+    // // auto field2 = msg.field2;
+    // 
+    // // Process the message data
+    // // update_internal_state(field1, field2);
+    {%- endif %}
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_topic_callback_implementation
+}
+{%- else %}
+// For other message types, implementation is required for interface: {{ interface.name }}
+// void LogicModule::process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(<corresponding-cpp-data-type>) {
+//     // Add your implementation here
+// }
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// =============================================================================
+// ROS SERVICE SERVER INTERFACE IMPLEMENTATIONS
+// =============================================================================
+// These methods handle incoming service requests from client nodes.
+// They process requests and generate appropriate responses.
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set interface_info = args.lookup.interfaces.msgs[interface.msgs] %}
+
+/**
+ * @brief Service server handler: {{ interface.name }}
+{%- for field in interface_info.cpp_data_type.req %}
+ * @param req_{{ field.name }} {{ field.description or 'Request parameter' }}
+{%- endfor %}
+{%- for field in interface_info.cpp_data_type.res %}
+ * @param res_{{ field.name }} {{ field.description or 'Response parameter' }}
+{%- endfor %}
+ * 
+ * SERVICE SERVER: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Service Type: {{ interface.msgs }}
+ * Service: /{{ args.package.name }}/{{ interface.name }}
+ * 
+ * This method handles synchronous service requests from other nodes.
+ * It processes the request and generates an appropriate response.
+ * 
+ * Service Pattern:
+ * ---------------
+ * 1. Client node sends service request
+ * 2. ROS node receives request and calls this method
+ * 3. LogicModule processes request and sets response
+ * 4. ROS node sends response back to client
+ * 
+ * Implementation Guidelines:
+ * -------------------------
+ * - Validate all request parameters before processing
+ * - Handle errors gracefully and set meaningful response messages
+ * - Keep processing reasonably fast for responsive service calls
+ * - Use JINJA preservation tags to maintain custom code
+ * - Log service calls for debugging and monitoring
+ */
+void {{ args.package.name }}::LogicModule::process_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- for field in interface_info.cpp_data_type.req %}
+    const {{ field.type }} &req_{{ field.name }}{% if not loop.last %},{% endif %}
+{%- endfor %}{% if interface_info.cpp_data_type.req and interface_info.cpp_data_type.res %},{% endif %}
+{%- for field in interface_info.cpp_data_type.res %}
+    {{ field.type }} &res_{{ field.name }}{% if not loop.last %},{% endif %}
+{%- endfor %})
+{
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_srv_implementation
+    // Optional: Add custom pre-processing logic here
+    // Example: request validation, error checking, etc.
+    
+    // Log all request parameters for debugging
+    spdlog::debug("Logic Module (non-ROS): Service request {{ interface.name }} - Logging parameters:");
+{%- for field in interface_info.cpp_data_type.req %}
+    spdlog::debug("  req_{{ field.name }}: {}", req_{{ field.name }});
+{%- endfor %}
+    
+    // TODO: Implement your service server logic here
+    // This is where you add your business logic to handle the service request
+    // and prepare the response data
+    
+    spdlog::info("Logic Module (non-ROS): Service server {{ interface.name }} - implement your logic here");
+    
+{%- for field in interface_info.cpp_data_type.res %}
+    // Set response field {{ field.name }} - replace with your actual logic
+    // res_{{ field.name }} = ...;  // TODO: Set appropriate response value
+{%- endfor %}
+    
+    // Optional: Add custom post-processing logic here  
+    // Example: response validation, cleanup, etc.
+    
+    // Log all response parameters for debugging
+    spdlog::debug("Logic Module (non-ROS): Service response {{ interface.name }} - Logging parameters:");
+{%- for field in interface_info.cpp_data_type.res %}
+    spdlog::debug("  res_{{ field.name }}: {}", res_{{ field.name }});
+{%- endfor %}
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_srv_implementation
+}
+{%- else %}
+// For other service types, implementation is required
+// Service: {{ interface.name }} ({{ interface.msgs }})
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// =============================================================================
+// ROS SERVICE CLIENT INTERFACE IMPLEMENTATIONS
+// =============================================================================
+// These methods call external services and handle their responses.
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+
+/**
+ * @brief Service client caller: {{ interface.name }}
+ * @param request Request to send to external service server
+ * 
+ * SERVICE CLIENT: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Service Type: {{ interface.msgs }}
+ * Service: /{{ interface.name }}
+ * 
+ * This method sends a service request to an external server.
+ * The response will be handled asynchronously in the callback method.
+ */
+void LogicModule::interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call(
+    std::shared_ptr<{{ args.lookup.interfaces.msgs[interface.msgs].ros_data_type }}::Request> request) {
+    
+    // Log the service call attempt
+    {%- if 'set_bool' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Calling service {{ interface.name }} with data={}", request->data);
+    {%- elif 'empty' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Calling service {{ interface.name }} (no parameters)");
+    {%- else %}
+    spdlog::info("Logic Module (non-ROS): Calling service {{ interface.name }}");
+    {%- endif %}
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_call_implementation
+    // Optional: Add custom pre-call logic here
+    // Example: request validation, parameter transformation, etc.
+    
+    // TODO: Implement your service client call logic here
+    // This method is a placeholder for your business logic that triggers service calls
+    // You should use the ROS node's service client to make the actual call
+    spdlog::info("Logic Module (non-ROS): Service call method {{ interface.name }} - implement your logic here");
+    
+    // Optional: Add custom post-call logic here
+    // Example: state updates, timeout handling, etc.
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_call_implementation
+}
+
+/**
+ * @brief Service response callback: {{ interface.name }}
+ * @param response Service response from external server
+ * 
+ * This method is called when a response is received from the service call.
+ * It handles both successful responses and error conditions.
+ */
+void LogicModule::interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+    rclcpp::Client<{{ args.lookup.interfaces.msgs[interface.msgs].ros_data_type }}>::SharedFuture response) {
+    
+    spdlog::info("Logic Module (non-ROS): Service response received for {{ interface.name }}");
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_response_implementation
+    // TODO: Implement your custom service response handling logic here
+    
+    try {
+        if (response.valid()) {
+            auto result = response.get();
+            
+            {%- if 'set_bool' in interface.msgs.lower() %}
+            // Handle SetBool service response
+            if (result->success) {
+                spdlog::info("Service {{ interface.name }} succeeded: {}", result->message);
+                // TODO: Update internal state based on successful operation
+                // on_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_success(result->message);
+            } else {
+                spdlog::error("Service {{ interface.name }} failed: {}", result->message);
+                // TODO: Handle service failure
+                // on_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_failure(result->message);
+            }
+            {%- elif 'empty' in interface.msgs.lower() %}
+            // Handle Empty service response (success indicated by no exception)
+            spdlog::info("Service {{ interface.name }} completed successfully");
+            // TODO: Update internal state or trigger follow-up actions
+            // on_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_completed();
+            {%- else %}
+            // Handle custom service response
+            spdlog::info("Service {{ interface.name }} response received");
+            // TODO: Extract response data according to {{ interface.msgs }} definition
+            // auto data1 = result->field1;
+            // auto data2 = result->field2;
+            // 
+            // // Process the response data
+            // process_service_response(data1, data2);
+            {%- endif %}
+            
+        } else {
+            spdlog::error("Service {{ interface.name }} call failed - invalid response");
+            // TODO: Handle service call failure
+            // on_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call_failed();
+        }
+        
+    } catch (const std::exception& e) {
+        spdlog::error("Service {{ interface.name }} response processing failed: {}", e.what());
+        // TODO: Handle response processing errors
+        // on_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_error(e.what());
+    }
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_response_implementation
+}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// =============================================================================
+// ROS PARAMETER INTERFACE IMPLEMENTATIONS
+// =============================================================================
+// These methods handle runtime parameter changes and updates.
+// They validate parameter values and apply configuration changes.
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+
+/**
+ * @brief Parameter callback: {{ interface.name }}
+ * @param value New parameter value from ROS parameter system
+ * 
+ * PARAMETER: {{ interface.name }}
+ * Description: {{ interface.description }}
+ * Parameter Type: {{ interface.msgs|replace('std_msgs/msg/', '')|replace('/', '::')|lower }}
+ * Parameter Name: {{ interface.name }}
+ * 
+ * This method is called whenever the parameter value changes at runtime.
+ * It validates the new value and applies configuration changes as needed.
+ * 
+ * Parameter Update Pattern:
+ * ------------------------
+ * 1. ROS parameter system notifies of change
+ * 2. ROS node calls this LogicModule method
+ * 3. LogicModule validates new parameter value
+ * 4. If valid, LogicModule updates internal state
+ * 5. Dependent systems are notified of changes
+ * 
+ * Implementation Guidelines:
+ * -------------------------
+ * - Always validate parameter values before applying them
+ * - Handle invalid values gracefully (keep previous valid state)
+ * - Provide clear error messages for validation failures  
+ * - Apply parameter changes atomically
+ * - Log parameter changes for debugging and audit trails
+ * - Use JINJA preservation tags for custom code
+ */
+void {{ args.package.name }}::LogicModule::process_param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+{%- for field in lu.cpp_data_type %}
+    const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+{%- endfor %})
+{%- else %}
+    const std::string& value)
+{%- endif %} {
+    
+    // Log the parameter change attempt
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+{%- for field in lu.cpp_data_type %}
+    spdlog::info("Logic Module (non-ROS): Parameter {{ interface.name }} update requested - {{ field.name }}: {}", {{ field.name }});
+{%- endfor %}
+{%- else %}
+    {%- if 'string' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Parameter {{ interface.name }} update requested: '{}'", value);
+    {%- elif 'int' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Parameter {{ interface.name }} update requested: {}", value);
+    {%- elif 'float' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Parameter {{ interface.name }} update requested: {:.3f}", value);
+    {%- elif 'bool' in interface.msgs.lower() %}
+    spdlog::info("Logic Module (non-ROS): Parameter {{ interface.name }} update requested: {}", value ? "true" : "false");
+    {%- else %}
+    spdlog::info("Logic Module (non-ROS): Parameter {{ interface.name }} update requested");
+    {%- endif %}
+{%- endif %}
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_parameter_implementation
+    // TODO: Implement your custom parameter validation and application logic here
+    //
+    // Parameter validation and application template:
+    
+    {%- if 'string' in interface.msgs.lower() %}
+    // Example: String parameter validation
+    // if (value.empty()) {
+    //     spdlog::warn("Parameter {{ interface.name }} cannot be empty, keeping previous value");
+    //     return;
+    // }
+    // 
+    // // Validate against allowed values (example)
+    // const std::vector<std::string> valid_modes = {"auto", "manual", "calibration"};
+    // if (std::find(valid_modes.begin(), valid_modes.end(), value) == valid_modes.end()) {
+    //     spdlog::error("Invalid {{ interface.name }} value '{}'. Valid values: {}", 
+    //                   value, fmt::join(valid_modes, ", "));
+    //     return;
+    // }
+    // 
+    // // Apply the parameter change
+    // current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} = value;
+    // apply_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_change();
+    {%- elif 'int' in interface.msgs.lower() %}
+    // Example: Integer parameter validation
+    // const int MIN_VALUE = 0;
+    // const int MAX_VALUE = 100;
+    // 
+    // if (value < MIN_VALUE || value > MAX_VALUE) {
+    //     spdlog::error("Parameter {{ interface.name }} value {} outside valid range [{}, {}]",
+    //                   value, MIN_VALUE, MAX_VALUE);
+    //     return;
+    // }
+    // 
+    // // Apply the parameter change
+    // current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} = value;
+    // 
+    // // Notify dependent systems
+    // if (system_controller_) {
+    //     system_controller_->set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(value);
+    // }
+    {%- elif 'float' in interface.msgs.lower() %}
+    // Example: Float parameter validation
+    // const double MIN_VALUE = 0.0;
+    // const double MAX_VALUE = 10.0;
+    // 
+    // if (value < MIN_VALUE || value > MAX_VALUE) {
+    //     spdlog::error("Parameter {{ interface.name }} value {:.3f} outside valid range [{:.3f}, {:.3f}]",
+    //                   value, MIN_VALUE, MAX_VALUE);
+    //     return;
+    // }
+    // 
+    // if (std::isnan(value) || std::isinf(value)) {
+    //     spdlog::error("Parameter {{ interface.name }} has invalid numeric value: {:.3f}", value);
+    //     return;  
+    // }
+    // 
+    // // Apply the parameter change with rate limiting protection
+    // if (std::abs(value - current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}) > max_change_rate_) {
+    //     spdlog::warn("Parameter {{ interface.name }} change too large, applying gradually");
+    //     // Apply change gradually or clamp to maximum rate
+    // } else {
+    //     current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} = value;
+    // }
+    {%- elif 'bool' in interface.msgs.lower() %}
+    // Example: Boolean parameter handling
+    // if (current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} == value) {
+    //     spdlog::debug("Parameter {{ interface.name }} value unchanged: {}", value ? "true" : "false");
+    //     return;  // No change needed
+    // }
+    // 
+    // current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} = value;
+    // 
+    // // Apply boolean state change
+    // if (value) {
+    //     spdlog::info("Enabling feature for parameter {{ interface.name }}");
+    //     enable_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_feature();
+    // } else {
+    //     spdlog::info("Disabling feature for parameter {{ interface.name }}");
+    //     disable_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_feature();
+    // }
+    {%- else %}
+    // Example: Generic parameter handling
+    // // Validate the parameter value according to your requirements
+    // if (!is_valid_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(value)) {
+    //     spdlog::error("Invalid parameter value for {{ interface.name }}");
+    //     return;
+    // }
+    // 
+    // // Store the new parameter value
+    // current_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} = value;
+    // 
+    // // Apply parameter-specific changes
+    // apply_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_configuration();
+    {%- endif %}
+    
+    spdlog::info("Parameter {{ interface.name }} updated successfully");
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_parameter_implementation
+}
 {%- endfor %}
 {%- endif %}
 {%- endif %}

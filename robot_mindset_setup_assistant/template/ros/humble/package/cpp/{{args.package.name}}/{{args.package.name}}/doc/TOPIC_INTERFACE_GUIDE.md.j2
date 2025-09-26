@@ -1,0 +1,309 @@
+# ROS Topic Publisher & Subscriber Interface Guide
+
+This document describes how to implement and use ROS topic publishers and subscribers in the {{args.package.name}} package.
+
+## Architecture Overview
+
+This package follows a clean architecture pattern that separates ROS infrastructure from business logic:
+
+- **ROS Node** (`ros_node.cpp`): Handles ROS-specific concerns (topic publishing, subscription management)
+- **LogicModule** (`{{args.package.name}}.cpp`): Contains business logic for data processing and publishing
+
+## Topic Publishers (Outgoing Data)
+
+Topic publishers send data from your node to other nodes in the ROS network.
+
+### Available Topic Publishers
+
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'topic' and interface.direction == 'out' %}
+
+#### {{interface.name}}
+- **Description**: {{interface.description}}
+- **Message Type**: `{{interface.msgs}}`
+- **Topic**: `/{{args.package.name}}/{{interface.name}}`
+- **Publisher Method**: `LogicModule::interface_{{interface.name | replace('/', '_') | replace('-', '_')}}_publish()`
+{%- endif %}
+{%- endfor %}
+
+### Publishing Data
+
+To publish data from your business logic, call the interface methods:
+
+```cpp
+// In your LogicModule business logic
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'topic' and interface.direction == 'out' %}
+
+// Publish to {{interface.name}}
+{{interface.msgs | replace('/', '::') | replace('msg::', 'msg::') | replace('srv::', 'srv::')}} msg;
+// Set message fields...
+interface_{{interface.name | replace('/', '_') | replace('-', '_')}}_publish(msg);
+{%- endif %}
+{%- endfor %}
+```
+
+### Implementation Example
+
+```cpp
+void LogicModule::my_business_logic() {
+    {%- for interface in args.ros.interfaces %}
+    {%- if interface.type == 'topic' and interface.direction == 'out' %}
+    // Example: Publishing to {{interface.name}}
+    {{interface.msgs | replace('/', '::') | replace('msg::', 'msg::') | replace('srv::', 'srv::')}} {{interface.name | replace('/', '_') | replace('-', '_')}}_msg;
+    {%- if 'string' in interface.msgs.lower() %}
+    {{interface.name | replace('/', '_') | replace('-', '_')}}_msg.data = "Hello from {{args.package.name}}!";
+    {%- elif 'float' in interface.msgs.lower() %}
+    {{interface.name | replace('/', '_') | replace('-', '_')}}_msg.data = 3.14159;
+    {%- elif 'int' in interface.msgs.lower() %}
+    {{interface.name | replace('/', '_') | replace('-', '_')}}_msg.data = 42;
+    {%- elif 'bool' in interface.msgs.lower() %}
+    {{interface.name | replace('/', '_') | replace('-', '_')}}_msg.data = true;
+    {%- else %}
+    // Set message fields according to {{interface.msgs}} definition
+    {%- endif %}
+    interface_{{interface.name | replace('/', '_') | replace('-', '_')}}_publish({{interface.name | replace('/', '_') | replace('-', '_')}}_msg);
+    
+    {%- endif %}
+    {%- endfor %}
+}
+```
+
+## Topic Subscribers (Incoming Data)
+
+Topic subscribers receive data from other nodes in the ROS network.
+
+### Available Topic Subscribers
+
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'topic' and interface.direction == 'in' %}
+
+#### {{interface.name}}
+- **Description**: {{interface.description}}
+- **Message Type**: `{{interface.msgs}}`
+- **Topic**: `/{{interface.name}}`
+- **Callback Method**: `LogicModule::interface_{{interface.name | replace('/', '_') | replace('-', '_')}}()`
+{%- endif %}
+{%- endfor %}
+
+### Implementing Subscription Callbacks
+
+Override the virtual callback methods in your `LogicModule` class:
+
+```cpp
+// In your LogicModule class
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'topic' and interface.direction == 'in' %}
+
+/**
+ * @brief Callback for {{interface.name}} topic
+ * @param msg Received message from topic
+ * 
+ * {{interface.description}}
+ */
+void interface_{{interface.name | replace('/', '_') | replace('-', '_')}}(
+    const {{interface.msgs | replace('/', '::') | replace('msg::', 'msg::') | replace('srv::', 'srv::')}} & msg) override {
+    {%- if 'string' in interface.msgs.lower() %}
+    spdlog::info("Received on {{interface.name}}: {}", msg.data);
+    {%- elif 'float' in interface.msgs.lower() %}
+    spdlog::info("Received on {{interface.name}}: {:.3f}", msg.data);
+    {%- elif 'int' in interface.msgs.lower() %}
+    spdlog::info("Received on {{interface.name}}: {}", msg.data);
+    {%- elif 'bool' in interface.msgs.lower() %}
+    spdlog::info("Received on {{interface.name}}: {}", msg.data ? "true" : "false");
+    {%- else %}
+    spdlog::info("Received message on {{interface.name}}");
+    {%- endif %}
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_topic_callback_implementation
+    // Your custom implementation here
+    // Process the received message and update internal state
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_topic_callback_implementation
+}
+{%- endif %}
+{%- endfor %}
+```
+
+### Callback Implementation Guidelines
+
+1. **Keep callbacks fast**: Don't perform long-running operations in callbacks
+2. **Use JINJA preservation tags** to maintain custom code during regeneration
+3. **Log meaningful information** for debugging
+4. **Update internal state** based on received data
+5. **Validate input data** before processing
+
+### Example Implementation
+
+```cpp
+void LogicModule::interface_sensor_data(const sensor_msgs::msg::Temperature & msg) {
+    // JINJA-BEGIN:sensor-data_topic_callback_implementation
+    // Validate temperature range
+    if (msg.temperature < -50.0 || msg.temperature > 100.0) {
+        spdlog::warn("Temperature out of range: {:.2f}°C", msg.temperature);
+        return;
+    }
+    
+    // Update internal state
+    current_temperature_ = msg.temperature;
+    last_temperature_update_ = std::chrono::steady_clock::now();
+    
+    // Trigger actions based on temperature
+    if (msg.temperature > critical_temperature_threshold_) {
+        trigger_emergency_cooling();
+    }
+    
+    spdlog::debug("Temperature updated: {:.2f}°C", msg.temperature);
+    // JINJA-END:sensor-data_topic_callback_implementation
+}
+```
+
+## Best Practices
+
+### Publishers
+
+1. **Set appropriate QoS**: Configure Quality of Service based on data importance
+2. **Publish at consistent rates**: Use timers for periodic publishing
+3. **Validate data before publishing**: Ensure message validity
+4. **Use meaningful message fields**: Populate all relevant data
+5. **Log publishing events** for debugging
+
+### Subscribers
+
+1. **Handle missing data gracefully**: Check message validity
+2. **Implement timeouts**: Detect when data stops arriving
+3. **Don't block in callbacks**: Keep processing fast
+4. **Store state for coordination**: Use member variables for data persistence
+5. **Validate received data**: Check ranges and consistency
+
+### General
+
+1. **Separate concerns**: Keep ROS infrastructure separate from business logic
+2. **Use spdlog for logging** in LogicModule instead of ROS logging
+3. **Make methods testable** by avoiding direct ROS dependencies in LogicModule
+4. **Document message contracts** and expected data formats
+5. **Handle edge cases** like network interruptions
+
+## Testing Topics
+
+### Testing Publishers
+
+Monitor published data:
+
+```bash
+# List available topics
+ros2 topic list
+
+# Monitor topic data
+ros2 topic echo /{{args.package.name}}/my_topic
+
+# Check topic info
+ros2 topic info /{{args.package.name}}/my_topic
+
+# Check publishing rate
+ros2 topic hz /{{args.package.name}}/my_topic
+```
+
+### Testing Subscribers
+
+Publish test data:
+
+```bash
+# Publish test message
+ros2 topic pub /my_topic std_msgs/msg/String "data: 'test message'" --once
+
+# Publish at specific rate
+ros2 topic pub /my_topic std_msgs/msg/String "data: 'periodic test'" --rate 1
+```
+
+## Quality of Service (QoS)
+
+Configure QoS policies based on your use case:
+
+```cpp
+// In ROS Node (for reference - actual configuration is in templates)
+rclcpp::QoS qos(10);  // History depth
+
+// Reliable delivery (default)
+qos.reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE);
+
+// Best effort (faster, may lose messages)
+qos.reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
+
+// Transient local (late subscribers get last message)
+qos.durability(RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL);
+```
+
+## Common Message Types
+
+### Standard Messages
+
+- `std_msgs/msg/String`: Text data
+- `std_msgs/msg/Int32`, `std_msgs/msg/Int64`: Integer values
+- `std_msgs/msg/Float32`, `std_msgs/msg/Float64`: Floating-point values
+- `std_msgs/msg/Bool`: Boolean values
+- `std_msgs/msg/Header`: Timestamp and frame information
+
+### Sensor Messages
+
+- `sensor_msgs/msg/Image`: Camera images
+- `sensor_msgs/msg/PointCloud2`: 3D point clouds
+- `sensor_msgs/msg/LaserScan`: Laser scanner data
+- `sensor_msgs/msg/Imu`: Inertial measurement unit data
+- `sensor_msgs/msg/JointState`: Robot joint positions
+
+### Geometry Messages
+
+- `geometry_msgs/msg/Twist`: Linear and angular velocity
+- `geometry_msgs/msg/Pose`: Position and orientation
+- `geometry_msgs/msg/Transform`: Coordinate transformations
+
+## Debugging
+
+### Common Issues
+
+1. **No data received**: Check topic names and QoS compatibility
+2. **High latency**: Consider QoS settings and network conditions
+3. **Missing messages**: Use reliable QoS or check network stability
+4. **Type mismatches**: Verify message definitions match
+5. **Callback not called**: Check subscription setup and topic names
+
+### Useful Commands
+
+```bash
+# Debug topic connections
+ros2 topic info /my_topic --verbose
+
+# Check node subscriptions/publications
+ros2 node info /my_node
+
+# Monitor system performance
+ros2 topic hz /my_topic
+ros2 topic bw /my_topic
+
+# Inspect message structure
+ros2 interface show std_msgs/msg/String
+```
+
+## Performance Considerations
+
+### Memory Management
+
+- **Use const references** in callbacks to avoid copying
+- **Minimize dynamic allocations** in high-frequency callbacks
+- **Reuse message objects** when possible
+
+### CPU Usage
+
+- **Keep callbacks lightweight** - defer heavy processing
+- **Use appropriate QoS** to balance reliability and performance
+- **Consider message size** for high-frequency topics
+
+### Network Usage
+
+- **Compress large messages** when appropriate
+- **Reduce publishing frequency** for non-critical data
+- **Use efficient serialization** with appropriate message types
+
+---
+
+*This guide is automatically generated based on your package configuration. Modify the topic interfaces in your setup assistant configuration to update this documentation.*

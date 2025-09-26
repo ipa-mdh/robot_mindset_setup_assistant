@@ -6,25 +6,81 @@
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_input_interface.hpp"
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_output_interface.hpp"
 
+/**
+ * @file {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp
+ * @brief LogicModule class definition for non-ROS business logic
+ * 
+ * This header defines the LogicModule class which contains the core business
+ * logic of your application, separated from ROS-specific code.
+ * 
+ * The LogicModule inherits from both input and output interfaces, providing:
+ * - Action server execution methods (for handling incoming action requests)
+ * - Action client trigger methods (for sending action requests to other nodes)
+ * - Topic and service callback processing methods
+ * 
+ * KEY PRINCIPLES:
+ * - No direct ROS dependencies in this class
+ * - Business logic is isolated and testable
+ * - ROS communication handled through callback functions
+ * - All action execution happens in this non-ROS layer
+ */
+
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
+/**
+ * @class LogicModule
+ * @brief Core business logic class for {{ args.package.name }}
+ * 
+ * This class implements the actual business logic for your ROS node,
+ * separated from ROS infrastructure concerns. It handles:
+ * 
+ * - Action server execution (the actual work done by action servers)
+ * - Action client triggering (initiating requests to external action servers)
+ * - Topic message processing
+ * - Service request handling
+ * 
+ * All ROS communication is handled through callback functions provided
+ * by the ROS layer, maintaining clean separation of concerns.
+ */
 class LogicModule : public LogicModuleInputInterface, public LogicModuleOutputInterface
 {
 public:
     LogicModule();
+    
+    /**
+     * @brief Set the logging level for spdlog
+     * @param level_str Log level string ("debug", "info", "warn", "error", "fatal")
+     */
     void set_logger_level(std::string level_str);
 
-    // test functions
+    // Example/test functions - remove these in your implementation
     std::string greet(const std::string& name) const;
     void spdlog_test(double number) const;
 
-    // Action server execution implementations
+    // =========================================================================
+    // ACTION SERVER EXECUTION METHODS
+    // =========================================================================
+    // These methods contain the core business logic for action servers.
+    // They are called by the ROS layer when action goals are received.
+    
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- set lu_ros = namespace(ros_data_type=lu.ros_data_type) %}
+    /**
+     * @brief Execute action server: {{ interface.name }}
+     * @param goal Action goal from client
+     * @param feedback Feedback object to populate
+     * @param result Result object to populate
+     * @param is_canceling Callback to check for cancellation
+     * @param publish_feedback Callback to send feedback updates
+     * @param is_ok Callback to check if ROS is running
+     * 
+     * {{ interface.description }}
+     * Action Type: {{ lu_ros.ros_data_type }}
+     */
     void execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
         const std::shared_ptr<const {{ lu_ros.ros_data_type }}::Goal> goal,
         std::shared_ptr<{{ lu_ros.ros_data_type }}::Feedback> feedback,
@@ -37,7 +93,12 @@ public:
 {%- endif %}
 {%- endif %}
 
-    // Action client interface implementations
+    // =========================================================================
+    // ACTION CLIENT INTERFACE METHODS
+    // =========================================================================
+    // These methods trigger action client requests to external action servers.
+    // Call these from your business logic to initiate actions.
+    
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
@@ -45,9 +106,252 @@ public:
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type.goal %}
 {%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+    /**
+     * @brief Trigger action client: {{ interface.name }}
+     * @param goal_param Goal parameter to send to external action server
+     * 
+     * {{ interface.description }}
+     * Action Type: {{ lu.ros_data_type }}
+     * 
+     * Call this method to send a goal to an external action server.
+     * Response callbacks will be triggered asynchronously:
+     * - goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+     * - feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+     * - result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
+     */
     void interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param) override;
 {%- endif %}
 {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // =========================================================================
+    // TOPIC PUBLISHER INTERFACE METHODS
+    // =========================================================================
+    // These methods publish data to ROS topics. Call them from your business
+    // logic to send data to other nodes in the ROS network.
+    
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    /**
+     * @brief Publish to topic: {{ interface.name }}
+     * @param msg Message to publish
+     * 
+     * {{ interface.description }}
+     * Message Type: {{ interface.msgs }}
+     * Topic: /{{ args.package.name }}/{{ interface.name }}
+     * 
+     * Call this method from your business logic to publish data.
+     * The message will be sent to all subscribers of this topic.
+     */
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    void interface_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_publish(
+        {%- for field in lu.cpp_data_type -%}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+    );
+    {%- else %}
+    // For other message types, implementation is required
+    // void interface_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_publish(<corresponding-cpp-data-type>);
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // =========================================================================
+    // TOPIC SUBSCRIBER CALLBACK METHODS
+    // =========================================================================
+    // These methods are called when data is received from subscribed topics.
+    // Override them to implement your data processing logic.
+    
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    /**
+     * @brief Topic callback: {{ interface.name }}
+     * @param msg Received message from topic
+     * 
+     * {{ interface.description }}
+     * Message Type: {{ interface.msgs }}
+     * Topic: /{{ interface.name }}
+     * 
+     * This callback is invoked whenever a message is received on the topic.
+     * Override this method to process incoming data and update internal state.
+     * 
+     * Guidelines:
+     * - Keep processing fast - don't block in callbacks
+     * - Use JINJA preservation tags to maintain custom code
+     * - Validate input data before processing
+     * - Log meaningful information for debugging
+     */
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    void process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        {%- for field in lu.cpp_data_type -%}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+    ) override;
+    {%- else %}
+    // For other message types, implementation is required
+    // void process_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(<corresponding-cpp-data-type>) override;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // =========================================================================
+    // SERVICE SERVER HANDLER METHODS
+    // =========================================================================
+    // These methods handle incoming service requests from other nodes.
+    // Override them to implement your service processing logic.
+    
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    /**
+     * @brief Service handler: {{ interface.name }}
+     * @param request Service request from client
+     * @param response Service response to populate
+     * @return true if service executed successfully, false otherwise
+     * 
+     * {{ interface.description }}
+     * Service Type: {{ interface.msgs }}
+     * Service: /{{ args.package.name }}/{{ interface.name }}
+     * 
+     * This method is called when a client makes a service request.
+     * Override this method to process the request and generate a response.
+     * 
+     * Guidelines:
+     * - Validate request parameters before processing
+     * - Return false on errors and set meaningful error messages
+     * - Keep processing reasonably fast for responsive service calls
+     * - Use JINJA preservation tags to maintain custom code
+     * - Log service calls for debugging and monitoring
+     */
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set interface_info = args.lookup.interfaces.msgs[interface.msgs] %}
+    void process_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- for field in interface_info.cpp_data_type.req %}
+        const {{ field.type }} &req_{{ field.name }}{% if not loop.last %},{% endif %}
+{%- endfor %}{% if interface_info.cpp_data_type.req and interface_info.cpp_data_type.res %},{% endif %}
+{%- for field in interface_info.cpp_data_type.res %}
+        {{ field.type }} &res_{{ field.name }}{% if not loop.last %},{% endif %}
+{%- endfor %}) override;
+    {%- else %}
+    // For other service types, implementation is required
+    // void process_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(<parameters>) override;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // =========================================================================
+    // SERVICE CLIENT CALLBACK METHODS  
+    // =========================================================================
+    // These methods handle responses from service calls to external servers.
+    // Override them to process service responses.
+    
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    /**
+     * @brief Service client caller: {{ interface.name }}
+     * @param request Request to send to external service
+     * 
+     * {{ interface.description }}
+     * Service Type: {{ interface.msgs }}
+     * Service: /{{ interface.name }}
+     * 
+     * Call this method to send a request to an external service server.
+     * The response will be handled asynchronously in the callback method:
+     * - interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback()
+     */
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call(
+        std::shared_ptr<{{ lu.ros_data_type }}::Request> request);
+    {%- else %}
+    // For other service types, implementation is required
+    // void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_call(<corresponding-request-type>);
+    {%- endif %}
+
+    /**
+     * @brief Service response callback: {{ interface.name }}
+     * @param response Service response from external server
+     * 
+     * {{ interface.description }}
+     * Service Type: {{ interface.msgs }}
+     * Service: /{{ interface.name }}
+     * 
+     * This callback is invoked when a response is received from the service call.
+     * Override this method to handle the service response.
+     * 
+     * Guidelines:
+     * - Check response validity before using data
+     * - Handle both success and failure cases
+     * - Don't block in callback methods
+     * - Update internal state based on response
+     * - Use JINJA preservation tags to maintain custom code
+     */
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+        rclcpp::Client<{{ lu.ros_data_type }}>::SharedFuture response);
+    {%- else %}
+    // For other service types, implementation is required
+    // void interface_srv_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(<corresponding-response-type>);
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+    // =========================================================================
+    // PARAMETER CALLBACK METHODS
+    // =========================================================================
+    // These methods are called when ROS parameters change at runtime.
+    // Override them to handle parameter updates and validate values.
+    
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+    /**
+     * @brief Parameter callback: {{ interface.name }}
+     * @param value New parameter value
+     * 
+     * {{ interface.description }}
+     * Parameter Type: {{ interface.msgs|replace('std_msgs/msg/', '')|replace('/', '::')|lower }}
+     * Parameter Name: {{ interface.name }}
+     * 
+     * This callback is invoked whenever the parameter value changes at runtime.
+     * Override this method to validate and apply parameter changes.
+     * 
+     * Guidelines:
+     * - Always validate input values before applying them
+     * - Handle invalid values gracefully (keep previous valid state)
+     * - Provide clear error messages for validation failures
+     * - Apply changes atomically to maintain consistency
+     * - Use JINJA preservation tags to maintain custom code
+     * - Log parameter changes for debugging and audit trails
+     */
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type,
+                           cpp_data_type=args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    void process_param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        {%- for field in lu.cpp_data_type -%}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor -%}
+    );
+    {%- else %}
+    // For other parameter types, implementation is required
+    // void process_param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(<corresponding-cpp-data-type>) override;
+    {%- endif %}
 {%- endfor %}
 {%- endif %}
 {%- endif %}
