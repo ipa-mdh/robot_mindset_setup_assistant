@@ -19,10 +19,10 @@ struct RosParam {
  * 
  * Provides delegation interface for parameter management
  */
-class ParameterHandler : public BaseInterfaceHandler {
+class InterfaceParameterHandler : public BaseInterfaceHandler {
 public:
-    explicit ParameterHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
-    virtual ~ParameterHandler() = default;
+    explicit InterfaceParameterHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
+    virtual ~InterfaceParameterHandler() = default;
 
     /**
      * @brief Get all private parameters

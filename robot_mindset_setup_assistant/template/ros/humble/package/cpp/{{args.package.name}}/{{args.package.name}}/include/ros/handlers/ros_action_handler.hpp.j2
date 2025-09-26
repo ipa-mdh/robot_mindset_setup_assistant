@@ -1,16 +1,17 @@
 #pragma once
 
 #include "../interfaces/action_handler.hpp"
+#include <chrono>
 #include <rclcpp_action/rclcpp_action.hpp>
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
 /**
- * @brief Concrete implementation of ActionHandler using ROS2 actions
+ * @brief Concrete implementation of InterfaceActionHandler using ROS2 actions
  * 
  * This class manages all action-related ROS2 communication through composition
  */
-class RosActionHandler : public ActionHandler {
+class RosActionHandler : public InterfaceActionHandler {
 public:
     explicit RosActionHandler(rclcpp::Node* node);
     ~RosActionHandler() override = default;

@@ -18,11 +18,6 @@
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
-struct RosParam {
-std::string name;
-std::string value;
-};
-
 /*  ROS and non-ROS module interface
  *
  * out: Something that the node provides to other nodes.

@@ -33,10 +33,10 @@ namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
  * 
  * Provides delegation interface for both service servers and clients
  */
-class ServiceHandler : public BaseInterfaceHandler {
+class InterfaceServiceHandler : public BaseInterfaceHandler {
 public:
-    explicit ServiceHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
-    virtual ~ServiceHandler() = default;
+    explicit InterfaceServiceHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
+    virtual ~InterfaceServiceHandler() = default;
 
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}

@@ -34,10 +34,10 @@ namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
  * 
  * Provides delegation interface for both action servers and clients
  */
-class ActionHandler : public BaseInterfaceHandler {
+class InterfaceActionHandler : public BaseInterfaceHandler {
 public:
-    explicit ActionHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
-    virtual ~ActionHandler() = default;
+    explicit InterfaceActionHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
+    virtual ~InterfaceActionHandler() = default;
 
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}

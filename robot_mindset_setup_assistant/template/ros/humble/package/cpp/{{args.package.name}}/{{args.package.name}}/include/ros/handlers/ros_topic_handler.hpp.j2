@@ -28,7 +28,7 @@ public:
                            ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     void publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     {%- for field in lu.cpp_data_type %}
-        const {{ field.type }} &msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
     {%- endfor %}) override;
     {%- endif %}
 {%- endfor %}
@@ -36,9 +36,16 @@ public:
     // === Subscriber callback registration ===
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    {%- set lu = namespace(data = args.lookup.interfaces.msgs[interface.msgs]) %}
     void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
-        std::function<void(const {{ lu.ros_data_type }} &)> callback) override;
+    {%- if lu.data.cpp_data_type and lu.data.cpp_data_type|length > 0 %}
+        std::function<void(
+    {%- for field in lu.data.cpp_data_type %}
+            const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> callback) override;
+    {%- else %}
+        std::function<void()> callback) override;
+    {%- endif %}
     {%- endif %}
 {%- endfor %}
 {%- endif %}
@@ -60,7 +67,15 @@ private:
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     rclcpp::Subscription<{{ lu.ros_data_type }}>::SharedPtr sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-    std::function<void(const {{ lu.ros_data_type }} &)> callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- set cb = namespace(data = args.lookup.interfaces.msgs[interface.msgs]) %}
+    {%- if cb.data.cpp_data_type and cb.data.cpp_data_type|length > 0 %}
+    std::function<void(
+    {%- for field in cb.data.cpp_data_type %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- else %}
+    std::function<void()> callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- endif %}
     {%- endif %}
 {%- endfor %}
 

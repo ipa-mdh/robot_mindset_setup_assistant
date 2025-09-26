@@ -23,9 +23,8 @@ void ServiceHandler::process_service_{{ interface.name|regex_replace('[^A-Za-z0-
     const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
     std::shared_ptr<{{ lu.ros_data_type }}::Response> response) {
     
-    spdlog::info("ServiceHandler: Processing service request {{ interface.name }}");
-    
     // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_implementation
+    spdlog::info("ServiceHandler: Processing service request {{ interface.name }}");
     // TODO: Implement the core business logic for service server: {{ interface.name }}
     // 
     // This method should:

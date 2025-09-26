@@ -5,11 +5,11 @@
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
 /**
- * @brief Concrete implementation of ServiceHandler using ROS2 services
+ * @brief Concrete implementation of InterfaceServiceHandler using ROS2 services
  * 
  * This class manages all service-related ROS2 communication through composition
  */
-class RosServiceHandler : public ServiceHandler {
+class RosServiceHandler : public InterfaceServiceHandler {
 public:
     explicit RosServiceHandler(rclcpp::Node* node);
     ~RosServiceHandler() override = default;

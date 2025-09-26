@@ -33,10 +33,10 @@ namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
  * 
  * Provides delegation interface for both publishers and subscribers
  */
-class TopicHandler : public BaseInterfaceHandler {
+class InterfaceTopicHandler : public BaseInterfaceHandler {
 public:
-    explicit TopicHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
-    virtual ~TopicHandler() = default;
+    explicit InterfaceTopicHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
+    virtual ~InterfaceTopicHandler() = default;
 
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
@@ -50,7 +50,7 @@ public:
      */
     virtual void publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     {%- for field in lu.cpp_data_type %}
-        const {{ field.type }} &msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
     {%- endfor %}) = 0;
     {%- endif %}
 {%- endfor %}
@@ -58,13 +58,21 @@ public:
     // === Subscriber callback registration ===
 {%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    {%- set lu = namespace(data = args.lookup.interfaces.msgs[interface.msgs]) %}
     /**
      * @brief Set callback for {{ interface.name }} topic subscriber
      * @param callback Function to handle incoming messages: {{ interface.description }}
      */
+    {%- if lu.data.cpp_data_type and lu.data.cpp_data_type|length > 0 %}
     virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
-        std::function<void(const {{ lu.ros_data_type }} &)> callback) = 0;
+        std::function<void(
+    {%- for field in lu.data.cpp_data_type %}
+            const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> callback) = 0;
+    {%- else %}
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+        std::function<void()> callback) = 0;
+    {%- endif %}
     {%- endif %}
 {%- endfor %}
 {%- endif %}

@@ -22,7 +22,7 @@ TopicHandler::TopicHandler() {
 {%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
 void TopicHandler::publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
 {%- for field in lu.cpp_data_type %}
-        const {{ field.type }} &msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
     {%- endfor %}) {
     
     // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-publish-implementation
@@ -31,30 +31,18 @@ void TopicHandler::publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') 
     // This method is called when you want to publish data to the {{ interface.name }} topic
     
     // Example data processing:
-{%- if 'string' in interface.msgs.lower() %}
-    // // Process string data
-    // auto processed_data = data;
-    // if (!data.empty()) {
-    //     processed_data = "Processed: " + data;
-    // }
-{%- elif 'int' in interface.msgs.lower() or 'float' in interface.msgs.lower() or 'double' in interface.msgs.lower() %}
-    // // Process numeric data
-    // auto processed_data = data;
-    // if (data > threshold_) {
-    //     processed_data = apply_transformation(data);
-    // }
-{%- else %}
-    // // Process {{ interface.msgs }} data
-    // auto processed_data = data;
-    // // Add your transformation logic here
-{%- endif %}
+    // // Process outgoing {{ interface.msgs }} data
+{%- for field in lu.cpp_data_type %}
+    // auto processed_{{ field.name }} = {{ field.name }};
+{%- endfor %}
+    // // Add your transformation/validation logic here
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-publish-implementation
     
     // Delegate to ROS layer for actual publishing
     if (pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
         pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
 {%- for field in lu.cpp_data_type %}
-            msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+            {{ field.name }}{% if not loop.last %}, {% endif %}
 {%- endfor %});
     } else {
         spdlog::warn("TopicHandler: No publish callback registered for {{ interface.name }}");
@@ -75,51 +63,21 @@ void TopicHandler::publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') 
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
 {%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
-{%- set data_type = lu.cpp_data_type[0].type %}
-void TopicHandler::process_subscription_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ data_type }}& data) {
-    spdlog::info("TopicHandler: Received message on {{ interface.name }}: {}", 
-{%- if 'string' in interface.msgs.lower() %}
-                 data);
-{%- elif 'int' in interface.msgs.lower() or 'float' in interface.msgs.lower() or 'double' in interface.msgs.lower() %}
-                 data);
-{%- else %}
-                 "complex_message");
-{%- endif %}
+void TopicHandler::process_subscription_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- for field in lu.cpp_data_type %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}) {
+    spdlog::info("TopicHandler: Received message on {{ interface.name }}");
 
     // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation
     // TODO: Add your business logic for processing incoming {{ interface.msgs }} data here
     
     // Example processing:
-{%- if 'string' in interface.msgs.lower() %}
-    // // Validate and process string data
-    // if (!data.empty() && data.length() < max_length_) {
-    //     process_valid_string(data);
-    // } else {
-    //     spdlog::warn("Invalid string data received");
-    // }
-{%- elif 'int' in interface.msgs.lower() or 'float' in interface.msgs.lower() or 'double' in interface.msgs.lower() %}
-    // // Validate and process numeric data
-    // if (data >= min_value_ && data <= max_value_) {
-    //     update_internal_state(data);
-    // }
-    // 
-    // // Trigger dependent processing
-    // if (data > threshold_) {
-    //     trigger_alert();
-    // }
-{%- elif 'bool' in interface.msgs.lower() %}
-    // // Handle boolean state change
-    // if (data) {
-    //     activate_feature();
-    // } else {
-    //     deactivate_feature();
-    // }
-{%- else %}
-    // // Process {{ interface.msgs }} data
+    // // Validate and process incoming {{ interface.msgs }} data
+{%- for field in lu.cpp_data_type %}
+    // spdlog::debug("\t{{ field.name }} = {}", {{ field.name }});
+{%- endfor %}
     // // Add your custom processing logic here
-    // validate_message(data);
-    // update_state_from_message(data);
-{%- endif %}
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation
 }
 
@@ -140,7 +98,7 @@ void TopicHandler::process_subscription_{{ interface.name|regex_replace('[^A-Za-
 void TopicHandler::set_publish_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     std::function<void(
 {%- for field in lu.cpp_data_type %}
-        const {{ field.type }} &msg_{{ field.name }}{% if not loop.last %}, {% endif %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
     {%- endfor %})> callback) {
     pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
     spdlog::debug("TopicHandler: Publish callback registered for {{ interface.name }}");
