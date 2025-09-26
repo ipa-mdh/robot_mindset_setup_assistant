@@ -1,0 +1,80 @@
+#pragma once
+
+#include "base_interface_handler.hpp"
+#include <functional>
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+/**
+ * @brief Abstract interface for service handlers
+ * 
+ * Provides delegation interface for both service servers and clients
+ */
+class ServiceHandler : public BaseInterfaceHandler {
+public:
+    explicit ServiceHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
+    virtual ~ServiceHandler() = default;
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Service client interface methods ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    /**
+     * @brief Call {{ interface.name }} service
+     * @param {{ interface.description }}
+     */
+    virtual bool call_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for req in lu.cpp_data_type.req %}
+        {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif -%}
+    {%- for res in lu.cpp_data_type.res %}
+        {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+    ) = 0;
+    {%- endif %}
+{%- endfor %}
+
+    // === Service server callback registration ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    /**
+     * @brief Set callback for {{ interface.name }} service server
+     * @param callback Function to handle service requests: {{ interface.description }}
+     */
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>,
+                          std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) = 0;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+};
+
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

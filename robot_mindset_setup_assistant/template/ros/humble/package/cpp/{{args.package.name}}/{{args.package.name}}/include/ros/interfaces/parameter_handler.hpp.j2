@@ -1,0 +1,98 @@
+#pragma once
+
+#include "base_interface_handler.hpp"
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <functional>
+#include <string>
+#include <vector>
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+struct RosParam {
+    std::string name;
+    std::string value;
+};
+
+/**
+ * @brief Abstract interface for parameter handlers
+ * 
+ * Provides delegation interface for parameter management
+ */
+class ParameterHandler : public BaseInterfaceHandler {
+public:
+    explicit ParameterHandler(rclcpp::Node* node) : BaseInterfaceHandler(node) {}
+    virtual ~ParameterHandler() = default;
+
+    /**
+     * @brief Get all private parameters
+     * @return Vector of RosParam structures containing parameter names and values
+     */
+    virtual std::vector<RosParam> get_private_parameters() = 0;
+
+    /**
+     * @brief Set a private parameter value
+     * @param param_name Name of the parameter to set
+     * @param param_value Value to set (as string - will be converted to appropriate type)
+     * @return true if parameter was successfully set, false otherwise
+     */
+    virtual bool set_private_parameter(const std::string& param_name, const std::string& param_value) = 0;
+
+    /**
+     * @brief Set parameter update callback
+     * @param callback Function to handle parameter changes
+     */
+    virtual void set_parameter_callback(
+        std::function<rcl_interfaces::msg::SetParametersResult(const std::vector<rclcpp::Parameter> &)> callback) = 0;
+
+    /**
+     * @brief Apply current parameter values to the logic module
+     * Should be called after parameter initialization and updates
+     */
+    virtual void apply_parameters_to_logic_module() = 0;
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- for field in lu.cpp_data_type %}
+    /**
+     * @brief Get {{ interface.name }} parameter value
+     * @return Current value of the parameter: {{ interface.description }}
+     */
+    {%- if field.type == "std::string" %}
+    virtual std::string get_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter() const = 0;
+    {%- elif field.type == "double" %}
+    virtual double get_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter() const = 0;
+    {%- elif field.type == "int" or field.type == "int32_t" %}
+    virtual int get_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter() const = 0;
+    {%- elif field.type == "bool" %}
+    virtual bool get_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter() const = 0;
+    {%- else %}
+    virtual std::string get_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter() const = 0;
+    {%- endif %}
+
+    /**
+     * @brief Set {{ interface.name }} parameter value
+     * @param value New value for the parameter
+     */
+    {%- if field.type == "std::string" %}
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter(const std::string& value) = 0;
+    {%- elif field.type == "double" %}
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter(double value) = 0;
+    {%- elif field.type == "int" or field.type == "int32_t" %}
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter(int value) = 0;
+    {%- elif field.type == "bool" %}
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter(bool value) = 0;
+    {%- else %}
+    virtual void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_parameter(const std::string& value) = 0;
+    {%- endif %}
+    {%- endfor %}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+};
+
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

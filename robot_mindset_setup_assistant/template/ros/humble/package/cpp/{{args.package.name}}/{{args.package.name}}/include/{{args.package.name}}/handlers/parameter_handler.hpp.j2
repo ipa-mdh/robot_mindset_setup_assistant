@@ -14,6 +14,31 @@
  * - Applying parameter updates to business logic
  */
 
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
+
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
 /**

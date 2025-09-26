@@ -1,0 +1,84 @@
+#pragma once
+
+#include "../interfaces/service_handler.hpp"
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+/**
+ * @brief Concrete implementation of ServiceHandler using ROS2 services
+ * 
+ * This class manages all service-related ROS2 communication through composition
+ */
+class RosServiceHandler : public ServiceHandler {
+public:
+    explicit RosServiceHandler(rclcpp::Node* node);
+    ~RosServiceHandler() override = default;
+
+    void initialize() override;
+    void shutdown() override;
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Service client implementations ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    bool call_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- for req in lu.cpp_data_type.req %}
+        {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif -%}
+    {%- for res in lu.cpp_data_type.res %}
+        {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor -%}
+    ) override;
+    {%- endif %}
+{%- endfor %}
+
+    // === Service server callback registration ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>,
+                          std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) override;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+private:
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Service clients ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp::Client<{{ lu.ros_data_type }}>::SharedPtr client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- endif %}
+{%- endfor %}
+
+    // === Service servers ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp::Service<{{ lu.ros_data_type }}>::SharedPtr service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>,
+                      std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- endif %}
+{%- endfor %}
+
+    // === Internal callback methods ===
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    void internal_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
+        std::shared_ptr<{{ lu.ros_data_type }}::Response> response);
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+};
+
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

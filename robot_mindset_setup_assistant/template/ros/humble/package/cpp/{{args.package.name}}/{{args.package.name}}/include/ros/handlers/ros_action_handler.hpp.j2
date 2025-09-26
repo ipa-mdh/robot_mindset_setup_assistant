@@ -1,0 +1,100 @@
+#pragma once
+
+#include "../interfaces/action_handler.hpp"
+#include <rclcpp_action/rclcpp_action.hpp>
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+/**
+ * @brief Concrete implementation of ActionHandler using ROS2 actions
+ * 
+ * This class manages all action-related ROS2 communication through composition
+ */
+class RosActionHandler : public ActionHandler {
+public:
+    explicit RosActionHandler(rclcpp::Node* node);
+    ~RosActionHandler() override = default;
+
+    void initialize() override;
+    void shutdown() override;
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Action client implementations ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type,
+                           ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    bool send_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    {%- if lu.cpp_data_type.goal is defined %}
+    {%- for field in lu.cpp_data_type.goal %}
+        const {{ field.type }} &goal_{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}
+    {%- else %}
+        const {{ lu.ros_data_type }}::Goal &goal
+    {%- endif %}) override;
+
+    bool cancel_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}() override;
+    {%- endif %}
+{%- endfor %}
+
+    // === Action server callback registration ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    void set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callbacks(
+        std::function<rclcpp_action::GoalResponse(const rclcpp_action::GoalUUID &, 
+                                                 std::shared_ptr<const {{ lu.ros_data_type }}::Goal>)> goal_callback,
+        std::function<rclcpp_action::CancelResponse(const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>>)> cancel_callback,
+        std::function<void(const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>>)> accepted_callback) override;
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+private:
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Action clients ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp_action::Client<{{ lu.ros_data_type }}>::SharedPtr action_client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    typename rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr goal_handle_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- endif %}
+{%- endfor %}
+
+    // === Action servers ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp_action::Server<{{ lu.ros_data_type }}>::SharedPtr action_server_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    
+    // Stored callbacks for {{ interface.name }}
+    std::function<rclcpp_action::GoalResponse(const rclcpp_action::GoalUUID &, 
+                                             std::shared_ptr<const {{ lu.ros_data_type }}::Goal>)> goal_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    std::function<rclcpp_action::CancelResponse(const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>>)> cancel_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    std::function<void(const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>>)> accepted_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    {%- endif %}
+{%- endfor %}
+
+    // === Internal callback methods ===
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp_action::GoalResponse internal_handle_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const rclcpp_action::GoalUUID & uuid,
+        std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal);
+    
+    rclcpp_action::CancelResponse internal_handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle);
+    
+    void internal_handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle);
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+};
+
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

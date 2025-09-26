@@ -1,20 +1,4 @@
 #pragma once
-
-#include <string>
-#include <functional>
-#include <memory>
-#include <spdlog/spdlog.h>
-
-{%- if args.ros is defined and args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "action" %}
-{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
-#include <{{ lu.include }}.hpp>
-#include <rclcpp_action/rclcpp_action.hpp>
-{%- endif %}
-{%- endfor %}
-{%- endif %}
-
 /**
  * @file action_handler.hpp
  * @brief Action interface handler for server/client operations
@@ -24,6 +8,46 @@
  * - Managing action client requests (clients)
  * - Feedback and result processing
  */
+
+#include <string>
+#include <functional>
+#include <memory>
+#include <spdlog/spdlog.h>
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+
+{#- Check if the interface is an action and set the flag #}
+{%- if interface.type == "action" -%}
+{%- set ns.add_actionlib = true -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// Include message headers based on the Robot Mindset Setup Assistant configuration
+{%- if ns.add_actionlib %}
+#include <rclcpp_action/rclcpp_action.hpp>
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
