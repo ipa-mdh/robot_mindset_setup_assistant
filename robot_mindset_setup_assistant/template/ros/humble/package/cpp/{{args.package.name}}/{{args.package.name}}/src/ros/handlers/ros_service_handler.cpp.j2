@@ -17,11 +17,11 @@ void RosServiceHandler::initialize() {
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     {%- if interface.direction == "in" %}
     client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =
-        node_->create_client<{{ lu.ros_data_type }}>("{{ interface.name }}");
+        node_->create_client<{{ lu.ros_data_type }}>("{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}");
     {%- elif interface.direction == "out" %}
     service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =
         node_->create_service<{{ lu.ros_data_type }}>(
-            "{{ interface.name }}",
+            "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}",
             std::bind(&RosServiceHandler::internal_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}, this, std::placeholders::_1, std::placeholders::_2));
     {%- endif %}
     {%- else %}

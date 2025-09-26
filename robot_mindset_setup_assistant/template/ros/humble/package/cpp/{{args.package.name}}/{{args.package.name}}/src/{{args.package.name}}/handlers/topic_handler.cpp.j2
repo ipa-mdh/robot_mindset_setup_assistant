@@ -75,7 +75,7 @@ void TopicHandler::process_subscription_{{ interface.name|regex_replace('[^A-Za-
     // Example processing:
     // // Validate and process incoming {{ interface.msgs }} data
 {%- for field in lu.cpp_data_type %}
-    // spdlog::debug("\t{{ field.name }} = {}", {{ field.name }});
+    spdlog::debug("\t{{ field.name }} = {}", {{ field.name }});
 {%- endfor %}
     // // Add your custom processing logic here
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation

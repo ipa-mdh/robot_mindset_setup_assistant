@@ -16,11 +16,11 @@ void RosTopicHandler::initialize() {
     {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     {%- if interface.direction == "out" %}
     pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =
-        node_->create_publisher<{{ lu.ros_data_type }}>("{{ interface.name }}", qos);
+        node_->create_publisher<{{ lu.ros_data_type }}>("{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}", qos);
     {%- elif interface.direction == "in" %}
     sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =
         node_->create_subscription<{{ lu.ros_data_type }}>(
-            "{{ interface.name }}",
+            "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}",
             qos,
             std::bind(&RosTopicHandler::internal_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}, this, std::placeholders::_1));
     {%- endif %}
