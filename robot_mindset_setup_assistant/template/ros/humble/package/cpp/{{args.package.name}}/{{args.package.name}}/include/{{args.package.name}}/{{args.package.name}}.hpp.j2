@@ -18,6 +18,25 @@ public:
     std::string greet(const std::string& name) const;
     void spdlog_test(double number) const;
 
+    // Action server execution implementations
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- set lu_ros = namespace(ros_data_type=lu.ros_data_type) %}
+    void execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<const {{ lu_ros.ros_data_type }}::Goal> goal,
+        std::shared_ptr<{{ lu_ros.ros_data_type }}::Feedback> feedback,
+        std::shared_ptr<{{ lu_ros.ros_data_type }}::Result> result,
+        std::function<bool()> is_canceling,
+        std::function<void(std::shared_ptr<{{ lu_ros.ros_data_type }}::Feedback>)> publish_feedback,
+        std::function<bool()> is_ok) override;
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
     // Action client interface implementations
 {%- if args.ros is defined %}
 {%- if args.ros.interfaces is defined %}
