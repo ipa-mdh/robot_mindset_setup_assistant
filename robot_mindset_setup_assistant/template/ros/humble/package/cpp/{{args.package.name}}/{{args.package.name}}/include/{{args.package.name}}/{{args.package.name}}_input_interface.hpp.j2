@@ -99,6 +99,9 @@ public:
         {%- for field in lu.cpp_data_type.req %}
         spdlog::debug(" {{ field.name }}: {}", req_{{ field.name }});
         {%- endfor %}
+        {%- for field in lu.cpp_data_type.res %}
+        (void)res_{{ field.name }};
+        {%- endfor %}
     }
 {%- endif %}
 {% endfor %}
@@ -114,11 +117,24 @@ public:
 {%- set lu = namespace(ros_data_type=args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     // {{ interface.description }}
     // Action client callbacks for {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}
-    virtual void goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {}
+    virtual void goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
+        spdlog::debug("Logic Module (non-ROS): Goal response received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, accepted={}", 
+            (void*)goal_handle.get(), (goal_handle ? "true" : "false"));
+        (void)goal_handle;
+    }
     virtual void feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-        rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
-        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {}
-    virtual void result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) {}
+        rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr goal_handle,
+        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {
+        spdlog::debug("Logic Module (non-ROS): Feedback received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: goal_handle={}, feedback={}", 
+            (void*)goal_handle.get(), (void*)feedback.get());
+        (void)goal_handle;
+        (void)feedback;
+    }
+    virtual void result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result) {
+        spdlog::debug("Logic Module (non-ROS): Result received for action {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: status={}", 
+            (int)result.code);
+        (void)result;
+    }
 {%- else %}
     // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
 {%- endif %}
