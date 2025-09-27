@@ -23,7 +23,7 @@ void ServiceHandler::process_service_{{ interface.name|regex_replace('[^A-Za-z0-
     const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
     std::shared_ptr<{{ lu.ros_data_type }}::Response> response) {
     
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_implementation
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-implementation
     spdlog::info("ServiceHandler: Processing service request {{ interface.name }}");
     // TODO: Implement the core business logic for service server: {{ interface.name }}
     // 
@@ -61,7 +61,7 @@ void ServiceHandler::process_service_{{ interface.name|regex_replace('[^A-Za-z0-
     // Default implementation - replace with your business logic
     response->success = true;
     spdlog::info("ServiceHandler: Service {{ interface.name }} completed (default implementation)");
-    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_implementation
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-implementation
 }
 
 {%- endif %}
@@ -81,7 +81,7 @@ void ServiceHandler::call_service_{{ interface.name|regex_replace('[^A-Za-z0-9]'
     
     spdlog::info("ServiceHandler: Calling external service {{ interface.name }}");
     
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_call_implementation
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-call-implementation
     // TODO: Add your business logic for preparing service calls
     // This method is called when you want to call an external service
     
@@ -94,7 +94,7 @@ void ServiceHandler::call_service_{{ interface.name|regex_replace('[^A-Za-z0-9]'
     //     spdlog::warn("Invalid service request for {{ interface.name }}");
     //     return;
     // }
-    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_call_implementation
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-call-implementation
     
     // Delegate to ROS layer for actual service call
     if (srv_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
@@ -109,7 +109,7 @@ void ServiceHandler::handle_service_response_{{ interface.name|regex_replace('[^
     
     spdlog::info("ServiceHandler: Received response from service {{ interface.name }}");
     
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_response_implementation
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-response-implementation
     // TODO: Process response from external service call
     // Update internal state, trigger follow-up actions, etc.
     
@@ -122,7 +122,7 @@ void ServiceHandler::handle_service_response_{{ interface.name|regex_replace('[^
     //     spdlog::warn("Service {{ interface.name }} call failed: {}", response->message);
     //     handle_service_failure(response);
     // }
-    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_service_response_implementation
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-response-implementation
 }
 
 void ServiceHandler::set_service_call_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(

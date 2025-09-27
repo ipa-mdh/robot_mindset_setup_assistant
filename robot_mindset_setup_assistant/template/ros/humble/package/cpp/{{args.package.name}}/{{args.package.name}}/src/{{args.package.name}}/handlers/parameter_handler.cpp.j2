@@ -64,7 +64,7 @@ void ParameterHandler::process_parameter_{{ interface.name|regex_replace('[^A-Za
     // Apply the new value
     {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = new_value;
     
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_parameter_implementation
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-implementation
     // TODO: Add your business logic for handling parameter changes
     // This method is called whenever the {{ interface.name }} parameter changes at runtime
     
@@ -106,7 +106,7 @@ void ParameterHandler::process_parameter_{{ interface.name|regex_replace('[^A-Za
     // //     {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = old_value;
     // //     spdlog::error("Failed to apply parameter {{ interface.name }}, rolled back to previous value");
     // // }
-    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_parameter_implementation
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-implementation
     
     spdlog::debug("ParameterHandler: Parameter {{ interface.name }} successfully updated");
 }
@@ -133,7 +133,7 @@ bool ParameterHandler::validate_parameter_{{ interface.name|regex_replace('[^A-Z
     const std::string& value) const {
 {%- endif %}
     
-    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_parameter_validation
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-validation
     // TODO: Add validation logic for parameter {{ interface.name }}
     
     // Example validation:
@@ -167,7 +167,7 @@ bool ParameterHandler::validate_parameter_{{ interface.name|regex_replace('[^A-Z
         return false;
     }
 {%- endif %}
-    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_parameter_validation
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-validation
     
     return true;
 }
