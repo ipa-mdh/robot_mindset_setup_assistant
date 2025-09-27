@@ -1,6 +1,6 @@
 import os
 from glob import glob
-from setuptools import setup
+from setuptools import find_packages, setup
 
 package_name = '{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}'
 
@@ -42,7 +42,7 @@ data_files.extend(get_data_files_with_structure('resource', 'resource'))
 setup(
     name=package_name,
     version='{{ args.package.version }}',
-    packages=[package_name],
+    packages=find_packages(),
     data_files=data_files,
     install_requires=[
         'setuptools',

@@ -1,0 +1,109 @@
+"""Parameter handler encapsulating runtime configuration logic."""
+
+from __future__ import annotations
+
+from typing import Any, Dict
+
+from loguru import logger
+
+{%- set parameter_data = namespace(items=[], has_log_level=False) %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set anchor = interface.name|regex_replace('[^A-Za-z0-9]', '-') %}
+{%- if interface.name == "log_level" %}
+{%- set parameter_data.has_log_level = True %}
+{%- endif %}
+{%- set _ = parameter_data.items.append({'name': interface.name, 'identifier': identifier, 'anchor': anchor}) %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+
+class ParameterHandler:
+    """Manage parameter state and validation for the logic module."""
+
+    def __init__(self) -> None:
+        logger.debug("ParameterHandler initialised")
+        self._values: Dict[str, Any] = {}
+{% for param in parameter_data.items %}
+        self._values["{{ param.name }}"] = None
+{% endfor %}
+{% if not parameter_data.has_log_level %}
+        self._log_level: str = "INFO"
+        self._values["log_level"] = "INFO"
+{% endif %}
+
+    # ==================================================================
+    # Parameter update handlers
+    # ==================================================================
+{% if parameter_data.items %}
+{% for param in parameter_data.items %}
+    def process_parameter_{{ param.identifier }}(self, new_value: Any) -> None:
+        """Process runtime update for parameter {{ param.name }}."""
+        old_value = self._values.get("{{ param.name }}")
+        logger.info(
+            "ParameterHandler: Processing parameter change {{ param.name }}: {} -> {}",
+            old_value,
+            new_value,
+        )
+
+        if not self.validate_parameter_{{ param.identifier }}(new_value):
+            logger.warning(
+                "ParameterHandler: Rejected value for parameter {{ param.name }}: {}",
+                new_value,
+            )
+            return
+
+        self._values["{{ param.name }}"] = new_value
+
+        # JINJA-BEGIN:{{ param.anchor }}-parameter-implementation
+        # TODO: Implement business logic reacting to parameter changes
+        # Example:
+        # if not apply_parameter_change(new_value):
+        #     self._values["{{ param.name }}"] = old_value
+        #     logger.error("Failed to apply parameter {{ param.name }}; rolled back")
+        # JINJA-END:{{ param.anchor }}-parameter-implementation
+
+        logger.debug("ParameterHandler: Parameter {{ param.name }} successfully updated")
+
+    def validate_parameter_{{ param.identifier }}(self, value: Any) -> bool:
+        """Validate proposed value for parameter {{ param.name }}."""
+        # JINJA-BEGIN:{{ param.anchor }}-parameter-validation
+        # TODO: Add validation logic for parameter {{ param.name }}
+        return True
+        # JINJA-END:{{ param.anchor }}-parameter-validation
+
+{% endfor %}
+{% endif %}
+{% if not parameter_data.has_log_level %}
+    def process_parameter_log_level(self, new_value: Any) -> None:
+        """Default handler for log_level parameter when none specified in the manifest."""
+        old_value = getattr(self, "_log_level", "INFO")
+        candidate = str(new_value).upper() if new_value is not None else "INFO"
+        if not self.validate_parameter_log_level(candidate):
+            logger.warning(
+                "ParameterHandler: Rejected log level change {} -> {}",
+                old_value,
+                candidate,
+            )
+            return
+
+        self._log_level = candidate
+        self._values["log_level"] = candidate
+        logger.info("ParameterHandler: Updated log level {} -> {}", old_value, candidate)
+
+    def validate_parameter_log_level(self, value: Any) -> bool:
+        """Basic validation ensuring log level strings map to loguru levels."""
+        valid_levels = {"TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"}
+        return isinstance(value, str) and value.upper() in valid_levels
+{% endif %}
+
+    def get_cached_value(self, parameter_name: str) -> Any:
+        """Return the last accepted value for a parameter if cached."""
+        return self._values.get(parameter_name)
+
+    def get_all_cached_values(self) -> Dict[str, Any]:
+        """Return a snapshot of all stored parameter values."""
+        return dict(self._values)

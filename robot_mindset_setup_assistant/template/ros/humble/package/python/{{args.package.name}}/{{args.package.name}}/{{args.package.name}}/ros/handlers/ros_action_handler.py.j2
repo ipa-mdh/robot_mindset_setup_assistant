@@ -1,0 +1,223 @@
+"""ROS-specific action handler bridging servers and clients."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, Optional
+
+from loguru import logger
+from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
+from rclpy.node import Node
+
+from .base import BaseRosHandler
+
+{%- set ns = namespace(imports=[]) %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- if parts|length >= 3 %}
+{%- set module_path = parts[0] + '.' + parts[1] %}
+{%- set class_name = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+{%- set import_line = module_path + '|' + class_name %}
+{%- if import_line not in ns.imports %}
+{%- set _ = ns.imports.append(import_line) %}
+{%- endif %}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- for entry in ns.imports %}
+{%- set module, cls = entry.split('|') %}
+from {{ module }} import {{ cls }}
+{%- endfor %}
+
+
+class RosActionHandler(BaseRosHandler):
+    """Manage ROS action servers/clients and delegate execution to logic."""
+
+{%- set server_actions = [] %}
+{%- set client_actions = [] %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- set server_actions = args.ros.interfaces | selectattr('type', 'equalto', 'action') | selectattr('direction', 'equalto', 'out') | list %}
+{%- set client_actions = args.ros.interfaces | selectattr('type', 'equalto', 'action') | selectattr('direction', 'equalto', 'in') | list %}
+{%- endif %}
+{% if server_actions or client_actions %}
+    def __init__(self, node: Node) -> None:
+        super().__init__(node)
+{% if server_actions %}
+{% for interface in server_actions %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._action_server_{{ identifier }}: Optional[ActionServer] = None
+        self._execute_callback_{{ identifier }}: Optional[Callable[..., None]] = None
+        self._goal_callback_{{ identifier }}: Optional[Callable[[Any], bool]] = None
+        self._cancel_callback_{{ identifier }}: Optional[Callable[[Any], None]] = None
+{% endfor %}
+{% endif %}
+{% if client_actions %}
+{% for interface in client_actions %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._action_client_{{ identifier }}: Optional[ActionClient] = None
+{% endfor %}
+{% endif %}
+
+    def initialize(self) -> None:
+        logger.debug("RosActionHandler: Initialising action servers/clients")
+{% if server_actions %}
+{% for interface in server_actions %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+        self._action_server_{{ identifier }} = ActionServer(
+            self.node,
+            {{ cls }},
+            "{{ interface.name }}",
+            execute_callback=self._execute_wrapper_{{ identifier }},
+            goal_callback=self._goal_wrapper_{{ identifier }},
+            cancel_callback=self._cancel_wrapper_{{ identifier }},
+        )
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if client_actions %}
+{% for interface in client_actions %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+        self._action_client_{{ identifier }} = ActionClient(
+            self.node,
+            {{ cls }},
+            "{{ interface.name }}",
+        )
+{% endif %}
+{% endfor %}
+{% endif %}
+
+    def shutdown(self) -> None:
+        logger.debug("RosActionHandler: Shutting down action servers/clients")
+{% if server_actions %}
+{% for interface in server_actions %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        if self._action_server_{{ identifier }} is not None:
+            self._action_server_{{ identifier }}.destroy()
+        self._action_server_{{ identifier }} = None
+        self._execute_callback_{{ identifier }} = None
+        self._goal_callback_{{ identifier }} = None
+        self._cancel_callback_{{ identifier }} = None
+{% endfor %}
+{% endif %}
+{% if client_actions %}
+{% for interface in client_actions %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._action_client_{{ identifier }} = None
+{% endfor %}
+{% endif %}
+
+{% if server_actions %}
+{% for interface in server_actions %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    def set_action_server_callbacks_{{ identifier }}(
+        self,
+        execute_cb: Callable[[Any, Callable[[Any], None], Callable[[Any], None], Callable[[Any], None], Callable[[], bool]], None],
+        goal_cb: Optional[Callable[[Any], bool]] = None,
+        cancel_cb: Optional[Callable[[Any], None]] = None,
+    ) -> None:
+        """Register logic-layer callbacks for action server {{ interface.name }}."""
+        self._execute_callback_{{ identifier }} = execute_cb
+        self._goal_callback_{{ identifier }} = goal_cb
+        self._cancel_callback_{{ identifier }} = cancel_cb
+
+    def _goal_wrapper_{{ identifier }}(self, goal_request: Any) -> GoalResponse:
+        if self._goal_callback_{{ identifier }} is None:
+            return GoalResponse.ACCEPT
+        accept = self._goal_callback_{{ identifier }}(goal_request)
+        return GoalResponse.ACCEPT if accept else GoalResponse.REJECT
+
+    def _cancel_wrapper_{{ identifier }}(self, goal_handle: Any) -> CancelResponse:
+        if self._cancel_callback_{{ identifier }} is not None:
+            self._cancel_callback_{{ identifier }}(goal_handle)
+        return CancelResponse.ACCEPT
+
+    def _execute_wrapper_{{ identifier }}(self, goal_handle: Any) -> Any:
+        if self._execute_callback_{{ identifier }} is None:
+            logger.warning("No execute callback registered for action {{ interface.name }}")
+            return None
+
+        result_box: Dict[str, Any] = {"result": None, "status": "succeed"}
+
+        def publish_feedback(feedback: Any) -> None:
+            goal_handle.publish_feedback(feedback)
+
+        def succeed(result: Any) -> None:
+            result_box["result"] = result
+            result_box["status"] = "succeed"
+
+        def abort(result: Any) -> None:
+            result_box["result"] = result
+            result_box["status"] = "abort"
+
+        def is_cancelled() -> bool:
+            return goal_handle.is_cancel_requested
+
+        self._execute_callback_{{ identifier }}(
+            goal_handle.request.goal,
+            publish_feedback,
+            succeed,
+            abort,
+            is_cancelled,
+        )
+
+        result = result_box["result"]
+        if result is None:
+            result = goal_handle.create_result()
+
+        if result_box["status"] == "succeed":
+            goal_handle.succeed()
+        else:
+            goal_handle.abort()
+        return result
+{% endfor %}
+{% endif %}
+
+{% if client_actions %}
+{% for interface in client_actions %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+{% set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def send_goal_{{ identifier }}(
+        self,
+{% if lu.cpp_data_type.goal is defined %}
+{% for field in lu.cpp_data_type.goal %}
+        goal_{{ field.name }}: Any,
+{% endfor %}
+{% endif %}
+    ) -> Any:
+        """Send goal to external action server {{ interface.name }}."""
+        client = self._action_client_{{ identifier }}
+        if client is None:
+            self.node.get_logger().error("Action client for {{ interface.name }} not initialised")
+            return None
+        if not client.wait_for_server(timeout_sec=1.0):
+            self.node.get_logger().warn("Action server {{ interface.name }} unavailable")
+            return None
+
+        goal_msg = {{ cls }}.Goal()
+{% if lu.cpp_data_type.goal is defined %}
+{% for field in lu.cpp_data_type.goal %}
+        setattr(goal_msg, "{{ field.name }}", goal_{{ field.name }})
+{% endfor %}
+{% endif %}
+        future = client.send_goal_async(goal_msg)
+        logger.debug("RosActionHandler: dispatched goal for {{ interface.name }}")
+        return future
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
+    def __init__(self, node: Node) -> None:  # pragma: no cover - no actions configured
+        super().__init__(node)
+{% endif %}

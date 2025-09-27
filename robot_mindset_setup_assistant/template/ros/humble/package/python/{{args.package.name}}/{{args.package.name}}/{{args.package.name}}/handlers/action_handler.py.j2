@@ -1,0 +1,98 @@
+"""Action handler encapsulating goal execution and client logic."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Optional
+
+from loguru import logger
+
+
+class ActionHandler:
+    """Provides action server/client hooks independent from ROS."""
+
+    def __init__(self) -> None:
+        logger.debug("ActionHandler initialised")
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._action_client_callback_{{ identifier }}: Optional[Callable[..., Any]] = None
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Action server execution logic
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    def execute_action_{{ identifier }}(
+        self,
+        goal: Any,
+        publish_feedback: Callable[[Any], None],
+        succeed: Callable[[Any], None],
+        abort: Callable[[Any], None],
+        is_cancelled: Callable[[], bool],
+    ) -> None:
+        """Execute action goal for {{ interface.name }}."""
+        logger.info("ActionHandler: Executing action {{ interface.name }}")
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-server
+        if is_cancelled():
+            logger.warning("Action {{ interface.name }} cancelled before execution")
+            abort(None)
+            return
+
+        # TODO: Implement feedback/result handling using publish_feedback/succeed
+        publish_feedback({})
+        succeed({})
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-server
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Action client triggers
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_action_client_callback_{{ identifier }}(self, callback: Callable[[
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+            Any,
+{%- endfor %}
+{%- else %}
+            Any,
+{%- endif %}
+        ], Any]) -> None:
+        """Register ROS layer goal sender for {{ interface.name }}."""
+        self._action_client_callback_{{ identifier }} = callback
+        logger.debug("ActionHandler: registered client callback for {{ interface.name }}")
+
+    def trigger_action_client_{{ identifier }}(
+        self,
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+        goal_{{ field.name }}: Any,
+{%- endfor %}
+{%- endif %}
+    ) -> Any:
+        """Send goal to external action server {{ interface.name }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-client
+        logger.info("ActionHandler: Triggering action client {{ interface.name }}")
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-client
+
+        if self._action_client_callback_{{ identifier }} is None:
+            logger.warning("ActionHandler: No action client callback registered for {{ interface.name }}")
+            return None
+
+        return self._action_client_callback_{{ identifier }}(
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+            goal_{{ field.name }},
+{%- endfor %}
+{%- endif %}
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}

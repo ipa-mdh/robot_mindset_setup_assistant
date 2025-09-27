@@ -1,0 +1,92 @@
+"""Topic handler implementing publish/subscribe business logic."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Optional
+
+from loguru import logger
+
+
+class TopicHandler:
+    """Encapsulates topic-specific business logic independent from ROS."""
+
+    def __init__(self) -> None:
+        logger.debug("TopicHandler initialised")
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._publish_callback_{{ identifier }}: Optional[Callable[..., None]] = None
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Publisher methods
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_publish_callback_{{ identifier }}(self, callback: Callable[[
+{%- for field in lu.cpp_data_type %}
+            Any,
+{%- endfor %}
+        ], None]) -> None:
+        """Register ROS layer publish delegate for {{ interface.description }}."""
+        self._publish_callback_{{ identifier }} = callback
+        logger.debug("TopicHandler: registered publish callback for {{ interface.name }}")
+
+    def publish_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type %}
+        {{ field.name }}: Any,
+{%- endfor %}
+    ) -> None:
+        """Publish processed data on topic {{ interface.name }}."""
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-publish-implementation
+        logger.info("TopicHandler: Publishing to {{ interface.name }}")
+        # TODO: Add your business logic for outgoing data
+        # Example processing (replace with your logic):
+{%- for field in lu.cpp_data_type %}
+        # processed_{{ field.name }} = {{ field.name }}
+{%- endfor %}
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-publish-implementation
+
+        if self._publish_callback_{{ identifier }} is None:
+            logger.warning("TopicHandler: No publish callback registered for {{ interface.name }}")
+            return
+
+        self._publish_callback_{{ identifier }}(
+{%- for field in lu.cpp_data_type %}
+            {{ field.name }},
+{%- endfor %}
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Subscriber processing
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def process_subscription_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type %}
+        msg_{{ field.name }}: Any,
+{%- endfor %}
+    ) -> None:
+        """Process incoming data from topic {{ interface.name }}."""
+        logger.info("TopicHandler: Received message on {{ interface.name }}")
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation
+{%- for field in lu.cpp_data_type %}
+        logger.debug("\t{{ field.name }} = {}", msg_{{ field.name }})
+{%- endfor %}
+        # Add your custom processing logic here
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation
+{%- endif %}
+{%- endfor %}
+{%- endif %}

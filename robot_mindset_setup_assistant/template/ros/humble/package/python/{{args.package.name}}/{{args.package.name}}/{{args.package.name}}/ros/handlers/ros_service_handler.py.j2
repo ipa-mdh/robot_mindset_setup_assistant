@@ -1,0 +1,185 @@
+"""ROS-specific service handler managing servers and clients."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, Optional
+
+from loguru import logger
+from rclpy.node import Node
+
+from .base import BaseRosHandler
+
+{%- set server_services = [] %}
+{%- set client_services = [] %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- set server_services = args.ros.interfaces | selectattr('type', 'equalto', 'service') | selectattr('direction', 'equalto', 'out') | list %}
+{%- set client_services = args.ros.interfaces | selectattr('type', 'equalto', 'service') | selectattr('direction', 'equalto', 'in') | list %}
+{%- endif %}
+{%- if server_services %}
+from rclpy.service import Service
+{%- endif %}
+{%- if client_services %}
+from rclpy.client import Client
+{%- endif %}
+
+{%- set ns = namespace(imports=[]) %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{%- set parts = include.split('/') %}
+{%- if parts|length >= 3 %}
+{%- set module_path = parts[0] + '.' + parts[1] %}
+{%- set class_name = parts[2].replace('_', ' ') | title | replace(' ', '') %}
+{%- set import_line = module_path + '|' + class_name %}
+{%- if import_line not in ns.imports %}
+{%- set _ = ns.imports.append(import_line) %}
+{%- endif %}
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- for entry in ns.imports %}
+{%- set module, cls = entry.split('|') %}
+from {{ module }} import {{ cls }}
+{%- endfor %}
+
+
+class RosServiceHandler(BaseRosHandler):
+    """Bridges ROS services with logic-layer delegates."""
+
+{% if server_services or client_services %}
+    def __init__(self, node: Node) -> None:
+        super().__init__(node)
+{% if server_services %}
+{%- for interface in server_services %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._server_{{ identifier }}: Optional[Service] = None
+        self._server_callback_{{ identifier }}: Optional[Callable[..., Dict[str, Any]]] = None
+{%- endfor %}
+{% endif %}
+{% if client_services %}
+{%- for interface in client_services %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._client_{{ identifier }}: Optional[Client] = None
+{%- endfor %}
+{% endif %}
+
+    def initialize(self) -> None:
+        logger.debug("RosServiceHandler: Initialising services")
+{% if server_services %}
+{%- for interface in server_services %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+        self._server_{{ identifier }} = self.node.create_service(
+            {{ cls }},
+            "{{ interface.name }}",
+            self._internal_service_{{ identifier }},
+        )
+{%- endif %}
+{%- endfor %}
+{% endif %}
+{% if client_services %}
+{%- for interface in client_services %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+        self._client_{{ identifier }} = self.node.create_client(
+            {{ cls }},
+            "{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}",
+        )
+{%- endif %}
+{%- endfor %}
+{% endif %}
+
+    def shutdown(self) -> None:
+        logger.debug("RosServiceHandler: Shutting down services")
+{% if server_services %}
+{%- for interface in server_services %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._server_{{ identifier }} = None
+        self._server_callback_{{ identifier }} = None
+{%- endfor %}
+{% endif %}
+{% if client_services %}
+{%- for interface in client_services %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._client_{{ identifier }} = None
+{%- endfor %}
+{% endif %}
+
+{% if server_services %}
+{%- for interface in server_services %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+{% set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_service_callback_{{ identifier }}(self, callback: Callable[[
+{% for field in lu.cpp_data_type.req %}
+            Any,
+{% endfor %}
+        ], Dict[str, Any]]) -> None:
+        """Register logic-layer handler for service {{ interface.name }}."""
+        self._server_callback_{{ identifier }} = callback
+
+    def _internal_service_{{ identifier }}(self, request: Any, response: Any) -> Any:
+        if self._server_callback_{{ identifier }} is None:
+            self.node.get_logger().warn("No logic callback registered for service {{ interface.name }}")
+            return response
+
+        result = self._server_callback_{{ identifier }}(
+{% for field in lu.cpp_data_type.req %}
+            getattr(request, "{{ field.name }}", None),
+{% endfor %}
+        )
+
+        if isinstance(result, dict):
+{% for field in lu.cpp_data_type.res %}
+            if "{{ field.name }}" in result:
+                setattr(response, "{{ field.name }}", result["{{ field.name }}"])
+{% endfor %}
+        return response
+{%- endif %}
+{%- endfor %}
+{% endif %}
+
+{% if client_services %}
+{%- for interface in client_services %}
+{% if interface.msgs in args.lookup.interfaces.msgs %}
+{% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
+{% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
+{% set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def call_service_{{ identifier }}(
+        self,
+{% for field in lu.cpp_data_type.req %}
+        {{ field.name }}: Any,
+{% endfor %}
+    ) -> Any:
+        """Invoke ROS service client for {{ interface.name }}."""
+        client = self._client_{{ identifier }}
+        if client is None:
+            self.node.get_logger().error("Service client for {{ interface.name }} not initialised")
+            return None
+        if not client.wait_for_service(timeout_sec=1.0):
+            self.node.get_logger().warn("Service {{ interface.name }} unavailable")
+            return None
+
+        request = {{ cls }}.Request()
+{% for field in lu.cpp_data_type.req %}
+        setattr(request, "{{ field.name }}", {{ field.name }})
+{% endfor %}
+        future = client.call_async(request)
+        logger.debug("RosServiceHandler: dispatched async call for {{ interface.name }}")
+        return future
+{%- endif %}
+{%- endfor %}
+{% endif %}
+{% else %}
+    def __init__(self, node: Node) -> None:  # pragma: no cover - no services configured
+        super().__init__(node)
+{% endif %}
