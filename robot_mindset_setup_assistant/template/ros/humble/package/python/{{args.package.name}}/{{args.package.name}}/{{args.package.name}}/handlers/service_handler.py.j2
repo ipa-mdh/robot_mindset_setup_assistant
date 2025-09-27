@@ -17,6 +17,10 @@ class ServiceHandler:
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
         self._service_call_callback_{{ identifier }}: Optional[Callable[..., Any]] = None
 {%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._service_handler_callback_{{ identifier }}: Optional[Callable[[Dict[str, Any], Dict[str, Any]], Optional[Dict[str, Any]]]] = None
+{%- endfor %}
 {%- endif %}
 
     # ==================================================================
@@ -27,6 +31,21 @@ class ServiceHandler:
 {%- if interface.msgs in args.lookup.interfaces.msgs %}
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
 {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_service_handler_callback_{{ identifier }}(
+        self,
+        callback: Callable[[Dict[str, Any], Dict[str, Any]], Optional[Dict[str, Any]]],
+    ) -> None:
+        """Register delegate invoked after processing incoming requests.
+
+        Args:
+            callback: Callable receiving the request/response dictionaries.
+                The first argument is a dictionary of request fields, the
+                second the mutable response dictionary. Returning a dictionary
+                allows overriding or extending the response payload.
+        """
+        self._service_handler_callback_{{ identifier }} = callback
+        logger.debug("ServiceHandler: registered handler callback for {{ interface.name }}")
+
     def process_service_{{ identifier }}(
         self,
 {%- for field in lu.cpp_data_type.req %}
@@ -45,6 +64,11 @@ class ServiceHandler:
             names.
         """
         logger.info("ServiceHandler: Received service request {{ interface.name }}")
+        request_data = {
+{%- for field in lu.cpp_data_type.req %}
+            "{{ field.name }}": req_{{ field.name }},
+{%- endfor %}
+        }
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
 {%- for field in lu.cpp_data_type.req %}
         logger.debug("\treq_{{ field.name }} = {}", req_{{ field.name }})
@@ -68,6 +92,17 @@ class ServiceHandler:
 {%- endfor %}
         # TODO: Modify response based on business rules
         # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
+        callback = self._service_handler_callback_{{ identifier }}
+        if callback is None:
+            logger.debug("ServiceHandler: No handler callback registered for {{ interface.name }}")
+            return response
+
+        try:
+            override = callback(request_data, response)
+            if isinstance(override, dict):
+                response.update(override)
+        except Exception as exc:  # pragma: no cover - user callback safety
+            logger.error("ServiceHandler: Handler callback for {{ interface.name }} raised exception: {}", exc)
         return response
 {%- endif %}
 {%- endfor %}

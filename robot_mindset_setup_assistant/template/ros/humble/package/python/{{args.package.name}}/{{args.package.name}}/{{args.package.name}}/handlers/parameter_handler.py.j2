@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Callable, Dict, Optional
 
 from loguru import logger
 
@@ -27,12 +27,15 @@ class ParameterHandler:
     def __init__(self) -> None:
         logger.debug("ParameterHandler initialised")
         self._values: Dict[str, Any] = {}
+        self._callbacks: Dict[str, Optional[Callable[[Any, Any], None]]] = {}
 {% for param in parameter_data.items %}
         self._values["{{ param.name }}"] = None
+        self._callbacks["{{ param.name }}"] = None
 {% endfor %}
 {% if not parameter_data.has_log_level %}
         self._log_level: str = "INFO"
         self._values["log_level"] = "INFO"
+        self._callbacks["log_level"] = None
 {% endif %}
 
     # ==================================================================
@@ -40,6 +43,16 @@ class ParameterHandler:
     # ==================================================================
 {% if parameter_data.items %}
 {% for param in parameter_data.items %}
+    def set_parameter_callback_{{ param.identifier }}(self, callback: Callable[[Any, Any], None]) -> None:
+        """Register delegate invoked when parameter {{ param.name }} changes.
+
+        Args:
+            callback: Callable receiving a tuple ``(old_value, new_value)`` when
+                the parameter update succeeds.
+        """
+        self._callbacks["{{ param.name }}"] = callback
+        logger.debug("ParameterHandler: Callback registered for {{ param.name }}")
+
     def process_parameter_{{ param.identifier }}(self, new_value: Any) -> None:
         """Process runtime update for parameter {{ param.name }}.
 
@@ -70,6 +83,16 @@ class ParameterHandler:
         #     logger.error("Failed to apply parameter {{ param.name }}; rolled back")
         # JINJA-END:{{ param.anchor }}-parameter-implementation
 
+        callback = self._callbacks.get("{{ param.name }}")
+        if callback is not None:
+            try:
+                callback(old_value, new_value)
+            except Exception as exc:  # pragma: no cover - user callback safety
+                logger.error(
+                    "ParameterHandler: Callback for {{ param.name }} raised exception: {}",
+                    exc,
+                )
+
         logger.debug("ParameterHandler: Parameter {{ param.name }} successfully updated")
 
     def validate_parameter_{{ param.identifier }}(self, value: Any) -> bool:
@@ -89,6 +112,11 @@ class ParameterHandler:
 {% endfor %}
 {% endif %}
 {% if not parameter_data.has_log_level %}
+    def set_parameter_callback_log_level(self, callback: Callable[[Any, Any], None]) -> None:
+        """Register delegate invoked when the log_level parameter changes."""
+        self._callbacks["log_level"] = callback
+        logger.debug("ParameterHandler: Callback registered for log_level")
+
     def process_parameter_log_level(self, new_value: Any) -> None:
         """Default handler for log_level parameter when none specified in the manifest.
 
@@ -107,6 +135,12 @@ class ParameterHandler:
 
         self._log_level = candidate
         self._values["log_level"] = candidate
+        callback = self._callbacks.get("log_level")
+        if callback is not None:
+            try:
+                callback(old_value, candidate)
+            except Exception as exc:  # pragma: no cover - user callback safety
+                logger.error("ParameterHandler: Callback for log_level raised exception: {}", exc)
         logger.info("ParameterHandler: Updated log level {} -> {}", old_value, candidate)
 
     def validate_parameter_log_level(self, value: Any) -> bool:

@@ -17,6 +17,12 @@ class ActionHandler:
 {%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
         self._action_client_callback_{{ identifier }}: Optional[Callable[..., Any]] = None
 {%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._action_execute_callback_{{ identifier }}: Optional[
+            Callable[[Any, Callable[[Any], None], Callable[[Any], None], Callable[[Any], None], Callable[[], bool]], None]
+        ] = None
+{%- endfor %}
 {%- endif %}
 
     # ==================================================================
@@ -53,6 +59,34 @@ class ActionHandler:
         publish_feedback({})
         succeed({})
         # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-server
+
+        callback = self._action_execute_callback_{{ identifier }}
+        if callback is None:
+            logger.debug("ActionHandler: No execute callback registered for {{ interface.name }}")
+            return
+
+        try:
+            callback(goal, publish_feedback, succeed, abort, is_cancelled)
+        except Exception as exc:  # pragma: no cover - user callback safety
+            logger.error("ActionHandler: Execute callback for {{ interface.name }} raised exception: {}", exc)
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    def set_action_execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        self,
+        callback: Callable[[Any, Callable[[Any], None], Callable[[Any], None], Callable[[Any], None], Callable[[], bool]], None],
+    ) -> None:
+        """Register delegate invoked after default server processing.
+
+        Args:
+            callback: Callable receiving ``goal``, ``publish_feedback``,
+                ``succeed``, ``abort`` and ``is_cancelled`` delegates. Use it to
+                bridge business logic outside ROS.
+        """
+        self._action_execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }} = callback
+        logger.debug("ActionHandler: registered execute callback for {{ interface.name }}")
 {%- endfor %}
 {%- endif %}
 
