@@ -33,7 +33,17 @@ class ServiceHandler:
         req_{{ field.name }}: Any,
 {%- endfor %}
     ) -> Dict[str, Any]:
-        """Handle incoming service request for {{ interface.name }}."""
+        """Handle incoming service request for {{ interface.name }}.
+
+        Args:
+{%- for field in lu.cpp_data_type.req %}
+            req_{{ field.name }}: Request field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+
+        Returns:
+            Dict[str, Any]: Dictionary of response fields keyed by message attribute
+            names.
+        """
         logger.info("ServiceHandler: Received service request {{ interface.name }}")
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
 {%- for field in lu.cpp_data_type.req %}
@@ -76,7 +86,19 @@ class ServiceHandler:
             Any,
 {%- endfor %}
         ], Any]) -> None:
-        """Register ROS layer callback to perform the client call."""
+        """Register ROS layer callback to perform the client call.
+
+        Args:
+            caller: Callable used by the logic module to delegate ROS service
+                requests. Signature::
+
+                    caller(
+{%- for field in lu.cpp_data_type.req %}
+                        {{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{%- endif %}
+{%- endfor %}
+                    ) -> Any
+        """
         self._service_call_callback_{{ identifier }} = caller
         logger.debug("ServiceHandler: registered client callback for {{ interface.name }}")
 
@@ -86,7 +108,16 @@ class ServiceHandler:
         {{ field.name }}: Any,
 {%- endfor %}
     ) -> Any:
-        """Trigger outbound service request for {{ interface.name }}."""
+        """Trigger outbound service request for {{ interface.name }}.
+
+        Args:
+{%- for field in lu.cpp_data_type.req %}
+            {{ field.name }}: Value for request field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+
+        Returns:
+            Any: Result provided by the registered ROS client callback.
+        """
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client
         logger.info("ServiceHandler: Calling service {{ interface.name }}")
 {%- for field in lu.cpp_data_type.req %}

@@ -33,7 +33,15 @@ class ActionHandler:
         abort: Callable[[Any], None],
         is_cancelled: Callable[[], bool],
     ) -> None:
-        """Execute action goal for {{ interface.name }}."""
+        """Execute action goal for {{ interface.name }}.
+
+        Args:
+            goal: Incoming goal message from the ROS action server.
+            publish_feedback: Delegate used to stream feedback messages back to ROS.
+            succeed: Delegate that marks the goal as succeeded with a result payload.
+            abort: Delegate that aborts the goal with an error payload.
+            is_cancelled: Callable returning ``True`` when the goal has been cancelled.
+        """
         logger.info("ActionHandler: Executing action {{ interface.name }}")
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-server
         if is_cancelled():
@@ -65,7 +73,23 @@ class ActionHandler:
             Any,
 {%- endif %}
         ], Any]) -> None:
-        """Register ROS layer goal sender for {{ interface.name }}."""
+        """Register ROS layer goal sender for {{ interface.name }}.
+
+        Args:
+            callback: Callable used by the logic module to dispatch goals through
+                ROS. Signature::
+
+                    callback(
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+                        goal_{{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{%- endif %}
+{%- endfor %}
+{%- else %}
+                        goal: Any
+{%- endif %}
+                    ) -> Any
+        """
         self._action_client_callback_{{ identifier }} = callback
         logger.debug("ActionHandler: registered client callback for {{ interface.name }}")
 
@@ -77,7 +101,20 @@ class ActionHandler:
 {%- endfor %}
 {%- endif %}
     ) -> Any:
-        """Send goal to external action server {{ interface.name }}."""
+        """Send goal to external action server {{ interface.name }}.
+
+        Args:
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+            goal_{{ field.name }}: Value for goal field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+{%- else %}
+            goal: Goal message accepted by the ROS action client.
+{%- endif %}
+
+        Returns:
+            Any: Whatever is returned by the registered ROS client callback.
+        """
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-client
         logger.info("ActionHandler: Triggering action client {{ interface.name }}")
         # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-client

@@ -124,7 +124,15 @@ class RosActionHandler(BaseRosHandler):
         goal_cb: Optional[Callable[[Any], bool]] = None,
         cancel_cb: Optional[Callable[[Any], None]] = None,
     ) -> None:
-        """Register logic-layer callbacks for action server {{ interface.name }}."""
+        """Register logic-layer callbacks for action server {{ interface.name }}.
+
+        Args:
+            execute_cb: Callable used to execute goals. Receives ``goal``,
+                ``publish_feedback``, ``succeed``, ``abort`` and ``is_cancelled``.
+            goal_cb: Optional predicate invoked to decide whether to accept a
+                goal request.
+            cancel_cb: Optional callback invoked when a cancel request arrives.
+        """
         self._execute_callback_{{ identifier }} = execute_cb
         self._goal_callback_{{ identifier }} = goal_cb
         self._cancel_callback_{{ identifier }} = cancel_cb
@@ -196,7 +204,21 @@ class RosActionHandler(BaseRosHandler):
 {% endfor %}
 {% endif %}
     ) -> Any:
-        """Send goal to external action server {{ interface.name }}."""
+        """Send goal to external action server {{ interface.name }}.
+
+        Args:
+{% if lu.cpp_data_type.goal is defined %}
+{% for field in lu.cpp_data_type.goal %}
+            goal_{{ field.name }}: Value for goal field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{% endfor %}
+{% else %}
+            goal: Complete goal message to forward to ``rclpy``.
+{% endif %}
+
+        Returns:
+            Any: Future returned by the ``ActionClient`` or ``None`` if the
+            client is unavailable.
+        """
         client = self._action_client_{{ identifier }}
         if client is None:
             self.node.get_logger().error("Action client for {{ interface.name }} not initialised")

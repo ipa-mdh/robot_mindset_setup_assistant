@@ -1,4 +1,4 @@
-"""ROS-specific service handler managing servers and clients."""
+"""Manage ROS service servers/clients and delegate to logic handlers."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ from {{ module }} import {{ cls }}
 
 
 class RosServiceHandler(BaseRosHandler):
-    """Bridges ROS services with logic-layer delegates."""
+    """Expose ROS service endpoints and forward to service handlers."""
 
 {% if server_services or client_services %}
     def __init__(self, node: Node) -> None:
@@ -118,12 +118,27 @@ class RosServiceHandler(BaseRosHandler):
 {% set include = args.lookup.interfaces.msgs[interface.msgs].include %}
 {% set cls = include.split('/')[2].replace('_', ' ') | title | replace(' ', '') %}
 {% set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    def set_service_callback_{{ identifier }}(self, callback: Callable[[
+    def set_service_callback_{{ identifier }}(
+        self,
+        callback: Callable[[
 {% for field in lu.cpp_data_type.req %}
             Any,
 {% endfor %}
-        ], Dict[str, Any]]) -> None:
-        """Register logic-layer handler for service {{ interface.name }}."""
+        ], Dict[str, Any]],
+    ) -> None:
+        """Register logic-layer handler for service {{ interface.name }}.
+
+        Args:
+            callback: Delegate invoked with the request fields when the ROS
+                service is called. Signature::
+
+                callback(
+{% for field in lu.cpp_data_type.req %}
+                    {{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{% endif %}
+{% endfor %}
+                ) -> Dict[str, Any]
+        """
         self._server_callback_{{ identifier }} = callback
 
     def _internal_service_{{ identifier }}(self, request: Any, response: Any) -> Any:
@@ -160,7 +175,17 @@ class RosServiceHandler(BaseRosHandler):
         {{ field.name }}: Any,
 {% endfor %}
     ) -> Any:
-        """Invoke ROS service client for {{ interface.name }}."""
+        """Invoke ROS service client for {{ interface.name }}.
+
+        Args:
+{% for field in lu.cpp_data_type.req %}
+            {{ field.name }}: Value for request field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{% endfor %}
+
+        Returns:
+            Any: Future returned by the ``rclpy`` client, or ``None`` if the
+            client is not ready.
+        """
         client = self._client_{{ identifier }}
         if client is None:
             self.node.get_logger().error("Service client for {{ interface.name }} not initialised")

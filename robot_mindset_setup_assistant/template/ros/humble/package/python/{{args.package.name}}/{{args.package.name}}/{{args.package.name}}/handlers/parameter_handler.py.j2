@@ -41,7 +41,11 @@ class ParameterHandler:
 {% if parameter_data.items %}
 {% for param in parameter_data.items %}
     def process_parameter_{{ param.identifier }}(self, new_value: Any) -> None:
-        """Process runtime update for parameter {{ param.name }}."""
+        """Process runtime update for parameter {{ param.name }}.
+
+        Args:
+            new_value: Candidate value supplied by the ROS layer.
+        """
         old_value = self._values.get("{{ param.name }}")
         logger.info(
             "ParameterHandler: Processing parameter change {{ param.name }}: {} -> {}",
@@ -69,7 +73,14 @@ class ParameterHandler:
         logger.debug("ParameterHandler: Parameter {{ param.name }} successfully updated")
 
     def validate_parameter_{{ param.identifier }}(self, value: Any) -> bool:
-        """Validate proposed value for parameter {{ param.name }}."""
+        """Validate proposed value for parameter {{ param.name }}.
+
+        Args:
+            value: Proposed parameter value forwarded from ROS.
+
+        Returns:
+            bool: ``True`` when the value passes validation.
+        """
         # JINJA-BEGIN:{{ param.anchor }}-parameter-validation
         # TODO: Add validation logic for parameter {{ param.name }}
         return True
@@ -79,7 +90,11 @@ class ParameterHandler:
 {% endif %}
 {% if not parameter_data.has_log_level %}
     def process_parameter_log_level(self, new_value: Any) -> None:
-        """Default handler for log_level parameter when none specified in the manifest."""
+        """Default handler for log_level parameter when none specified in the manifest.
+
+        Args:
+            new_value: New log level value requested by ROS.
+        """
         old_value = getattr(self, "_log_level", "INFO")
         candidate = str(new_value).upper() if new_value is not None else "INFO"
         if not self.validate_parameter_log_level(candidate):
@@ -95,15 +110,33 @@ class ParameterHandler:
         logger.info("ParameterHandler: Updated log level {} -> {}", old_value, candidate)
 
     def validate_parameter_log_level(self, value: Any) -> bool:
-        """Basic validation ensuring log level strings map to loguru levels."""
+        """Basic validation ensuring log level strings map to loguru levels.
+
+        Args:
+            value: Proposed log level string.
+
+        Returns:
+            bool: ``True`` when the value matches a recognised loguru level.
+        """
         valid_levels = {"TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"}
         return isinstance(value, str) and value.upper() in valid_levels
 {% endif %}
 
     def get_cached_value(self, parameter_name: str) -> Any:
-        """Return the last accepted value for a parameter if cached."""
+        """Return the last accepted value for a parameter if cached.
+
+        Args:
+            parameter_name: Name of the parameter whose cached value should be retrieved.
+
+        Returns:
+            Any: Stored value or ``None`` if the parameter is unknown.
+        """
         return self._values.get(parameter_name)
 
     def get_all_cached_values(self) -> Dict[str, Any]:
-        """Return a snapshot of all stored parameter values."""
+        """Return a snapshot of all stored parameter values.
+
+        Returns:
+            Dict[str, Any]: Copy of the internal parameter storage dictionary.
+        """
         return dict(self._values)

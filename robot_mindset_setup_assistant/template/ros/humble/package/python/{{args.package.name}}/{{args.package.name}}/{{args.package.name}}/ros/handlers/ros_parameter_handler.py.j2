@@ -70,27 +70,59 @@ class RosParameterHandler(BaseRosHandler):
         self._apply_callback = None
 
     def register_delegate(self, param_name: str, callback: Callable[[Any], None]) -> None:
-        """Register logic-layer handler for parameter updates."""
+        """Register logic-layer handler for parameter updates.
+
+        Args:
+            param_name: Name of the parameter to associate with the delegate.
+            callback: Callable invoked with the new parameter value when an
+                update is accepted.
+        """
         self._delegate_map[param_name] = callback
 
     def set_parameter_change_callback(self, callback: Callable[[str, Any], None]) -> None:
-        """Register optional observer invoked on every accepted change."""
+        """Register optional observer invoked on every accepted change.
+
+        Args:
+            callback: Callable receiving the parameter name and value whenever a
+                parameter update succeeds.
+        """
         self._parameter_callback = callback
 
     def set_apply_callback(self, callback: Callable[[], None]) -> None:
-        """Register logic-layer hook to apply current parameter values."""
+        """Register logic-layer hook to apply current parameter values.
+
+        Args:
+            callback: Callable executed after parameters have been updated to
+                propagate cached values into the logic module.
+        """
         self._apply_callback = callback
 
     def apply_parameters(self) -> None:
-        """Invoke apply callback with current values."""
+        """Invoke the apply callback with current values if one is registered."""
         if self._apply_callback is not None:
             self._apply_callback()
 
     def get_current_value(self, param_name: str) -> Any:
+        """Return the latest cached value for a parameter.
+
+        Args:
+            param_name: Name of the parameter whose value should be returned.
+
+        Returns:
+            Any: Stored parameter value or ``None`` if not available.
+        """
         return self._current_values.get(param_name)
 
     def set_parameter_value(self, param_name: str, value: Any) -> bool:
-        """Update parameter using ROS API and trigger callbacks."""
+        """Update parameter using ROS API and trigger callbacks.
+
+        Args:
+            param_name: Name of the parameter to update.
+            value: Value to submit via ``rclpy``.
+
+        Returns:
+            bool: ``True`` if the parameter update succeeded.
+        """
         try:
             self.node.set_parameter(Parameter(param_name, value))
             return True

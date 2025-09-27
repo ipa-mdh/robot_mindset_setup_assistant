@@ -32,7 +32,19 @@ class TopicHandler:
             Any,
 {%- endfor %}
         ], None]) -> None:
-        """Register ROS layer publish delegate for {{ interface.description }}."""
+        """Register ROS layer publish delegate for {{ interface.description }}.
+
+        Args:
+            callback: Callable invoked by the logic module to perform the actual
+                ROS publish. Signature::
+
+                    callback(
+{%- for field in lu.cpp_data_type %}
+                        {{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{%- endif %}
+{%- endfor %}
+                    )
+        """
         self._publish_callback_{{ identifier }} = callback
         logger.debug("TopicHandler: registered publish callback for {{ interface.name }}")
 
@@ -42,7 +54,13 @@ class TopicHandler:
         {{ field.name }}: Any,
 {%- endfor %}
     ) -> None:
-        """Publish processed data on topic {{ interface.name }}."""
+        """Publish processed data on topic {{ interface.name }}.
+
+        Args:
+{%- for field in lu.cpp_data_type %}
+            {{ field.name }}: Processed value for ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+        """
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-publish-implementation
         logger.info("TopicHandler: Publishing to {{ interface.name }}")
         # TODO: Add your business logic for outgoing data
@@ -79,7 +97,14 @@ class TopicHandler:
         msg_{{ field.name }}: Any,
 {%- endfor %}
     ) -> None:
-        """Process incoming data from topic {{ interface.name }}."""
+        """Process incoming data from topic {{ interface.name }}.
+
+        Args:
+{%- for field in lu.cpp_data_type %}
+            msg_{{ field.name }}: Value extracted from the incoming ROS message field
+                ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+        """
         logger.info("TopicHandler: Received message on {{ interface.name }}")
         # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation
 {%- for field in lu.cpp_data_type %}

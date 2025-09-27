@@ -129,7 +129,13 @@ class RosTopicHandler(BaseRosHandler):
         {{ field.name }}: Any,
 {% endfor %}
     ) -> None:
-        """Publish message on ROS topic {{ interface.name }}."""
+        """Publish message on ROS topic {{ interface.name }}.
+
+        Args:
+{% for field in lu.cpp_data_type %}
+            {{ field.name }}: Value for field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{% endfor %}
+        """
         if self._publisher_{{ identifier }} is None:
             self.node.get_logger().warning("Publisher for {{ interface.name }} not initialised")
             return
@@ -147,12 +153,27 @@ class RosTopicHandler(BaseRosHandler):
 {% if interface.msgs in args.lookup.interfaces.msgs %}
 {% set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
 {% set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-    def set_{{ identifier }}_callback(self, callback: Callable[[
+    def set_{{ identifier }}_callback(
+        self,
+        callback: Callable[[
 {% for field in lu.cpp_data_type %}
             Any,
 {% endfor %}
-        ], None]) -> None:
-        """Register logic-layer callback for subscriber {{ interface.name }}."""
+        ], None],
+    ) -> None:
+        """Register logic-layer callback for subscriber {{ interface.name }}.
+
+        Args:
+            callback: Callable invoked with message field values when a new
+                sample arrives. Signature::
+
+                callback(
+{% for field in lu.cpp_data_type %}
+                    {{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{% endif %}
+{% endfor %}
+                ) -> None
+        """
         self._subscription_callback_{{ identifier }} = callback
 
     def _internal_callback_{{ identifier }}(self, msg: Any) -> None:
