@@ -79,6 +79,15 @@ void TopicHandler::process_subscription_{{ interface.name|regex_replace('[^A-Za-
 {%- endfor %}
     // // Add your custom processing logic here
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-subscription-implementation
+
+    if (sub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        sub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+{%- for field in lu.cpp_data_type %}
+            {{ field.name }}{% if not loop.last %}, {% endif %}
+{%- endfor %});
+    } else {
+        spdlog::debug("TopicHandler: No subscription callback registered for {{ interface.name }}");
+    }
 }
 
 {%- endif %}
@@ -102,6 +111,25 @@ void TopicHandler::set_publish_callback_{{ interface.name|regex_replace('[^A-Za-
     {%- endfor %})> callback) {
     pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
     spdlog::debug("TopicHandler: Publish callback registered for {{ interface.name }}");
+}
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+void TopicHandler::set_subscription_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(
+{%- for field in lu.cpp_data_type %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+{%- endfor %})> callback) {
+    sub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("TopicHandler: Subscription callback registered for {{ interface.name }}");
 }
 {%- endif %}
 

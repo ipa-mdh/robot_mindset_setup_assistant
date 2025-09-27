@@ -133,6 +133,24 @@ public:
 {%- endfor %}
 {%- endif %}
 
+    // Methods to register logic-layer callbacks for subscribers
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    void set_subscription_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(
+        {%- for field in lu.cpp_data_type %}
+            const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor %})> callback);
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
 private:
     // =============================================================================
     // PUBLISHER CALLBACK FUNCTIONS
@@ -148,6 +166,22 @@ private:
     {%- for field in lu.cpp_data_type %}
         const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
     {%- endfor %})> pub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Logic-layer subscription callbacks
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    std::function<void(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> sub_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
 {%- endif %}
 
 {%- endif %}

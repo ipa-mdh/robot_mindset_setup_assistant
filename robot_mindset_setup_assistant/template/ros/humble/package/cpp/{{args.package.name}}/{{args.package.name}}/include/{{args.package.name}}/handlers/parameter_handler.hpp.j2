@@ -146,6 +146,29 @@ public:
 {%- endfor %}
 {%- endif %}
 
+    // =============================================================================
+    // PARAMETER CALLBACK REGISTRATION
+    // =============================================================================
+    // Register non-ROS delegates to respond to parameter updates
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+    void set_parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if interface.data_type == "string" %}
+    std::function<void(const std::string&)> callback);
+{%- elif interface.data_type == "int" %}
+    std::function<void(const int64_t&)> callback);
+{%- elif interface.data_type == "double" %}
+    std::function<void(const double&)> callback);
+{%- elif interface.data_type == "bool" %}
+    std::function<void(const bool&)> callback);
+{%- else %}
+    std::function<void(const std::string&)> callback);
+{%- endif %}
+
+{%- endfor %}
+{%- endif %}
+
 private:
     // =============================================================================
     // PARAMETER STORAGE
@@ -164,6 +187,18 @@ private:
     bool {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
 {%- else %}
     std::string {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- endif %}
+
+{%- if interface.data_type == "string" %}
+    std::function<void(const std::string&)> param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- elif interface.data_type == "int" %}
+    std::function<void(const int64_t&)> param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- elif interface.data_type == "double" %}
+    std::function<void(const double&)> param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- elif interface.data_type == "bool" %}
+    std::function<void(const bool&)> param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+{%- else %}
+    std::function<void(const std::string&)> param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
 {%- endif %}
 
 {%- endfor %}

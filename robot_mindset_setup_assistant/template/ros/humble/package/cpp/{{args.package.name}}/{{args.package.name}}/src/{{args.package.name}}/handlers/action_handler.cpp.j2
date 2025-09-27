@@ -43,6 +43,18 @@ void ActionHandler::execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]
 {%- endif %}
     spdlog::info("ActionHandler: Action {{ interface.name }} completed (default implementation)");
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_execute_action_implementation
+
+    if (execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
+            goal,
+            feedback,
+            result,
+            is_canceling,
+            publish_feedback,
+            is_ok);
+    } else {
+        spdlog::debug("ActionHandler: No execute callback registered for {{ interface.name }}");
+    }
 }
 
 {%- endif %}
@@ -81,6 +93,25 @@ void ActionHandler::set_action_callback_{{ interface.name|regex_replace('[^A-Za-
     spdlog::debug("ActionHandler: Action callback registered for {{ interface.name }}");
 }
 
+void ActionHandler::set_goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr&)> callback) {
+    goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ActionHandler: Goal response callback registered for {{ interface.name }}");
+}
+
+void ActionHandler::set_feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+                       const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback>&)> callback) {
+    feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ActionHandler: Feedback callback registered for {{ interface.name }}");
+}
+
+void ActionHandler::set_result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult&)> callback) {
+    result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ActionHandler: Result callback registered for {{ interface.name }}");
+}
+
 void ActionHandler::handle_goal_response_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle) {
     if (!goal_handle) {
@@ -92,10 +123,16 @@ void ActionHandler::handle_goal_response_{{ interface.name|regex_replace('[^A-Za
     // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_implementation
     // TODO: Add your business logic for when the goal is accepted
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_goal_response_implementation
+
+    if (goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_handle);
+    } else {
+        spdlog::debug("ActionHandler: No goal response callback registered for {{ interface.name }}");
+    }
 }
 
 void ActionHandler::handle_feedback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-    rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+    rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr goal_handle,
     const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback) {
     spdlog::info("ActionHandler: Received feedback for {{ interface.name }}");
     
@@ -108,6 +145,12 @@ void ActionHandler::handle_feedback_{{ interface.name|regex_replace('[^A-Za-z0-9
 {%- endfor %}
 {%- endif %}
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_feedback_implementation
+
+    if (feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(goal_handle, feedback);
+    } else {
+        spdlog::debug("ActionHandler: No feedback callback registered for {{ interface.name }}");
+    }
 }
 
 void ActionHandler::handle_result_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
@@ -136,9 +179,34 @@ void ActionHandler::handle_result_{{ interface.name|regex_replace('[^A-Za-z0-9]'
 {%- endfor %}
 {%- endif %}
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}_result_implementation
+
+    if (result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(result);
+    } else {
+        spdlog::debug("ActionHandler: No result callback registered for {{ interface.name }}");
+    }
 }
 
 {%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+void ActionHandler::set_action_execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(const std::shared_ptr<const {{ lu.ros_data_type }}::Goal>&,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Feedback>,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Result>,
+                       std::function<bool()>,
+                       std::function<void(std::shared_ptr<{{ lu.ros_data_type }}::Feedback>)>,
+                       std::function<bool()>)> callback) {
+    execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ActionHandler: Execute callback registered for {{ interface.name }}");
+}
+
 {%- endif %}
 {%- endfor %}
 {%- endif %}

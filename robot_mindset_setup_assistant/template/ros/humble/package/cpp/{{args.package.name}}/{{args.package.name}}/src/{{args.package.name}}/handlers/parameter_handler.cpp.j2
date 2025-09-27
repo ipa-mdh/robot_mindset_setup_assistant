@@ -107,6 +107,12 @@ void ParameterHandler::process_parameter_{{ interface.name|regex_replace('[^A-Za
     // //     spdlog::error("Failed to apply parameter {{ interface.name }}, rolled back to previous value");
     // // }
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-implementation
+
+    if (param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(new_value);
+    } else {
+        spdlog::debug("ParameterHandler: No callback registered for {{ interface.name }}");
+    }
     
     spdlog::debug("ParameterHandler: Parameter {{ interface.name }} successfully updated");
 }
@@ -170,6 +176,31 @@ bool ParameterHandler::validate_parameter_{{ interface.name|regex_replace('[^A-Z
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-validation
     
     return true;
+}
+
+{%- endfor %}
+{%- endif %}
+
+// =============================================================================
+// PARAMETER CALLBACK REGISTRATION
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+void ParameterHandler::set_parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if interface.data_type == "string" %}
+    std::function<void(const std::string&)> callback) {
+{%- elif interface.data_type == "int" %}
+    std::function<void(const int64_t&)> callback) {
+{%- elif interface.data_type == "double" %}
+    std::function<void(const double&)> callback) {
+{%- elif interface.data_type == "bool" %}
+    std::function<void(const bool&)> callback) {
+{%- else %}
+    std::function<void(const std::string&)> callback) {
+{%- endif %}
+    param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ParameterHandler: Callback registered for {{ interface.name }}");
 }
 
 {%- endfor %}

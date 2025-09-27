@@ -62,6 +62,12 @@ void ServiceHandler::process_service_{{ interface.name|regex_replace('[^A-Za-z0-
     response->success = true;
     spdlog::info("ServiceHandler: Service {{ interface.name }} completed (default implementation)");
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-implementation
+
+    if (srv_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        srv_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(request, response);
+    } else {
+        spdlog::debug("ServiceHandler: No delegate registered for service {{ interface.name }}");
+    }
 }
 
 {%- endif %}
@@ -123,12 +129,39 @@ void ServiceHandler::handle_service_response_{{ interface.name|regex_replace('[^
     //     handle_service_failure(response);
     // }
     // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-response-implementation
+
+    if (srv_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        srv_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(response);
+    } else {
+        spdlog::debug("ServiceHandler: No response callback registered for {{ interface.name }}");
+    }
 }
 
 void ServiceHandler::set_service_call_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>)> callback) {
     srv_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = callback;
     spdlog::debug("ServiceHandler: Service callback registered for {{ interface.name }}");
+}
+
+void ServiceHandler::set_service_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) {
+    srv_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ServiceHandler: Response callback registered for {{ interface.name }}");
+}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+void ServiceHandler::set_service_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>&,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) {
+    srv_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ServiceHandler: Handler delegate registered for {{ interface.name }}");
 }
 
 {%- endif %}

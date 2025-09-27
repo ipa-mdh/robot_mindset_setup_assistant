@@ -128,6 +128,31 @@ public:
 {%- endfor %}
 {%- endif %}
 
+    // Methods to register logic-layer delegates for service servers and responses
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    void set_service_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>&,
+                           std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    void set_service_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
 private:
     // =============================================================================
     // SERVICE CALL CALLBACK FUNCTIONS
@@ -139,6 +164,28 @@ private:
 {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
 {%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
     std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>)> srv_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Logic-layer delegates for service processing and responses
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>&,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Response>)> srv_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Response>)> srv_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
 
 {%- endif %}
 {%- endfor %}
