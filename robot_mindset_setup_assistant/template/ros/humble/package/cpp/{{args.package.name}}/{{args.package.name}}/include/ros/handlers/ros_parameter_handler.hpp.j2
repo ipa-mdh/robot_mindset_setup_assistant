@@ -49,7 +49,8 @@ public:
 {%- endfor %}
 
     // === Parameter callback registration ===
-    void set_parameter_change_callback(std::function<void(const std::string&, const rclcpp::Parameter&)> callback);
+    void set_parameter_change_callback(
+        std::function<void(const std::string&, const rclcpp::Parameter&)> callback) override;
 {%- endif %}
 {%- endif %}
 

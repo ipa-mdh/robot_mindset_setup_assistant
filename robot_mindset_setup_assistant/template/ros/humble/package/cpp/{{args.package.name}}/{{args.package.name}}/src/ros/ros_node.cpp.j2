@@ -206,9 +206,9 @@ void ROSNode::init_logic_module()
             return false;
         });
     {%- endif %}
-{%- endfor %}
+{%- endfor %} #}
     
-    // 3. ACTION HANDLERS: Set up bidirectional action communication
+    {# // 3. ACTION HANDLERS: Set up bidirectional action communication
     
     // Action Servers: ROS network -> ROS handlers -> LogicModule
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
@@ -282,21 +282,61 @@ void ROSNode::init_logic_module()
             return false;
         });
     {%- endif %}
-{%- endfor %}
+{%- endfor %} #}
     
     // 4. PARAMETER HANDLERS: Set up parameter synchronization
+{%- set parameter_ns = namespace(items=[]) %}
 {%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
-    // Connect {{ interface.name }} parameter changes from ROS to LogicModule
+    {%- set _ = parameter_ns.items.append(interface) %}
+{%- endfor %}
+{%- if parameter_ns.items %}
     if (parameter_handler_) {
         parameter_handler_->set_parameter_change_callback(
             [this](const std::string& param_name, const rclcpp::Parameter& param) {
+                bool handled = false;
+{%- for interface in parameter_ns.items %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
                 if (param_name == "{{ interface.name }}") {
-                    // Delegate parameter change to LogicModule
-                    logic_module_.parameter_handler().on_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_changed(param);
+                    handled = true;
+        {%- for field in lu.cpp_data_type %}
+            {%- if field.type == "std::string" %}
+                    if (param.get_type() == rclcpp::ParameterType::PARAMETER_STRING) {
+                        logic_module_.parameter_handler().process_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(param.as_string());
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "Parameter '%s' expected string but received different type", param_name.c_str());
+                    }
+            {%- elif field.type == "double" %}
+                    if (param.get_type() == rclcpp::ParameterType::PARAMETER_DOUBLE) {
+                        logic_module_.parameter_handler().process_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(param.as_double());
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "Parameter '%s' expected double but received different type", param_name.c_str());
+                    }
+            {%- elif field.type == "int" or field.type == "int32_t" %}
+                    if (param.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER) {
+                        logic_module_.parameter_handler().process_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(param.as_int());
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "Parameter '%s' expected integer but received different type", param_name.c_str());
+                    }
+            {%- elif field.type == "bool" %}
+                    if (param.get_type() == rclcpp::ParameterType::PARAMETER_BOOL) {
+                        logic_module_.parameter_handler().process_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(param.as_bool());
+                    } else {
+                        RCLCPP_WARN(this->get_logger(), "Parameter '%s' expected bool but received different type", param_name.c_str());
+                    }
+            {%- else %}
+                    logic_module_.parameter_handler().process_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(param.value_to_string());
+            {%- endif %}
+        {%- endfor %}
+                }
+    {%- endif %}
+{%- endfor %}
+                if (!handled) {
+                    RCLCPP_WARN(this->get_logger(), "Received update for unhandled parameter '%s'", param_name.c_str());
                 }
             });
     }
-{%- endfor %} #}
+{%- endif %}
 {%- endif %}
 {%- endif %}
 

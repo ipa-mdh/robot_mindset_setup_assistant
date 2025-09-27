@@ -46,6 +46,13 @@ public:
         std::function<rcl_interfaces::msg::SetParametersResult(const std::vector<rclcpp::Parameter> &)> callback) = 0;
 
     /**
+     * @brief Register a callback that is invoked whenever a parameter changes
+     * @param callback Function receiving the parameter name and the updated rclcpp::Parameter instance
+     */
+    virtual void set_parameter_change_callback(
+        std::function<void(const std::string&, const rclcpp::Parameter&)> callback) = 0;
+
+    /**
      * @brief Apply current parameter values to the logic module
      * Should be called after parameter initialization and updates
      */
