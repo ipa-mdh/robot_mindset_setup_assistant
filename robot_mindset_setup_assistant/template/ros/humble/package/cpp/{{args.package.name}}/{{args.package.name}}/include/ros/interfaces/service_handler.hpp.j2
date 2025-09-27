@@ -45,9 +45,19 @@ public:
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
     {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     /**
-     * @brief Call {{ interface.name }} service
-     * @param {{ interface.description }}
-     */
+    * @brief Call {{ interface.name }} service
+{%- if lu.cpp_data_type.req|length > 0 %}
+{%- for req in lu.cpp_data_type.req %}
+    * @param req_{{ req.name }} Request field to send (type: {{ req.type }})
+{%- endfor %}
+{%- endif %}
+{%- if lu.cpp_data_type.res|length > 0 %}
+{%- for res in lu.cpp_data_type.res %}
+    * @param res_{{ res.name }} Reference that receives the response field (type: {{ res.type }})
+{%- endfor %}
+{%- endif %}
+    * @return true if the service call was dispatched to ROS successfully
+    */
     virtual bool call_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     {%- for req in lu.cpp_data_type.req %}
         {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}

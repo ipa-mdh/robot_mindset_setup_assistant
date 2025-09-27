@@ -15,16 +15,17 @@
  * This header defines the LogicModule class which contains the core business
  * logic of your application, separated from ROS-specific code.
  * 
- * The LogicModule inherits from both input and output interfaces, providing:
- * - Action server execution methods (for handling incoming action requests)
- * - Action client trigger methods (for sending action requests to other nodes)
- * - Topic and service callback processing methods
- * 
+ * The LogicModule composes specialized handler classes, providing accessors to:
+ * - TopicHandler for publish/subscribe business logic
+ * - ServiceHandler for service server/client workflows
+ * - ActionHandler for action goal execution and client calls
+ * - ParameterHandler for runtime configuration changes
+ *
  * KEY PRINCIPLES:
  * - No direct ROS dependencies in this class
- * - Business logic is isolated and testable
- * - ROS communication handled through callback functions
- * - All action execution happens in this non-ROS layer
+ * - Business logic remains isolated and testable
+ * - ROS communication is delegated to handler callbacks
+ * - Handler composition keeps interface concerns clearly separated
  */
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {

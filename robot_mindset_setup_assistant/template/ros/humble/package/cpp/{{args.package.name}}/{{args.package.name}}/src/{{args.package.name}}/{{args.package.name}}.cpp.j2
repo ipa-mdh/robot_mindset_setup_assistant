@@ -2,108 +2,19 @@
 
 /**
  * @file {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.cpp
- * @brief LogicModule implementation using composition and delegation pattern
- * 
- * This file contains the core business logic implementation, separated from
- * ROS-specific code for better testability and maintainability.
- * 
- * ARCHITECTURE:
- * The LogicModule uses composition and delegation to organize interface handling:
- * - TopicHandler: Manages all topic-related business logic
- * - ServiceHandler: Manages all service-related business logic  
- * - ActionHandler: Manages all action-related business logic
- * - ParameterHandler: Manages all parameter-related business logic
- * 
- * This provides better organization, testability, and maintainability compared
- * to having all interface logic mixed in a single class.
- * 
- * DELEGATION PATTERN:
- * The LogicModule implements the interface methods but delegates the actual
- * business logic to the appropriate specialized handlers. This maintains
- * backward compatibility while providing better internal organization.
- * 
- * =============================================================================
- * ROS ACTION SERVER INTERFACE DESCRIPTION
- * =============================================================================
- * 
- * This LogicModule implements action server execution methods that handle the
- * core business logic for ROS action servers. The ROS node delegates action
- * execution to these methods, providing a clean separation between ROS
- * infrastructure and business logic.
- * 
- * ACTION SERVER EXECUTION PATTERN:
- * --------------------------------
- * 1. ROS node receives action goal
- * 2. ROS node calls LogicModule::execute_action_*() method
- * 3. LogicModule implements business logic using provided callbacks
- * 4. ROS node handles final result (success/canceled/aborted)
- * 
- * AVAILABLE ACTION SERVERS:
-{%- if args.ros is defined and args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
- * - {{ interface.name }} ({{ lu.ros_data_type }})
- *   Description: {{ interface.description }}
- *   Method: execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
-{%- endif %}
-{%- endfor %}
-{%- endif %}
- * 
- * ACTION SERVER METHOD SIGNATURE:
- * -------------------------------
- * void execute_action_<name>(
- *     const std::shared_ptr<const ActionType::Goal> goal,        // Input: Goal parameters
- *     std::shared_ptr<ActionType::Feedback> feedback,           // Output: Progress updates
- *     std::shared_ptr<ActionType::Result> result,               // Output: Final result
- *     std::function<bool()> is_canceling,                       // Callback: Check cancellation
- *     std::function<void(std::shared_ptr<Feedback>)> publish_feedback, // Callback: Send feedback
- *     std::function<bool()> is_ok                               // Callback: Check ROS status
- * )
- * 
- * IMPLEMENTATION GUIDELINES:
- * -------------------------
- * 1. Use is_canceling() regularly to check for cancellation requests
- * 2. Use publish_feedback(feedback) to send progress updates to clients
- * 3. Use is_ok() to check if ROS is still running (e.g., in loops)
- * 4. Set result values before returning
- * 5. Return early if is_canceling() returns true
- * 6. Use JINJA preservation tags to preserve custom implementations
- * 
- * =============================================================================
- * ROS ACTION CLIENT INTERFACE DESCRIPTION
- * =============================================================================
- * 
- * This LogicModule also implements action client interface methods that can be
- * called to trigger action client requests to external action servers.
- * 
- * ACTION CLIENT USAGE PATTERN:
- * ----------------------------
- * 1. Your business logic calls interface_act_*() method
- * 2. LogicModule calls the ROS layer callback to send goal
- * 3. ROS layer handles goal sending, feedback, and results
- * 4. ROS layer calls LogicModule callback methods for responses
- * 
- * AVAILABLE ACTION CLIENTS:
-{%- if args.ros is defined and args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
-{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
- * - {{ interface.name }} ({{ lu.ros_data_type }})
- *   Description: {{ interface.description }}
- *   Trigger: interface_act_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}()
- *   Callbacks: goal_response_callback_*, feedback_callback_*, result_callback_*
-{%- endif %}
-{%- endfor %}
-{%- endif %}
- * 
- * ACTION CLIENT CALLBACK METHODS (Override these in your LogicModule):
- * -------------------------------------------------------------------
- * - goal_response_callback_<name>(): Called when goal is accepted/rejected
- * - feedback_callback_<name>(): Called when feedback is received from server
- * - result_callback_<name>(): Called when final result is received
- * 
- * =============================================================================
+ * @brief LogicModule implementation using composition and delegation
+ *
+ * The LogicModule keeps non-ROS business logic consolidated while deferring
+ * interface-specific behavior to dedicated handler classes:
+ * - TopicHandler for publish/subscribe flows
+ * - ServiceHandler for request/response cycles
+ * - ActionHandler for goal execution and client interactions
+ * - ParameterHandler for runtime configuration changes
+ *
+ * Each handler is responsible for the detailed Jinja-preserved sections that
+ * developers customize. This file holds common utilities (for example the
+ * sample greet/spdlog functions) and shared configuration helpers such as
+ * logger management.
  */
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

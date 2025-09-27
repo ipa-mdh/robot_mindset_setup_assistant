@@ -46,7 +46,9 @@ public:
     {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
     /**
      * @brief Publish message to {{ interface.name }} topic
-     * @param {{ interface.description }}
+{%- for field in lu.cpp_data_type %}
+     * @param {{ field.name }} Field to populate in the outgoing message (type: {{ field.type }})
+{%- endfor %}
      */
     virtual void publish_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     {%- for field in lu.cpp_data_type %}

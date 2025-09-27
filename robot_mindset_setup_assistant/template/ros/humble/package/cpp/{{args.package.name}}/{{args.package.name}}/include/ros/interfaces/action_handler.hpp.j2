@@ -47,9 +47,16 @@ public:
     {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type,
                            ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
     /**
-     * @brief Send goal to {{ interface.name }} action server
-     * @param {{ interface.description }}
-     */
+    * @brief Send goal to {{ interface.name }} action server
+{%- if lu.cpp_data_type.goal is defined and lu.cpp_data_type.goal|length > 0 %}
+{%- for field in lu.cpp_data_type.goal %}
+    * @param goal_{{ field.name }} Goal field to transmit (type: {{ field.type }})
+{%- endfor %}
+{%- else %}
+    * @param goal Goal message to transmit
+{%- endif %}
+    * @return true if the goal request was handed to the ROS action client
+    */
     virtual bool send_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
     {%- if lu.cpp_data_type.goal is defined %}
     {%- for field in lu.cpp_data_type.goal %}
@@ -61,6 +68,7 @@ public:
 
     /**
      * @brief Cancel goal for {{ interface.name }} action
+     * @return true if the cancel request was triggered successfully
      */
     virtual bool cancel_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}() = 0;
     {%- endif %}
