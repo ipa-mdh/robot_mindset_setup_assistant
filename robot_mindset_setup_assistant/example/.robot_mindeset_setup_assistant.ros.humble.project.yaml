@@ -1,0 +1,104 @@
+# === Robot Mindset Setup Assistant === 
+# This file is used to configure the setup assistant for the robot_ur package.
+# It contains information about the package, capabilities, and launch configurations.
+
+# This YAML file acts as both the template and the data source for generating a final
+# configuration. It uses Jinja2 syntax (e.g., {{ args.package.name }}) to allow referencing
+# values defined earlier in the file.
+# The file is first loaded as a dictionary using yaml.safe_load(), then passed to a
+# Jinja2 template created from the same file. The template is rendered with this dictionary
+# as context, and the result is parsed again into the final YAML structure.
+
+package:
+  name: test_humble_project
+  description: A package to examine the test_project.
+  type: project
+  version: "0.0.1"
+  maintainer: Robot Mindset
+  maintainer_email: robot.mindset@robot-mindset.com
+  license:
+    value: MIT
+    options: [BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3]
+  language: cpp # python, cpp
+  environment: ros.humble # ros.noetic, ros.humble, (debian)
+  dependencies:
+    # System dependencies
+    apt: []
+    # Python dependencies
+    pip:
+      - pyyaml
+      - jinja2
+    # ROS 2 dependencies (target: package.xml)
+    ros:
+      - test_humble_cpp_pkg
+      - test_humble_python_pkg
+    # repositories to be cloned into the workspace via vcs tool (target: .rosinstall)
+    git: []
+      # - name: sim2real_gap
+      #   url: https://gitlab.cc-asp.fraunhofer.de/multirobot/strategy/sim2real_gap.git
+      #   version: main
+    # CMakeLists.txt modifications
+    packages: []
+
+
+# ============================ serve ============================
+# List of packages to be launched. The instance
+# launch file will be used.
+# 
+# There are three types of serving modes:
+# 
+# link_serve
+# ----
+# Starts the instance in the root namespace '/'.
+# It connects multiple nodes, such as the
+# joint_state_publisher, which joins the joint_state
+# from different namespaces (e.g. /robot_1/joint_states
+# and /robot_2/joint_states).
+# 
+# single_serve
+# ----
+# Starts the instance in the root namespace '/'.
+# Example applications: rviz, robot_state_publisher, move_group.
+# 
+# multi_serve
+# ---- 
+# Always starts the instance in the '/<name>' namespace.
+# Example applications: ROS controllers (e.g. robot_1).
+# ===============================================================
+
+
+# link_serve:
+#   - name: Joint State Publisher
+#     package: robot_mindset_joint_state_publisher
+
+# single_serve:
+#   - name: rviz
+#     package: robot_mindset_rviz
+#   - name: controller manager
+#     package: robot_mindset_controller_manager
+
+multi_serve:
+  - name: test_humble_cpp_pkg
+    package: test_humble_cpp_pkg
+  - name: test_humble_python_pkg
+    package: test_humble_python_pkg
+
+# ============================ ROS Interfaces ============================
+# Define the ROS interfaces (topics, services, actions) for the node.
+# Each interface has a direction (in/out), a message type,
+# and a type (topic/service/action).
+#
+# direction | topic       | service  | action
+# --------------------------------------------
+#    in     | subscriber  | client   | client
+#    out    | pubublisher | service  | server
+#
+# out: Something that the node provides to other nodes.
+#      Normally, only one topic, service or action can be published
+#      under the service name.
+# in: Something the node can consume from other nodes.
+#     One of multiple topic/service/action subscribers/clients
+#     connecting to the service name.
+# ========================================================================
+ros:
+  interface_connections: []

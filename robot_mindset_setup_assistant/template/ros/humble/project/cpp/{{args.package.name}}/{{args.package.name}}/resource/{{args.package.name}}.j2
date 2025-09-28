@@ -1,0 +1,9 @@
+{%- if args.package is defined %}
+{%- if args.package.dependencies is defined %}
+{%- if args.package.dependencies.python is defined %}
+{%- for dep in args.package.dependencies.python %}
+{{ dep }}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+{%- endif %}

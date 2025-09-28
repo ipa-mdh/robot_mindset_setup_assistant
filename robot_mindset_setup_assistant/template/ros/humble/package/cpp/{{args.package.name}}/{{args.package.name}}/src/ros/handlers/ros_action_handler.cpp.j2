@@ -1,6 +1,14 @@
 #include "ros/handlers/ros_action_handler.hpp"
 
+#include <functional>
 #include <utility>
+
+{%- set server_actions = [] %}
+{%- set client_actions = [] %}
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- set server_actions = args.ros.interfaces | selectattr('type', 'equalto', 'action') | selectattr('direction', 'equalto', 'out') | list %}
+{%- set client_actions = args.ros.interfaces | selectattr('type', 'equalto', 'action') | selectattr('direction', 'equalto', 'in') | list %}
+{%- endif %}
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
 
@@ -9,6 +17,86 @@ RosActionHandler::RosActionHandler(rclcpp::Node* node)
 
 void RosActionHandler::initialize() {
     RCLCPP_DEBUG(node_->get_logger(), "Initializing action handler");
+    if (!node_) {
+        RCLCPP_ERROR(rclcpp::get_logger("RosActionHandler"), "Cannot initialize action handler without a valid node");
+        return;
+    }
+
+{%- if server_actions or client_actions %}
+    auto node_base = node_->get_node_base_interface();
+    auto node_logging = node_->get_node_logging_interface();
+    auto node_waitables = node_->get_node_waitables_interface();
+{%- if client_actions %}
+    auto node_graph = node_->get_node_graph_interface();
+{%- endif %}
+{%- if server_actions %}
+    auto node_clock = node_->get_node_clock_interface();
+{%- endif %}
+
+{%- if server_actions %}
+    if (!node_base || !node_clock || !node_logging || !node_waitables) {
+        RCLCPP_ERROR(node_->get_logger(), "Missing node interfaces required to create action servers");
+        return;
+    }
+{%- endif %}
+{%- if client_actions and not server_actions %}
+    if (!node_base || !node_graph || !node_logging || !node_waitables) {
+        RCLCPP_ERROR(node_->get_logger(), "Missing node interfaces required to create action clients");
+        return;
+    }
+{%- elif client_actions and server_actions %}
+    if (!node_graph) {
+        RCLCPP_ERROR(node_->get_logger(), "Missing node graph interface required to create action clients");
+        return;
+    }
+{%- endif %}
+
+{%- for interface in server_actions %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    if (!action_server_{{ identifier }}_) {
+        action_server_{{ identifier }}_ = rclcpp_action::create_server<{{ lu.ros_data_type }}>(
+            node_base,
+            node_clock,
+            node_logging,
+            node_waitables,
+            "{{ interface.name }}",
+            [this](const rclcpp_action::GoalUUID & uuid,
+                   std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal) {
+                return internal_handle_goal_{{ identifier }}(uuid, goal);
+            },
+            [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) {
+                return internal_handle_cancel_{{ identifier }}(goal_handle);
+            },
+            [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) {
+                internal_handle_accepted_{{ identifier }}(goal_handle);
+            });
+        if (!action_server_{{ identifier }}_) {
+            RCLCPP_ERROR(node_->get_logger(), "Failed to create action server for {{ interface.name }}");
+        }
+    }
+{%- endif %}
+{%- endfor %}
+
+{%- for interface in client_actions %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+    if (!action_client_{{ identifier }}_) {
+        action_client_{{ identifier }}_ = rclcpp_action::create_client<{{ lu.ros_data_type }}>(
+            node_base,
+            node_graph,
+            node_logging,
+            node_waitables,
+            "{{ interface.name }}");
+        if (!action_client_{{ identifier }}_) {
+            RCLCPP_ERROR(node_->get_logger(), "Failed to create action client for {{ interface.name }}");
+        }
+    }
+{%- endif %}
+{%- endfor %}
+{%- endif %}
 }
 
 void RosActionHandler::shutdown() {
