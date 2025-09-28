@@ -108,3 +108,10 @@ ros:
       interface_in:
         package_name: test_humble_python_pkg
         topic: interface/topic_string_in
+    - interface_out:
+        package_name: test_humble_cpp_pkg
+        action: fibonacci_action_server
+      interface_in:
+        package_name: test_humble_python_pkg
+        action: fibonacci_action_client
+      

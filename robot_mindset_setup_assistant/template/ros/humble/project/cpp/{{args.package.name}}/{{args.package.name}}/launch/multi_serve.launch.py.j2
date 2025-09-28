@@ -136,9 +136,19 @@ def generate_custom_launch_description(context, *args, **kwargs):
             launch_ros.actions.PushRosNamespace('{{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}'),
 {%- if args.ros is defined and args.ros.interface_connections is defined %}
 {%- for connection in args.ros.interface_connections %}
-{%- if connection.interface_in.package_name == multi.package and connection.interface_in.topic is defined and connection.interface_out.topic is defined %}
-{%- set input_topic = connection.interface_in.topic | regex_replace('^/', '') %}
-{%- set output_topic = connection.interface_out.topic | regex_replace('^/', '') %}
+{%- if connection.interface_in.package_name == multi.package %}
+{%- set remap = namespace(src='', dst='') %}
+{%- if connection.interface_in.topic is defined and connection.interface_out.topic is defined %}
+{%- set remap.src = connection.interface_in.topic | regex_replace('^/', '') %}
+{%- set remap.dst = connection.interface_out.topic | regex_replace('^/', '') %}
+{%- elif connection.interface_in.service is defined and connection.interface_out.service is defined %}
+{%- set remap.src = connection.interface_in.service | regex_replace('^/', '') %}
+{%- set remap.dst = connection.interface_out.service | regex_replace('^/', '') %}
+{%- elif connection.interface_in.action is defined and connection.interface_out.action is defined %}
+{%- set remap.src = connection.interface_in.action | regex_replace('^/', '') %}
+{%- set remap.dst = connection.interface_out.action | regex_replace('^/', '') %}
+{%- endif %}
+{%- if remap.src %}
 {%- set out_ns_tmp = namespace(value='') %}
 {%- if args.multi_serve is defined %}
 {%- for candidate in args.multi_serve %}
@@ -151,9 +161,10 @@ def generate_custom_launch_description(context, *args, **kwargs):
 {%- set out_ns_tmp.value = connection.interface_out.package_name | lower | replace(' ', '_') | replace('-', '_') %}
 {%- endif %}
             launch_ros.actions.SetRemap(
-                src='{{ input_topic }}',
-                dst='/' + '{{ out_ns_tmp.value }}' + '/' + '{{ output_topic }}'
+                src='{{ remap.src }}',
+                dst='/' + '{{ out_ns_tmp.value }}' + '/' + '{{ remap.dst }}'
             ),
+{%- endif %}
 {%- endif %}
 {%- endfor %}
 {%- endif %}
