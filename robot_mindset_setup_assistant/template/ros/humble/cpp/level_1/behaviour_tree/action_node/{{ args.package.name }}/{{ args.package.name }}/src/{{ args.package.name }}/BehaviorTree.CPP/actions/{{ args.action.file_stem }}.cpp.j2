@@ -1,0 +1,93 @@
+#include "{{ args.package.name }}/BehaviorTree.CPP/actions/{{ action.file_stem }}.hpp"
+
+#include <behaviortree_cpp/action_node.h>
+#include <behaviortree_cpp/exceptions.h>
+#include <fmt/format.h>
+
+namespace {{ args.package.name | regex_replace('[^A-Za-z0-9]', '_') }}::bt::actions {
+
+{{ action.class_name }}::{{ action.class_name }}(const std::string &name, const BT::NodeConfiguration &config)
+    : BT::{{ action.base_class }}(name, config) {}
+
+BT::PortsList {{ action.class_name }}::providedPorts()
+{
+  using namespace BT;
+  return {{ '{' }}
+{%- for port in action.ports.inputs %}
+    InputPort<{{ port.type }}>("{{ port.name }}"{%- if port.default is defined %}, {{ port.default }}{%- endif %}, "{{ port.description | default('Input port') }}"),
+{%- endfor %}
+{%- for port in action.ports.outputs %}
+    OutputPort<{{ port.type }}>("{{ port.name }}", "{{ port.description | default('Output port') }}"),
+{%- endfor %}
+  };
+}
+
+{%- if action.base_class == "StatefulActionNode" %}
+BT::NodeStatus {{ action.class_name }}::onStart()
+{
+{%- for port in action.ports.inputs %}
+  const auto {{ port.variable }} = getInput<{{ port.type }}>("{{ port.name }}");
+  if (!{{ port.variable }})
+  {
+    throw BT::RuntimeError(fmt::format("[{{ action.class_name }}] missing required input [{}]: {}", "{{ port.name }}", {{ port.variable }}.error()));
+  }
+{%- endfor %}
+
+{{ action.tick_behavior | default('// TODO: implement onStart behavior') | indent(2, True) }}
+
+  return BT::NodeStatus::RUNNING;
+}
+
+BT::NodeStatus {{ action.class_name }}::onRunning()
+{
+  // TODO: implement stateful running behavior
+  return BT::NodeStatus::SUCCESS;
+}
+
+void {{ action.class_name }}::onHalted()
+{
+  // TODO: handle cleanup when the node is halted
+}
+{%- elif action.base_class == "AsyncActionNode" %}
+BT::NodeStatus {{ action.class_name }}::tick()
+{
+{%- for port in action.ports.inputs %}
+  const auto {{ port.variable }} = getInput<{{ port.type }}>("{{ port.name }}");
+  if (!{{ port.variable }})
+  {
+    throw BT::RuntimeError(fmt::format("[{{ action.class_name }}] missing required input [{}]: {}", "{{ port.name }}", {{ port.variable }}.error()));
+  }
+{%- endfor %}
+
+{{ action.tick_behavior | default('// TODO: launch asynchronous work and report status') | indent(2, True) }}
+
+  return BT::NodeStatus::SUCCESS;
+}
+
+void {{ action.class_name }}::halt()
+{
+  // TODO: cancel outstanding asynchronous work if needed
+}
+{%- else %}
+BT::NodeStatus {{ action.class_name }}::tick()
+{
+{%- for port in action.ports.inputs %}
+  const auto {{ port.variable }} = getInput<{{ port.type }}>("{{ port.name }}");
+  if (!{{ port.variable }})
+  {
+    throw BT::RuntimeError(fmt::format("[{{ action.class_name }}] missing required input [{}]: {}", "{{ port.name }}", {{ port.variable }}.error()));
+  }
+{%- endfor %}
+
+{{ action.tick_behavior | default('// TODO: implement synchronous action logic') | indent(2, True) }}
+
+{%- for port in action.ports.outputs %}
+  setOutput<{{ port.type }}>("{{ port.name }}", {{ port.placeholder_value }});
+{%- endfor %}
+
+  return BT::NodeStatus::SUCCESS;
+}
+{%- endif %}
+
+}  // namespace {{ args.package.name | regex_replace('[^A-Za-z0-9]', '_') }}::bt::actions
+

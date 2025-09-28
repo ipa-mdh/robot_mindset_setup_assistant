@@ -19,6 +19,99 @@ CUSTOM_SECTION_END_MARKER="JINJA-END"
 def regex_replace(value, pattern, replacement):
     return re.sub(pattern, replacement, value)
 
+
+def to_pascal_case(value: str) -> str:
+    if not value:
+        return ""
+    tokens = re.split(r"[^0-9A-Za-z]+", value)
+    return "".join(token.capitalize() for token in tokens if token)
+
+
+def to_snake_case(value: str) -> str:
+    if not value:
+        return ""
+    intermediate = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
+    sanitized = re.sub(r"[^0-9A-Za-z]+", "_", intermediate)
+    return sanitized.strip("_").lower()
+
+
+def default_output_placeholder(port_type: str) -> str:
+    if not port_type:
+        return "{}"
+    simple = port_type.replace(" ", "")
+    mapping = {
+        "double": "0.0",
+        "float": "0.0f",
+        "int": "0",
+        "int32_t": "0",
+        "int64_t": "0",
+        "std::string": "std::string{}",
+        "bool": "false",
+    }
+    return mapping.get(simple, f"{port_type}{{}}")
+
+
+def build_bt_action_metadata(action_cfg: dict) -> dict:
+    if not isinstance(action_cfg, dict):
+        raise ValueError("BehaviourTree action configuration must be a dictionary")
+
+    data = copy.deepcopy(action_cfg)
+
+    identifier_source = data.get("id") or data.get("name") or data.get("class_name")
+    if not identifier_source:
+        raise ValueError("BehaviourTree action configuration requires an 'id', 'name', or 'class_name'")
+
+    identifier_snake = to_snake_case(identifier_source)
+    class_name = data.get("class_name") or to_pascal_case(identifier_source)
+
+    registration_id = data.get("registration_id") or to_pascal_case(identifier_source)
+    base_class = data.get("base_class", "SyncActionNode")
+
+    ports_cfg = data.get("ports", {}) or {}
+    input_ports = []
+    for port in ports_cfg.get("inputs", []) or []:
+        if "name" not in port:
+            raise ValueError("BehaviourTree input ports require a 'name'")
+        port_name = port["name"]
+        variable = to_snake_case(port_name) or f"{to_snake_case(class_name)}_{len(input_ports)}"
+        normalized = {
+            "name": port_name,
+            "type": port.get("type", "double"),
+            "description": port.get("description", "Input port"),
+            "variable": variable,
+        }
+        if "default" in port:
+            normalized["default"] = port["default"]
+        input_ports.append(normalized)
+
+    output_ports = []
+    for port in ports_cfg.get("outputs", []) or []:
+        if "name" not in port:
+            raise ValueError("BehaviourTree output ports require a 'name'")
+        port_name = port["name"]
+        placeholder = port.get("placeholder", default_output_placeholder(port.get("type", "double")))
+        output_ports.append({
+            "name": port_name,
+            "type": port.get("type", "double"),
+            "description": port.get("description", "Output port"),
+            "placeholder_value": placeholder,
+        })
+
+    result = {
+        "id": identifier_snake,
+        "class_name": class_name,
+        "registration_id": registration_id,
+        "base_class": base_class,
+        "ports": {
+            "inputs": input_ports,
+            "outputs": output_ports,
+        },
+        "tick_behavior": data.get("tick_behavior"),
+        "file_stem": to_snake_case(data.get("file_name", identifier_source)) or identifier_snake,
+    }
+
+    return result
+
 def extract_custom_section(file_content,
                            start_marker=CUSTOM_SECTION_START_MARKER,
                            end_marker=CUSTOM_SECTION_END_MARKER):
@@ -123,7 +216,7 @@ def render_path(path: Path, context: dict) -> Path:
     logger.debug(f"Rendering path: {path} -> {parts}")
     return Path(*parts)
 
-def render_template_folder(template_root: Path, destination_root: Path, context: dict, *, preserve_customizations: bool = True):
+def render_template_folder(template_root: Path, destination_root: Path, context: dict, *, preserve_customizations: bool = True, **extra_render_kwargs):
     """Render the template folder and copy files to the destination."""
     for file in template_root.rglob("*"):
         logger.info(f"Processing file: {file}")
@@ -147,7 +240,9 @@ def render_template_folder(template_root: Path, destination_root: Path, context:
             # Load the template by filename (e.g., 'template.jinja2')
             template = env.get_template(file.name)
             # Render the template with your context
-            rendered = template.render(args=context)
+            render_kwargs = {"args": context}
+            render_kwargs.update(extra_render_kwargs)
+            rendered = template.render(**render_kwargs)
 
             dest_path = dest_path.with_suffix("")  # Remove .j2 extension
             rendered = preserve_user_content(dest_path, rendered, preserve=preserve_customizations)
@@ -200,6 +295,23 @@ def get_template_folder(environment: str):
     
     return template_root
 
+
+def get_level1_template_folder(environment: str, language: str, feature: str) -> Path:
+    current_file_path = Path(__file__).resolve()
+    parent_dir = current_file_path.parent.parent
+
+    def dot_to_forward_slash(string: str) -> str:
+        if not isinstance(string, str):
+            string = str(string)
+        return string.replace(".", "/")
+
+    template_root = parent_dir / Path("template") / dot_to_forward_slash(environment) / language / "level_1" / feature
+    if not template_root.exists():
+        logger.error(f"Level 1 template directory {template_root} does not exist.")
+        raise ValueError(f"Unknown level 1 feature: {feature}")
+
+    return template_root
+
 class RosNoeticPackage(GitFlowRepo):
     def __init__(self, destination: Path, config_path: Path, preserve_customizations: bool = True):
         self.config_path = config_path
@@ -239,6 +351,8 @@ class RosNoeticPackage(GitFlowRepo):
             self.context,
             preserve_customizations=self.preserve_customizations,
         )
+
+        self.generate_level1_features()
         
         # Copy config to working dir
         dest = self.working_dir / ".robot_mindeset_setup_assistant.yaml"
@@ -257,3 +371,74 @@ class RosNoeticPackage(GitFlowRepo):
         Add Doxygen Awesome to the package.
         """
         apply_doxygen_awesome(self)
+
+    def render_level1_template(self, template_path: Path, destination_path: Path, args_context: dict, **extra):
+        env = Environment(loader=FileSystemLoader(template_path.parent))
+        env.filters['regex_replace'] = regex_replace
+        template = env.get_template(template_path.name)
+        render_kwargs = {"args": args_context}
+        render_kwargs.update(extra)
+        rendered = template.render(**render_kwargs)
+
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        rendered = preserve_user_content(destination_path, rendered, preserve=self.preserve_customizations)
+        with open(destination_path, "w") as f:
+            f.write(rendered)
+
+    def generate_level1_features(self):
+        try:
+            self.generate_behaviour_tree_actions()
+        except ValueError as exc:
+            logger.error(f"Failed to generate level 1 overlays: {exc}")
+            raise
+
+    def generate_behaviour_tree_actions(self):
+        package_info = self.context.get("package", {})
+        if package_info.get("language") != "cpp":
+            return
+
+        level1_cfg = self.context.get("level_1", {}) or {}
+        behaviour_tree_cfg = level1_cfg.get("behaviour_tree", {}) or {}
+        action_nodes = behaviour_tree_cfg.get("action_nodes", []) or []
+        if not action_nodes:
+            return
+
+        template_root = get_level1_template_folder(
+            package_info.get("environment", "ros.humble"),
+            package_info.get("language", "cpp"),
+            "behaviour_tree",
+        )
+
+        actions_metadata = []
+        for idx, action_cfg in enumerate(action_nodes):
+            try:
+                actions_metadata.append(build_bt_action_metadata(action_cfg))
+            except ValueError as exc:
+                raise ValueError(f"Invalid behaviour tree action node definition at index {idx}: {exc}") from exc
+
+        args_context = copy.deepcopy(self.context)
+        args_context.setdefault("level_1_generated", {}).setdefault("behaviour_tree", {})["actions"] = copy.deepcopy(actions_metadata)
+
+        factory_template_root = template_root / "factory"
+        if factory_template_root.exists():
+            render_template_folder(
+                factory_template_root,
+                self.working_dir,
+                args_context,
+                preserve_customizations=self.preserve_customizations,
+                actions=actions_metadata,
+            )
+
+        action_template_root = template_root / "action_node"
+        for action_metadata in actions_metadata:
+            action_args_context = copy.deepcopy(args_context)
+            action_args_context.setdefault("level_1_generated", {}).setdefault("behaviour_tree", {})["current_action"] = copy.deepcopy(action_metadata)
+            action_args_context["action"] = copy.deepcopy(action_metadata)
+            if action_template_root.exists():
+                render_template_folder(
+                    action_template_root,
+                    self.working_dir,
+                    action_args_context,
+                    preserve_customizations=self.preserve_customizations,
+                    action=action_metadata,
+                )

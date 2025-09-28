@@ -1,0 +1,27 @@
+#pragma once
+
+#include <behaviortree_cpp/action_node.h>
+#include <string>
+
+namespace {{ args.package.name | regex_replace('[^A-Za-z0-9]', '_') }}::bt::actions {
+
+class {{ action.class_name }} final : public BT::{{ action.base_class }} {
+public:
+  explicit {{ action.class_name }}(const std::string &name, const BT::NodeConfiguration &config);
+
+  static BT::PortsList providedPorts();
+
+{%- if action.base_class == "StatefulActionNode" %}
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+{%- elif action.base_class == "AsyncActionNode" %}
+  BT::NodeStatus tick() override;
+  void halt() override;
+{%- else %}
+  BT::NodeStatus tick() override;
+{%- endif %}
+};
+
+}  // namespace {{ args.package.name | regex_replace('[^A-Za-z0-9]', '_') }}::bt::actions
+

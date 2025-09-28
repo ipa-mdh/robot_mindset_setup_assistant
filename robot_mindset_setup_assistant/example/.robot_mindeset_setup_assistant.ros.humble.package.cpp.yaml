@@ -50,6 +50,7 @@ package:
       - name: spdlog # https://github.com/gabime/spdlog
         target_link: spdlog::spdlog
       - name: fmt
+      - name: behaviortree_cpp
 
 # ============================ serve ============================
 # List of packages to be launched. The instance
@@ -182,3 +183,28 @@ ros:
       type: parameter
       description: A log level interface for the robot.
       value: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+level_1:
+  behaviour_tree:
+    action_nodes:
+      - id: chirp_generator
+        class_name: ChirpGeneratorAction
+        description: Generates a simple chirp signal for testing downstream filters.
+        base_class: SyncActionNode
+        ports:
+          inputs:
+            - name: amplitude
+              type: double
+              description: Requested amplitude of the generated signal.
+            - name: start_frequency_hz
+              type: double
+              description: Starting frequency of the chirp in Hertz.
+            - name: sweep_duration_s
+              type: double
+              description: Duration of the sweep in seconds.
+          outputs:
+            - name: signal
+              type: double
+              description: Latest generated sample of the chirp waveform.
+        tick_behavior: |
+          // TODO: Implement chirp generation logic here. Use provided ports to configure the waveform.
