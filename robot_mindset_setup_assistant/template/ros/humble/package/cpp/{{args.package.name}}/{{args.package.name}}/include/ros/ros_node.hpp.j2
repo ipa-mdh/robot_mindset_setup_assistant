@@ -9,17 +9,14 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 
-#include "ros/ros_input_interface.hpp"
-#include "ros/ros_output_interface.hpp"
+#include "ros/handlers/ros_topic_handler.hpp"
+#include "ros/handlers/ros_service_handler.hpp"
+#include "ros/handlers/ros_action_handler.hpp"
+#include "ros/handlers/ros_parameter_handler.hpp"
 
 #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp"
 
 namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
-
-struct RosParam {
-std::string name;
-std::string value;
-};
 
 /*  ROS and non-ROS module interface
  *
@@ -52,51 +49,30 @@ std::string value;
  *                  ---------------------------------------       ----------------------------------- 
  */
 
-class ROSNode : public RosInputInterface, public RosOutputInterface, public rclcpp::Node
+class ROSNode : public rclcpp::Node
 {
 public:
   ROSNode();
   ~ROSNode();
 
   std::vector<RosParam> get_private_parameters();
-
   bool set_private_parameter(const std::string& param_name, const std::string& param_value);
 
+  // === Logic Module Access ===
+  LogicModule& logic_module() { return logic_module_; }
+  const LogicModule& logic_module() const { return logic_module_; }
+
 private:
-  /****************** Private Members ******************/
+  // === Handler composition ===
+  std::unique_ptr<RosTopicHandler> topic_handler_;
+  std::unique_ptr<RosServiceHandler> service_handler_;
+  std::unique_ptr<RosActionHandler> action_handler_;
+  std::unique_ptr<RosParameterHandler> parameter_handler_;
+
   // === Logic module instance ===
   LogicModule logic_module_;
 
-  // === Parameter Storage ===
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-  {%- for field in lu.cpp_data_type %}
-  // {{ interface.description }}
-  {%- if field.type == "std::string" %}
-  std::string param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_{"INFO"};
-  {%- elif field.type == "double" %}
-  double param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_{0.0};
-  {%- elif field.type == "int" or field.type == "int32_t" %}
-  int param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_{0};
-  {%- elif field.type == "bool" %}
-  bool param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_{false};
-  {%- else %}
-  std::string param_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_{""};
-  {%- endif %}
-  {%- endfor %}
-  {%- endif %}
-{%- endfor %}
-{%- endif %}
-{%- endif %}
-
-  // === Single parameter callback handle for all parameters ===
-  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
-
-  /****************** ROS Node Initialization ******************/
-  void init();
+  // === Initialization methods ===
   void init_parameters();
   void init_ros_interface_subscribers();
   void init_ros_interface_publishers();
@@ -105,203 +81,6 @@ private:
   void init_ros_interface_action_services();
   void init_ros_interface_action_clients();
   void init_logic_module();
-
-  /****************** Parameter Functions ******************/
-  void apply_parameters_to_logic_module();
-  
-  // Single parameter callback for all parameters
-  rcl_interfaces::msg::SetParametersResult parameters_callback(
-      const std::vector<rclcpp::Parameter> &parameters);
-
-  /****************** Interface Members ******************/
-  // === Initialize publishers and subscribers ===
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
-    if interface.type == "topic" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  {%- if interface.direction == "in" %}
-  // Subscriber: {{ interface.description }}
-  rclcpp::Subscription<{{ lu.ros_data_type }}>::SharedPtr sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-  {%- elif interface.direction == "out" %}
-  // Publisher: {{ interface.description }}
-  rclcpp::Publisher<{{ lu.ros_data_type }}>::SharedPtr pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-  {%- endif %}
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-
-  // === Initialize services ===
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
-  if interface.type == "service" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  {%- if interface.direction == "out" %}
-  // Service server: {{ interface.description }}
-  rclcpp::Service<{{ lu.ros_data_type }}>::SharedPtr service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-  {%- elif interface.direction == "in" %}
-  // Service client: {{ interface.description }}
-  rclcpp::Client<{{ lu.ros_data_type }}>::SharedPtr client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-  {%- endif %}
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-
-  // === Initialize actions ===
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces|sort(reverse=true, attribute="direction")
-  if interface.type == "action" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  {%- if interface.direction == "out" %}
-  // Action server: {{ interface.description }}
-  {%- elif interface.direction == "in" %}
-  // Action client: {{ interface.description }}
-  {%- endif %}
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-
-  // Service interfaces: servers and clients
-
-  // Action interfaces: servers and clients (using dynamic allocation)
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "action" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  {%- if interface.direction == "out" %}
-  // Action Server: {{ interface.description }}
-  rclcpp_action::Server<{{ lu.ros_data_type }}>::SharedPtr action_server_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-  {%- elif interface.direction == "in" %}
-  // Action Client: {{ interface.description }}
-  rclcpp_action::Client<{{ lu.ros_data_type }}>::SharedPtr action_client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
-  {%- endif %}
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-
-  /****************** Callback Functions ******************/
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-  // === Topic subscriber callbacks ===
-{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  void callback_sub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ lu.ros_data_type }} & msg) override;
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-
-  // === Service server callbacks ===
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  {%- set decl = "void callback_srv_" ~ interface.name|regex_replace('[^A-Za-z0-9]', '_') ~ "_(" %}
-  {%- set indent = " " * (decl|length) %}
-  {{ decl }}const std::shared_ptr<{{ lu.ros_data_type }}::Request> req,
-  {{ indent }}std::shared_ptr<{{ lu.ros_data_type }}::Response> res) override;
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-
-  // === Action server callbacks ===
-  // (Moved to RosInputInterface - see ros_input_interface.hpp.j2)
-
-  // === Action server callback implementations (declared here for ROSNode) ===
-{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
-  rclcpp_action::GoalResponse handle_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
-      const rclcpp_action::GoalUUID & uuid,
-      std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal) override;
-  
-  rclcpp_action::CancelResponse handle_cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) override;
-  
-  void handle_accepted_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) override;
-
-  void execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(
-      const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle);
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-
-  /****************** Interface Functions ******************/
-  // === Topic publisher interface functions ===
-  // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-  {%- for field in lu.cpp_data_type %}
-  void interface_pub_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(const {{ field.type }} &msg_{{ field.name }}) override;
-  {%- endfor %}
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown topic interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-  
-  // === Service call interface functions ===
-  // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-  {%- set decl = "bool interface_srv_" ~ interface.name|regex_replace('[^A-Za-z0-9]', '_') ~ "_(" %}
-  {%- set indent = " " * (decl|length) %}
-  {{ decl }}{%- for field in lu.cpp_data_type.req %}{{ field.type }} req_{{ field.name }}{%- if not loop.last %},
-  {{ indent }}{% elif lu.cpp_data_type.res|length > 0 %},
-  {{ indent }}{% endif %}{%- endfor %}{%- for field in lu.cpp_data_type.res %}{{ field.type }} &res_{{ field.name }}{%- if not loop.last %},
-  {{ indent }}{% endif %}{%- endfor %}) override;
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown service interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
-
-  // === Action client interface functions ===
-  // (Moved to RosOutputInterface - see ros_output_interface.hpp.j2)
-{%- if args.ros is defined %}
-{%- if args.ros.interfaces is defined %}
-{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
-  {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-  {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
-  {%- set decl = "bool interface_act_" ~ interface.name|regex_replace('[^A-Za-z0-9]', '_') ~ "_(" %}
-  {%- set indent = " " * (decl|length) %}
-  {{ decl }}{%- for field in lu.cpp_data_type.goal %}const {{ field.type }} &{{ field.name }}{%- if not loop.last %},
-  {{ indent }}{% endif %}{%- endfor %}) override;
-  {%- else %}
-  // {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}: Unknown action interface.msgs: {{ interface.msgs }}
-  {%- endif %}
-{% endfor %}
-{%- endif %}
-{%- endif %}
 };
 
 } // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

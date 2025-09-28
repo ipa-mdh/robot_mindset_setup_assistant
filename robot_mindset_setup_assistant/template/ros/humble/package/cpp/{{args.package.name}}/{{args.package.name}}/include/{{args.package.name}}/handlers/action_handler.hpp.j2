@@ -1,0 +1,257 @@
+#pragma once
+/**
+ * @file action_handler.hpp
+ * @brief Action interface handler for server/client operations
+ * 
+ * This class handles all action-related business logic, including:
+ * - Executing action server goals (servers)
+ * - Managing action client requests (clients)
+ * - Feedback and result processing
+ */
+
+#include <string>
+#include <functional>
+#include <memory>
+#include <spdlog/spdlog.h>
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+
+{#- Check if the interface is an action and set the flag #}
+{%- if interface.type == "action" -%}
+{%- set ns.add_actionlib = true -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+// Include message headers based on the Robot Mindset Setup Assistant configuration
+{%- if ns.add_actionlib %}
+#include <rclcpp_action/rclcpp_action.hpp>
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+/**
+ * @class ActionHandler
+ * @brief Handles all action-related business logic
+ * 
+ * This class encapsulates action-specific operations, providing a clean
+ * interface for action server/client functionality while maintaining
+ * separation from ROS infrastructure concerns.
+ */
+class ActionHandler {
+public:
+    ActionHandler();
+    virtual ~ActionHandler() = default;
+
+    // =============================================================================
+    // ACTION SERVER EXECUTION METHODS
+    // =============================================================================
+    // These methods handle the execution of action server goals
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    /**
+     * @brief Execute action server: {{ interface.name }}
+     * @param goal Action goal containing input parameters
+     * @param feedback Feedback object to populate with progress updates
+     * @param result Result object to populate with final outcome
+     * @param is_canceling Callback function to check if action was canceled
+     * @param publish_feedback Callback function to send feedback updates
+     * @param is_ok Callback function to check if ROS is still running
+     * 
+     * Description: {{ interface.description }}
+     * Action Type: {{ lu.ros_data_type }}
+     */
+    void execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal,
+        std::shared_ptr<{{ lu.ros_data_type }}::Feedback> feedback,
+        std::shared_ptr<{{ lu.ros_data_type }}::Result> result,
+        std::function<bool()> is_canceling,
+        std::function<void(std::shared_ptr<{{ lu.ros_data_type }}::Feedback>)> publish_feedback,
+        std::function<bool()> is_ok);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // ACTION CLIENT METHODS
+    // =============================================================================
+    // These methods handle action client operations
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+    /**
+     * @brief Trigger action client: {{ interface.name }}
+     * @param goal_param The goal parameter to send
+     * 
+     * Description: {{ interface.description }}
+     * Action Type: {{ lu.ros_data_type }}
+     */
+    void trigger_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(const {{ goal_param_type }}& goal_param);
+
+    /**
+     * @brief Handle goal response callback for: {{ interface.name }}
+     * @param goal_handle The goal handle received from server
+     */
+    void handle_goal_response_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr & goal_handle);
+
+    /**
+     * @brief Handle feedback callback for: {{ interface.name }}
+     * @param goal_handle The goal handle
+     * @param feedback The feedback received from server
+     */
+    void handle_feedback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+        const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback> feedback);
+
+    /**
+     * @brief Handle result callback for: {{ interface.name }}
+     * @param result The final result from the action server
+     */
+    void handle_result_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult & result);
+
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // CALLBACK REGISTRATION
+    // =============================================================================
+    // Methods to register ROS-layer callbacks for action calls
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+    void set_action_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const {{ goal_param_type }}&)> callback);
+
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Methods to register logic-layer delegates for action execution and client feedback
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    void set_action_execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const std::shared_ptr<const {{ lu.ros_data_type }}::Goal>&,
+                           std::shared_ptr<{{ lu.ros_data_type }}::Feedback>,
+                           std::shared_ptr<{{ lu.ros_data_type }}::Result>,
+                           std::function<bool()>,
+                           std::function<void(std::shared_ptr<{{ lu.ros_data_type }}::Feedback>)>,
+                           std::function<bool()>)> callback);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+    void set_goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr&)> callback);
+
+    void set_feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+                           const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback>&)> callback);
+
+    void set_result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult&)> callback);
+
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+private:
+    // =============================================================================
+    // ACTION CLIENT CALLBACK FUNCTIONS
+    // =============================================================================
+    // These callbacks are provided by the ROS layer for actual action calls
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+{%- set goal_param_type = lu.cpp_data_type.goal[0].type %}
+    std::function<void(const {{ goal_param_type }}&)> act_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Logic-layer delegates for action flows
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    std::function<void(const std::shared_ptr<const {{ lu.ros_data_type }}::Goal>&,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Feedback>,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Result>,
+                       std::function<bool()>,
+                       std::function<void(std::shared_ptr<{{ lu.ros_data_type }}::Feedback>)>,
+                       std::function<bool()>)> execute_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type.goal %}
+    std::function<void(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr&)> goal_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    std::function<void(rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::SharedPtr,
+                       const std::shared_ptr<const {{ lu.ros_data_type }}::Feedback>&)> feedback_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    std::function<void(const rclcpp_action::ClientGoalHandle<{{ lu.ros_data_type }}>::WrappedResult&)> result_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+};
+
+}  // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

@@ -1,0 +1,107 @@
+#include "ros/handlers/ros_service_handler.hpp"
+
+#include <chrono>
+#include <functional>
+#include <future>
+#include <utility>
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+RosServiceHandler::RosServiceHandler(rclcpp::Node* node)
+: InterfaceServiceHandler(node) {}
+
+void RosServiceHandler::initialize() {
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    {%- if interface.direction == "in" %}
+    client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =
+        node_->create_client<{{ lu.ros_data_type }}>("{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}");
+    {%- elif interface.direction == "out" %}
+    service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ =
+        node_->create_service<{{ lu.ros_data_type }}>(
+            "{{ interface.name|regex_replace('[^A-Za-z0-9/]', '_') }}",
+            std::bind(&RosServiceHandler::internal_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}, this, std::placeholders::_1, std::placeholders::_2));
+    {%- endif %}
+    {%- else %}
+    // TODO: Provide implementation for {{ interface.msgs }}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+}
+
+void RosServiceHandler::shutdown() {
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- if interface.direction == "in" %}
+    client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.reset();
+    {%- elif interface.direction == "out" %}
+    service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_.reset();
+    callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = nullptr;
+    {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type,
+                       ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+bool RosServiceHandler::call_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- for req in lu.cpp_data_type.req %}
+        {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
+{%- endfor %}
+{%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %}, {% endif %}
+{%- for res in lu.cpp_data_type.res %}
+        {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
+{%- endfor %}) {
+    if (!client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        RCLCPP_WARN(node_->get_logger(), "Service client for {{ interface.name }} not initialized");
+        return false;
+    }
+    auto request = std::make_shared<{{ lu.ros_data_type }}::Request>();
+{%- for req in lu.cpp_data_type.req %}
+    request->{{ req.name }} = req_{{ req.name }};
+{%- endfor %}
+    auto future = client_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_->async_send_request(request);
+    if (future.wait_for(std::chrono::seconds(2)) != std::future_status::ready) {
+        RCLCPP_WARN(node_->get_logger(), "Service call to {{ interface.name }} timed out");
+        return false;
+    }
+    auto response = future.get();
+{%- for res in lu.cpp_data_type.res %}
+    res_{{ res.name }} = response->{{ res.name }};
+{%- endfor %}
+    return true;
+}
+{%- endif %}
+
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+void RosServiceHandler::set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>,
+                          std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) {
+    callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+}
+
+void RosServiceHandler::internal_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
+        std::shared_ptr<{{ lu.ros_data_type }}::Response> response) {
+    if (callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(request, response);
+    } else {
+        RCLCPP_WARN(node_->get_logger(), "No service callback registered for {{ interface.name }}");
+    }
+}
+{%- endif %}
+
+{%- endfor %}
+{%- endif %}
+
+} // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

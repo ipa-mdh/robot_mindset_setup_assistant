@@ -154,12 +154,29 @@ ros:
     #   msgs: my_msgs/action_conig
     #   type: action
     #   description: An action interface for the robot.
+    - name: fibonacci_action_server
+      direction: out
+      msgs: example_interfaces/action/Fibonacci
+      type: action
+      description: An action server that computes Fibonacci sequences (provides this action to other nodes).
+    - name: fibonacci_action_client
+      direction: in
+      msgs: example_interfaces/action/Fibonacci
+      type: action
+      description: An action client that calls Fibonacci sequences (consumes this action from other nodes).
+    - name: turtle_rotating_server
+      direction: out
+      msgs: turtlesim/action/RotateAbsolute
+      type: action
+      description: An action server for rotating turtle to absolute angle.
+    - name: turtle_rotating_client  
+      direction: in
+      msgs: turtlesim/action/RotateAbsolute
+      type: action
+      description: An action client for rotating turtle (calls rotation actions on other nodes).
     - name: log_level
       direction: in
       msgs: std_msgs/msg/string
       type: parameter
       description: A log level interface for the robot.
-
-spark:
-  capabilities:
-    - type: data_processing
+      value: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL

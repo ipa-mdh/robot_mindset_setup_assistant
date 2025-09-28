@@ -1,0 +1,195 @@
+#pragma once
+/**
+ * @file service_handler.hpp
+ * @brief Service interface handler for server/client operations
+ * 
+ * This class handles all service-related business logic, including:
+ * - Processing incoming service requests (servers)
+ * - Making outgoing service calls (clients)
+ * - Request/response validation and transformation
+ */
+
+#include <string>
+#include <functional>
+#include <memory>
+#include <spdlog/spdlog.h>
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+/**
+ * @class ServiceHandler
+ * @brief Handles all service-related business logic
+ * 
+ * This class encapsulates service-specific operations, providing a clean
+ * interface for service server/client functionality while maintaining
+ * separation from ROS infrastructure concerns.
+ */
+class ServiceHandler {
+public:
+    ServiceHandler();
+    virtual ~ServiceHandler() = default;
+
+    // =============================================================================
+    // SERVICE SERVER METHODS
+    // =============================================================================
+    // These methods handle incoming service requests
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    /**
+     * @brief Process service request: {{ interface.name }}
+     * @param request The incoming service request
+     * @param response The service response to populate
+     * 
+     * Description: {{ interface.description }}
+     * Service Type: {{ lu.ros_data_type }}
+     */
+    void process_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
+        std::shared_ptr<{{ lu.ros_data_type }}::Response> response);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // SERVICE CLIENT METHODS
+    // =============================================================================
+    // These methods initiate service calls to external services
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    /**
+     * @brief Call external service: {{ interface.name }}
+     * @param request The service request to send
+     * 
+     * Description: {{ interface.description }}
+     * Service Type: {{ lu.ros_data_type }}
+     */
+    void call_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<{{ lu.ros_data_type }}::Request> request);
+
+    /**
+     * @brief Handle response from service call: {{ interface.name }}
+     * @param response The service response received
+     * 
+     * Description: {{ interface.description }}
+     * Service Type: {{ lu.ros_data_type }}
+     */
+    void handle_service_response_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        const std::shared_ptr<{{ lu.ros_data_type }}::Response> response);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // CALLBACK REGISTRATION
+    // =============================================================================
+    // Methods to register ROS-layer callbacks for service calls
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    void set_service_call_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>)> callback);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Methods to register logic-layer delegates for service servers and responses
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    void set_service_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>&,
+                           std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    void set_service_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback);
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+private:
+    // =============================================================================
+    // SERVICE CALL CALLBACK FUNCTIONS
+    // =============================================================================
+    // These callbacks are provided by the ROS layer for actual service calls
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>)> srv_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Logic-layer delegates for service processing and responses
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>&,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Response>)> srv_handler_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Response>)> srv_response_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+};
+
+}  // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

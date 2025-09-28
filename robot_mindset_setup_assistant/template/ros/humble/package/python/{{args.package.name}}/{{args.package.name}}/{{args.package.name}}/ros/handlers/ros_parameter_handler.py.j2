@@ -1,0 +1,154 @@
+"""ROS-specific parameter handler integrating with rclpy."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, Optional
+
+from loguru import logger
+from rcl_interfaces.msg import SetParametersResult
+from rclpy.node import Node
+from rclpy.parameter import Parameter
+
+from .base import BaseRosHandler
+
+
+class RosParameterHandler(BaseRosHandler):
+    """Manage parameter declaration, callbacks, and delegation."""
+
+    def __init__(self, node: Node) -> None:
+        super().__init__(node)
+        self._delegate_map: Dict[str, Callable[[Any], None]] = {}
+        self._parameter_callback: Optional[Callable[[str, Any], None]] = None
+        self._apply_callback: Optional[Callable[[], None]] = None
+        self._callback_handle = None
+        self._current_values: Dict[str, Any] = {}
+
+    def initialize(self) -> None:
+        logger.debug("RosParameterHandler: Declaring parameters")
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+{%- for field in lu.cpp_data_type %}
+        default_value: Any
+{%- if field.type == "std::string" %}
+        default_value = "INFO"
+{%- elif field.type == "double" %}
+        default_value = 0.0
+{%- elif field.type == "int" or field.type == "int32_t" %}
+        default_value = 0
+{%- elif field.type == "bool" %}
+        default_value = False
+{%- else %}
+        default_value = None
+{%- endif %}
+        self.node.declare_parameter("{{ interface.name }}", default_value)
+        value = self.node.get_parameter("{{ interface.name }}").value
+        self._current_values["{{ interface.name }}"] = value
+        logger.info("Declared parameter '{{ interface.name }}' with value: {}", value)
+{%- endfor %}
+{%- else %}
+        logger.warning("Parameter interface {{ interface.name }} not in lookup table")
+{%- endif %}
+{%- endfor %}
+{%- else %}
+        self.node.declare_parameter("log_level", "INFO")
+        value = self.node.get_parameter("log_level").value
+        self._current_values["log_level"] = value
+        logger.info("Declared default parameter 'log_level' with value: {}", value)
+{%- endif %}
+
+        self._callback_handle = self.node.add_on_set_parameters_callback(self._on_set_parameters)
+
+    def shutdown(self) -> None:
+        logger.debug("RosParameterHandler: Removing parameter callback")
+        if self._callback_handle is not None:
+            self.node.remove_on_set_parameters_callback(self._callback_handle)
+        self._callback_handle = None
+        self._delegate_map.clear()
+        self._parameter_callback = None
+        self._apply_callback = None
+
+    def register_delegate(self, param_name: str, callback: Callable[[Any], None]) -> None:
+        """Register logic-layer handler for parameter updates.
+
+        Args:
+            param_name: Name of the parameter to associate with the delegate.
+            callback: Callable invoked with the new parameter value when an
+                update is accepted.
+        """
+        self._delegate_map[param_name] = callback
+
+    def set_parameter_change_callback(self, callback: Callable[[str, Any], None]) -> None:
+        """Register optional observer invoked on every accepted change.
+
+        Args:
+            callback: Callable receiving the parameter name and value whenever a
+                parameter update succeeds.
+        """
+        self._parameter_callback = callback
+
+    def set_apply_callback(self, callback: Callable[[], None]) -> None:
+        """Register logic-layer hook to apply current parameter values.
+
+        Args:
+            callback: Callable executed after parameters have been updated to
+                propagate cached values into the logic module.
+        """
+        self._apply_callback = callback
+
+    def apply_parameters(self) -> None:
+        """Invoke the apply callback with current values if one is registered."""
+        if self._apply_callback is not None:
+            self._apply_callback()
+
+    def get_current_value(self, param_name: str) -> Any:
+        """Return the latest cached value for a parameter.
+
+        Args:
+            param_name: Name of the parameter whose value should be returned.
+
+        Returns:
+            Any: Stored parameter value or ``None`` if not available.
+        """
+        return self._current_values.get(param_name)
+
+    def set_parameter_value(self, param_name: str, value: Any) -> bool:
+        """Update parameter using ROS API and trigger callbacks.
+
+        Args:
+            param_name: Name of the parameter to update.
+            value: Value to submit via ``rclpy``.
+
+        Returns:
+            bool: ``True`` if the parameter update succeeded.
+        """
+        try:
+            self.node.set_parameter(Parameter(param_name, value))
+            return True
+        except Exception as exc:  # pragma: no cover - safety log
+            logger.error("Failed to set parameter {}: {}", param_name, exc)
+            return False
+
+    def _on_set_parameters(self, params: list[Parameter]) -> SetParametersResult:
+        successful = True
+        reason = ""
+        for param in params:
+            delegate = self._delegate_map.get(param.name)
+            if delegate is None:
+                continue
+
+            self._current_values[param.name] = param.value
+            try:
+                delegate(param.value)
+                if self._parameter_callback is not None:
+                    self._parameter_callback(param.name, param.value)
+            except Exception as exc:  # pragma: no cover - user logic hook
+                successful = False
+                reason = f"Parameter '{param.name}' callback failed: {exc}"
+                logger.error(reason)
+                break
+
+        if successful:
+            self.apply_parameters()
+        return SetParametersResult(successful=successful, reason=reason)

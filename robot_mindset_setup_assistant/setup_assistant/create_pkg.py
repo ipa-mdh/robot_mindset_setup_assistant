@@ -40,7 +40,11 @@ def extract_custom_section(file_content,
     #     return {'indent': indent, 'tag': tag, 'content': content}
 
     custom_section = []
-    sections = re.findall(rf'{re.escape(start_marker)}(.*?)^[ \t#]*{re.escape(end_marker)}', file_content, re.DOTALL | re.MULTILINE)
+    sections = re.findall(
+        rf'{re.escape(start_marker)}(.*?)^[ \t/#]*{re.escape(end_marker)}',
+        file_content,
+        re.DOTALL | re.MULTILINE,
+    )
     for section in sections:
         match = re.match("^:([\w\-]+)(.*)", section, re.DOTALL | re.MULTILINE)
 
@@ -71,7 +75,7 @@ def insert_custom_section(generated_content,
         tag = c['tag']
         new_content = c['content']
         pattern = re.compile(
-            rf'{start_marker}:{tag}.*?(^[ \t#]*){end_marker}:{tag}',
+            rf'{start_marker}:{tag}.*?(^[ \t/#]*){end_marker}:{tag}',
             re.DOTALL | re.MULTILINE
         )
         match = pattern.search(content)
