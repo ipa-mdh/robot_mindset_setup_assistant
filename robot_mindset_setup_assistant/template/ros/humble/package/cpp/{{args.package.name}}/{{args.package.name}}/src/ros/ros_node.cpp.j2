@@ -150,30 +150,7 @@ void ROSNode::init_logic_module()
         service_handler_->set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callback(
             [this](const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
                    std::shared_ptr<{{ lu.ros_data_type }}::Response> response) {
-                // Extract request parameters
-                {%- for field in lu.cpp_data_type.req %}
-                {{ field.type }} req_{{ field.name }} = request->{{ field.name }};
-                {%- endfor %}
-                
-                // Prepare response variables
-                {%- for field in lu.cpp_data_type.res %}
-                {{ field.type }} res_{{ field.name }}{% if field.type == 'bool' %} = false{% elif field.type.startswith('std::string') %} = ""{% endif %};
-                {%- endfor %}
-                
-                // Delegate to LogicModule
-                logic_module_.service_handler().process_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-                {%- for req in lu.cpp_data_type.req %}
-                req_{{ req.name }}{% if not loop.last %}, {% endif %}
-                {%- endfor %}
-                {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif %}
-                {%- for res in lu.cpp_data_type.res %}
-                res_{{ res.name }}{% if not loop.last %}, {% endif %}
-                {%- endfor %});
-                
-                // Fill response
-                {%- for field in lu.cpp_data_type.res %}
-                response->{{ field.name }} = res_{{ field.name }};
-                {%- endfor %}
+                logic_module_.service_handler().process_service_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(request, response);
             });
     }
     {%- endif %}
@@ -182,28 +159,41 @@ void ROSNode::init_logic_module()
     // Service Clients: LogicModule -> ROS handlers -> ROS network
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- set msg_entry = args.lookup.interfaces.msgs[interface.msgs] %}
+    {%- set lu = namespace(
+            ros_data_type = msg_entry.ros_data_type,
+            request_fields = msg_entry.cpp_data_type.req if msg_entry.cpp_data_type.req is defined else [],
+            response_fields = msg_entry.cpp_data_type.res if msg_entry.cpp_data_type.res is defined else []
+        ) %}
     // Connect {{ interface.name }} service client from LogicModule to ROS
-    logic_module_.service_handler().set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_client_callback(
-        [this](
-        {%- for req in lu.cpp_data_type.req %}
-        {{ req.type }} req_{{ req.name }}{% if not loop.last %}, {% endif %}
-        {%- endfor %}
-        {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif %}
-        {%- for res in lu.cpp_data_type.res %}
-        {{ res.type }} & res_{{ res.name }}{% if not loop.last %}, {% endif %}
-        {%- endfor %}) -> bool {
-            if (service_handler_) {
-                return service_handler_->call_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-                {%- for req in lu.cpp_data_type.req %}
-                req_{{ req.name }}{% if not loop.last %}, {% endif %}
-                {%- endfor %}
-                {%- if lu.cpp_data_type.req|length > 0 and lu.cpp_data_type.res|length > 0 %},{% endif %}
-                {%- for res in lu.cpp_data_type.res %}
-                res_{{ res.name }}{% if not loop.last %}, {% endif %}
-                {%- endfor %});
+    logic_module_.service_handler().set_service_call_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+        [this](const std::shared_ptr<{{ lu.ros_data_type }}::Request> request) {
+            if (!service_handler_) {
+                RCLCPP_WARN(this->get_logger(), "Service handler not initialized for {{ interface.name }}");
+                return;
             }
-            return false;
+            if (!request) {
+                RCLCPP_WARN(this->get_logger(), "Service call {{ interface.name }} received null request");
+                return;
+            }
+            auto response = std::make_shared<{{ lu.ros_data_type }}::Response>();
+            {%- set call_args = [] %}
+            {%- for field in lu.request_fields %}
+            {%- set _ = call_args.append("request->" ~ field.name) %}
+            {%- endfor %}
+            {%- for field in lu.response_fields %}
+            {%- set _ = call_args.append("response->" ~ field.name) %}
+            {%- endfor %}
+            bool call_success = service_handler_->call_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if call_args %}
+                {{ call_args | join(',\n                ') }}
+{%- endif %}
+            );
+            if (!call_success) {
+                RCLCPP_WARN(this->get_logger(), "Service call {{ interface.name }} failed to dispatch");
+                return;
+            }
+            logic_module_.service_handler().handle_service_response_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(response);
         });
     {%- endif %}
 {%- endfor %}
