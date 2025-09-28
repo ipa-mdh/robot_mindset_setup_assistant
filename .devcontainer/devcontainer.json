@@ -21,8 +21,10 @@
 			"packages": "ssh,curl,nano,python3-pip,git" //,
 		},
 	},
+
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	"forwardPorts": [
+	 	
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	//"postCreateCommand": "pip install open3d",
@@ -32,14 +34,21 @@
 		"vscode": {
 			// Set *default* container specific settings.json values on container create.
 			"settings": {
-				"editor.formatOnSave": true //,
+				"editor.formatOnSave": true,
+				"terminal.integrated.profiles.linux": {
+					"bash-dev-setup": {
+						"path": "/bin/bash",
+						"args": ["--rcfile", "/opt/dev-setup/setup.bash"]
+						}
+				},
+				"terminal.integrated.defaultProfile.linux": "bash-dev-setup"
 			},
 			// Add the IDs of extensions you want installed when the container is created.
-			"extensions": ["ms-python.python", "ms-vscode.cpptools-extension-pack", "ms-vscode.cmake-tools", "redhat.vscode-xml", "mhutchie.git-graph", "ms-azuretools.vscode-docker", "mtsmfm.vscode-stl-viewer"]
+			"extensions": ["ms-python.python", "ms-vscode.cpptools-extension-pack", "ms-vscode.cmake-tools", "redhat.vscode-xml", "mhutchie.git-graph", "ms-azuretools.vscode-docker", "mtsmfm.vscode-stl-viewer", "cschlosser.doxdocgen", "samuelcolvin.jinjahtml"]
 		}
 	},
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 	"workspaceFolder": "/workspace",
-	"postCreateCommand": "./src/robot_mindset_setup_assistant/dev-setup/install.sh"
+	"postCreateCommand": "bash ./src/robot_mindset_setup_assistant/.devcontainer/postCreateCommand.sh"
 }

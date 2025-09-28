@@ -1,0 +1,79 @@
+msgs:
+  std_msgs/empty:
+    include: std_msgs/empty
+    ros_data_type: std_msgs::Empty
+    cpp_data_type: ''
+  std_msgs/string:
+    include: std_msgs/string
+    ros_data_type: std_msgs::String
+    cpp_data_type: std::string
+  std_msgs/byte:
+    include: std_msgs/byte
+    ros_data_type: std_msgs::Byte
+    cpp_data_type: std::uint8_t
+  std_msgs/int8:
+    include: std_msgs/int8
+    ros_data_type: std_msgs::Int8
+    cpp_data_type: std::int8_t
+  std_msgs/uint8:
+    include: std_msgs/uint8
+    ros_data_type: std_msgs::UInt8
+    cpp_data_type: std::uint8_t
+  std_msgs/int16:
+    include: std_msgs/int16
+    ros_data_type: std_msgs::Int16
+    cpp_data_type: std::int16_t
+  std_msgs/uint16:
+    include: std_msgs/uint16
+    ros_data_type: std_msgs::UInt16
+    cpp_data_type: std::uint16_t
+  std_msgs/int32:
+    include: std_msgs/int32
+    ros_data_type: std_msgs::Int32
+    cpp_data_type: std::int32_t
+  std_msgs/uint32:
+    include: std_msgs/uint32
+    ros_data_type: std_msgs::UInt32
+    cpp_data_type: std::uint32_t
+  std_msgs/int64:
+    include: std_msgs/int64
+    ros_data_type: std_msgs::Int64
+    cpp_data_type: std::int64_t
+  std_msgs/uint64:
+    include: std_msgs/uint64
+    ros_data_type: std_msgs::UInt64
+    cpp_data_type: std::uint64_t
+  std_msgs/float32:
+    include: std_msgs/float32
+    ros_data_type: std_msgs::Float32
+    cpp_data_type: float
+  std_msgs/float64:
+    include: std_msgs/float64
+    ros_data_type: std_msgs::Float64
+    cpp_data_type: double
+  std_srvs/srv/empty:
+    include: std_srvs/empty
+    ros_data_type: std_srvs::Empty
+    cpp_data_type: ''
+  std_srvs/srv/set_bool: 
+    include: std_srvs/srv/set_bool
+    ros_data_type: std_srvs::SetBool
+    cpp_data_type:
+      req: 
+        - name: data
+          type: bool
+      res:
+        - name: success
+          type: bool
+        - name: message
+          type: std::string
+  std_srvs/srv/trigger:
+    include: std_srvs/srv/trigger
+    ros_data_type: std_srvs::srv::Trigger
+    cpp_data_type: 
+      req: ''
+      res: 
+        - name: success
+          type: bool
+        - name: message
+          type: std::string

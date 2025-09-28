@@ -1,0 +1,209 @@
+#include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/handlers/parameter_handler.hpp"
+
+/**
+ * @file parameter_handler.cpp
+ * @brief Implementation of parameter handler for runtime configuration
+ */
+
+namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+
+ParameterHandler::ParameterHandler() 
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+{%- if interface.default_value is defined %}
+{%- if interface.data_type == "string" %}
+    : {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_("{{ interface.default_value }}")
+{%- elif interface.data_type == "int" %}
+    : {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_({{ interface.default_value }})
+{%- elif interface.data_type == "double" %}
+    : {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_({{ interface.default_value }})
+{%- elif interface.data_type == "bool" %}
+    : {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_({ "true" if interface.default_value|lower == "true" else "false" })
+{%- else %}
+    : {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_("{{ interface.default_value }}")
+{%- endif %}
+{%- if not loop.last %}, {% endif %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{
+    spdlog::debug("ParameterHandler initialized with default values");
+}
+
+// =============================================================================
+// PARAMETER CALLBACK METHODS
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+void ParameterHandler::process_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if interface.data_type == "string" %}
+    const std::string& new_value) {
+{%- elif interface.data_type == "int" %}
+    const int64_t& new_value) {
+{%- elif interface.data_type == "double" %}
+    const double& new_value) {
+{%- elif interface.data_type == "bool" %}
+    const bool& new_value) {
+{%- else %}
+    const std::string& new_value) {
+{%- endif %}
+    
+    spdlog::info("ParameterHandler: Processing parameter change {{ interface.name }}: {} -> {}", 
+                 {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_, new_value);
+    
+    // Validate the new value
+    if (!validate_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(new_value)) {
+        spdlog::warn("ParameterHandler: Invalid value for parameter {{ interface.name }}: {}", new_value);
+        return;
+    }
+    
+    // Store the old value for potential rollback
+    auto old_value = {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_;
+    
+    // Apply the new value
+    {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = new_value;
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-implementation
+    // TODO: Add your business logic for handling parameter changes
+    // This method is called whenever the {{ interface.name }} parameter changes at runtime
+    
+    // Example implementation:
+{%- if interface.data_type == "string" %}
+    // // Handle string parameter change
+    // if (new_value == "debug") {
+    //     enable_debug_mode();
+    // } else if (new_value == "info") {
+    //     set_info_level();
+    // }
+{%- elif interface.data_type == "int" %}
+    // // Handle integer parameter change
+    // if (new_value > 0) {
+    //     update_configuration_with_int(new_value);
+    //     restart_dependent_processes();
+    // }
+{%- elif interface.data_type == "double" %}
+    // // Handle double parameter change
+    // if (new_value >= 0.0 && new_value <= 1.0) {
+    //     update_scaling_factor(new_value);
+    //     recalibrate_sensors();
+    // }
+{%- elif interface.data_type == "bool" %}
+    // // Handle boolean parameter change
+    // if (new_value) {
+    //     enable_feature();
+    // } else {
+    //     disable_feature();
+    // }
+{%- else %}
+    // // Handle parameter change for {{ interface.data_type }}
+    // update_configuration(new_value);
+    // apply_parameter_changes();
+{%- endif %}
+    // 
+    // // If parameter application fails, you can rollback:
+    // // if (!apply_parameter_change()) {
+    // //     {{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = old_value;
+    // //     spdlog::error("Failed to apply parameter {{ interface.name }}, rolled back to previous value");
+    // // }
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-implementation
+
+    if (param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_) {
+        param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_(new_value);
+    } else {
+        spdlog::debug("ParameterHandler: No callback registered for {{ interface.name }}");
+    }
+    
+    spdlog::debug("ParameterHandler: Parameter {{ interface.name }} successfully updated");
+}
+
+{%- endfor %}
+{%- endif %}
+
+// =============================================================================
+// PARAMETER VALIDATION METHODS
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+bool ParameterHandler::validate_parameter_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if interface.data_type == "string" %}
+    const std::string& value) const {
+{%- elif interface.data_type == "int" %}
+    const int64_t& value) const {
+{%- elif interface.data_type == "double" %}
+    const double& value) const {
+{%- elif interface.data_type == "bool" %}
+    const bool& value) const {
+{%- else %}
+    const std::string& value) const {
+{%- endif %}
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-validation
+    // TODO: Add validation logic for parameter {{ interface.name }}
+    
+    // Example validation:
+{%- if interface.min_value is defined and interface.max_value is defined %}
+    // Range validation
+    if (value < {{ interface.min_value }} || value > {{ interface.max_value }}) {
+        spdlog::warn("Parameter {{ interface.name }} value {} is out of range [{}, {}]", 
+                     value, {{ interface.min_value }}, {{ interface.max_value }});
+        return false;
+    }
+{%- elif interface.data_type == "string" %}
+    // String validation
+    if (value.empty()) {
+        spdlog::warn("Parameter {{ interface.name }} cannot be empty");
+        return false;
+    }
+    // // Additional string validation
+    // if (value.length() > MAX_STRING_LENGTH) {
+    //     return false;
+    // }
+{%- elif interface.data_type == "int" %}
+    // Integer validation
+    if (value < 0) {
+        spdlog::warn("Parameter {{ interface.name }} must be non-negative");
+        return false;
+    }
+{%- elif interface.data_type == "double" %}
+    // Double validation
+    if (std::isnan(value) || std::isinf(value)) {
+        spdlog::warn("Parameter {{ interface.name }} must be a finite number");
+        return false;
+    }
+{%- endif %}
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-parameter-validation
+    
+    return true;
+}
+
+{%- endfor %}
+{%- endif %}
+
+// =============================================================================
+// PARAMETER CALLBACK REGISTRATION
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" %}
+void ParameterHandler::set_parameter_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+{%- if interface.data_type == "string" %}
+    std::function<void(const std::string&)> callback) {
+{%- elif interface.data_type == "int" %}
+    std::function<void(const int64_t&)> callback) {
+{%- elif interface.data_type == "double" %}
+    std::function<void(const double&)> callback) {
+{%- elif interface.data_type == "bool" %}
+    std::function<void(const bool&)> callback) {
+{%- else %}
+    std::function<void(const std::string&)> callback) {
+{%- endif %}
+    param_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_ = std::move(callback);
+    spdlog::debug("ParameterHandler: Callback registered for {{ interface.name }}");
+}
+
+{%- endfor %}
+{%- endif %}
+
+}  // namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}

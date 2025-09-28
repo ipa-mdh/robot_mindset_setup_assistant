@@ -1,0 +1,493 @@
+# ROS Parameter Interface Guide
+
+This document describes how to implement and use ROS parameters in the {{args.package.name}} package.
+
+## Architecture Overview
+
+This package follows a clean architecture pattern that separates ROS infrastructure from business logic:
+
+- **ROS Node** (`ros_node.cpp`): Handles ROS-specific concerns (parameter registration, callback management)
+- **LogicModule** (`{{args.package.name}}.cpp`): Contains business logic for parameter handling and validation
+
+## ROS Parameters
+
+Parameters provide a way to configure node behavior at runtime and allow external configuration of your application.
+
+### Available Parameters
+
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'parameter' %}
+
+#### {{interface.name}}
+- **Description**: {{interface.description}}
+- **Type**: `{{interface.msgs | replace('std_msgs/msg/', '') | replace('/', '::') | lower}}`
+- **Parameter Name**: `{{interface.name}}`
+- **Callback Method**: `LogicModule::interface_{{interface.name | replace('/', '_') | replace('-', '_')}}()`
+{%- endif %}
+{%- endfor %}
+
+### Parameter Architecture
+
+Parameters in this package follow a robust pattern:
+
+1. **Declaration**: Parameters are declared in the ROS node with default values
+2. **Callback Registration**: Parameter change callbacks are registered
+3. **Value Propagation**: Changes are propagated to the LogicModule
+4. **Validation**: LogicModule validates and processes parameter changes
+5. **State Update**: Internal state is updated based on validated parameters
+
+### Implementing Parameter Callbacks
+
+Override the virtual parameter callback methods in your `LogicModule` class:
+
+```cpp
+// In your LogicModule class
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'parameter' %}
+
+/**
+ * @brief Parameter callback for {{interface.name}}
+ * @param value New parameter value
+ * 
+ * {{interface.description}}
+ * This callback is invoked whenever the parameter changes at runtime.
+ */
+void interface_{{interface.name | replace('/', '_') | replace('-', '_')}}(
+    const {{interface.msgs | replace('std_msgs/msg/', '') | replace('/', '::') | lower}} & value) override {
+    
+    {%- if 'string' in interface.msgs.lower() %}
+    spdlog::info("Parameter {{interface.name}} updated to: {}", value);
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    // Validate the new parameter value
+    if (value.empty()) {
+        spdlog::warn("{{interface.name}} cannot be empty, keeping previous value");
+        return;
+    }
+    
+    // Update internal state
+    current_{{interface.name | replace('/', '_') | replace('-', '_')}} = value;
+    
+    // Apply the parameter change
+    apply_{{interface.name | replace('/', '_') | replace('-', '_')}}_change();
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    
+    {%- elif 'int' in interface.msgs.lower() %}
+    spdlog::info("Parameter {{interface.name}} updated to: {}", value);
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    // Validate the new parameter value
+    if (value < 0) {
+        spdlog::warn("{{interface.name}} must be non-negative, keeping previous value");
+        return;
+    }
+    
+    // Update internal state
+    current_{{interface.name | replace('/', '_') | replace('-', '_')}} = value;
+    
+    // Apply the parameter change
+    apply_{{interface.name | replace('/', '_') | replace('-', '_')}}_change();
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    
+    {%- elif 'float' in interface.msgs.lower() %}
+    spdlog::info("Parameter {{interface.name}} updated to: {:.3f}", value);
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    // Validate the new parameter value
+    if (value < 0.0 || value > 100.0) {
+        spdlog::warn("{{interface.name}} must be between 0.0 and 100.0, keeping previous value");
+        return;
+    }
+    
+    // Update internal state
+    current_{{interface.name | replace('/', '_') | replace('-', '_')}} = value;
+    
+    // Apply the parameter change
+    apply_{{interface.name | replace('/', '_') | replace('-', '_')}}_change();
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    
+    {%- elif 'bool' in interface.msgs.lower() %}
+    spdlog::info("Parameter {{interface.name}} updated to: {}", value ? "true" : "false");
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    // Update internal state
+    current_{{interface.name | replace('/', '_') | replace('-', '_')}} = value;
+    
+    // Apply the parameter change
+    if (value) {
+        enable_{{interface.name | replace('/', '_') | replace('-', '_')}}_feature();
+    } else {
+        disable_{{interface.name | replace('/', '_') | replace('-', '_')}}_feature();
+    }
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    
+    {%- else %}
+    spdlog::info("Parameter {{interface.name}} updated");
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    // Validate the new parameter value
+    // if (!is_valid_{{interface.name | replace('/', '_') | replace('-', '_')}}(value)) {
+    //     spdlog::warn("Invalid {{interface.name}} value, keeping previous value");
+    //     return;
+    // }
+    
+    // Update internal state
+    current_{{interface.name | replace('/', '_') | replace('-', '_')}} = value;
+    
+    // Apply the parameter change
+    apply_{{interface.name | replace('/', '_') | replace('-', '_')}}_change();
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_parameter_implementation
+    {%- endif %}
+}
+{%- endif %}
+{%- endfor %}
+```
+
+### Parameter Implementation Guidelines
+
+1. **Always validate input**: Check parameter values before applying them
+2. **Provide meaningful feedback**: Log parameter changes and validation failures
+3. **Use JINJA preservation tags** to maintain custom code during regeneration
+4. **Handle invalid values gracefully**: Keep previous values if new ones are invalid
+5. **Apply changes atomically**: Update all related state consistently
+6. **Document parameter constraints**: Specify valid ranges and formats
+
+### Example Implementation
+
+```cpp
+void LogicModule::interface_max_speed(const double & value) {
+    // JINJA-BEGIN:max-speed_parameter_implementation
+    // Validate speed parameter
+    if (value <= 0.0) {
+        spdlog::error("max_speed must be positive, got: {:.3f}", value);
+        return;
+    }
+    
+    if (value > MAX_SAFE_SPEED) {
+        spdlog::warn("max_speed {:.3f} exceeds safe limit {:.3f}, clamping", 
+                     value, MAX_SAFE_SPEED);
+        current_max_speed_ = MAX_SAFE_SPEED;
+    } else {
+        current_max_speed_ = value;
+    }
+    
+    // Update motion controller with new speed limit
+    if (motion_controller_) {
+        motion_controller_->set_speed_limit(current_max_speed_);
+    }
+    
+    spdlog::info("Max speed updated to: {:.3f} m/s", current_max_speed_);
+    // JINJA-END:max-speed_parameter_implementation
+}
+```
+
+## Parameter Configuration
+
+### Default Parameter Values
+
+Parameters are initialized with default values when the node starts. These can be overridden:
+
+1. **Launch file parameters**: Set in launch files
+2. **YAML configuration files**: Load from parameter files
+3. **Command line**: Override at runtime with `--ros-args -p`
+
+### Setting Parameters at Runtime
+
+```bash
+# Set parameter value
+ros2 param set /{{args.package.name}}_node parameter_name new_value
+
+# Get current parameter value
+ros2 param get /{{args.package.name}}_node parameter_name
+
+# List all parameters
+ros2 param list /{{args.package.name}}_node
+
+# Load parameters from file
+ros2 param load /{{args.package.name}}_node path/to/params.yaml
+```
+
+### Example Parameter Configuration
+
+```yaml
+# config/parameters.yaml
+{{args.package.name}}_node:
+  ros__parameters:
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'parameter' %}
+    {{interface.name}}: 
+    {%- if 'string' in interface.msgs.lower() %}
+      "default_value"
+    {%- elif 'int' in interface.msgs.lower() %}
+      42
+    {%- elif 'float' in interface.msgs.lower() %}
+      3.14159
+    {%- elif 'bool' in interface.msgs.lower() %}
+      true
+    {%- else %}
+      default_value
+    {%- endif %}
+{%- endif %}
+{%- endfor %}
+```
+
+## Parameter Validation Patterns
+
+### Range Validation
+
+```cpp
+void LogicModule::interface_temperature_threshold(const double & value) {
+    // JINJA-BEGIN:temperature-threshold_parameter_implementation
+    const double MIN_TEMP = -50.0;
+    const double MAX_TEMP = 100.0;
+    
+    if (value < MIN_TEMP || value > MAX_TEMP) {
+        spdlog::error("temperature_threshold {:.2f}°C outside valid range [{:.2f}, {:.2f}]°C",
+                      value, MIN_TEMP, MAX_TEMP);
+        return;
+    }
+    
+    temperature_threshold_ = value;
+    spdlog::info("Temperature threshold set to: {:.2f}°C", value);
+    // JINJA-END:temperature-threshold_parameter_implementation
+}
+```
+
+### String Format Validation
+
+```cpp
+void LogicModule::interface_log_level(const std::string & value) {
+    // JINJA-BEGIN:log-level_parameter_implementation
+    const std::vector<std::string> valid_levels = {
+        "trace", "debug", "info", "warn", "error", "critical"
+    };
+    
+    if (std::find(valid_levels.begin(), valid_levels.end(), value) == valid_levels.end()) {
+        spdlog::error("Invalid log level '{}'. Valid levels: {}", 
+                      value, fmt::join(valid_levels, ", "));
+        return;
+    }
+    
+    // Apply the log level change
+    spdlog::set_level(spdlog::level::from_str(value));
+    current_log_level_ = value;
+    spdlog::info("Log level changed to: {}", value);
+    // JINJA-END:log-level_parameter_implementation
+}
+```
+
+### Boolean State Management
+
+```cpp
+void LogicModule::interface_debug_mode(const bool & value) {
+    // JINJA-BEGIN:debug-mode_parameter_implementation
+    if (debug_mode_ == value) {
+        return;  // No change needed
+    }
+    
+    debug_mode_ = value;
+    
+    if (debug_mode_) {
+        spdlog::info("Debug mode enabled - verbose logging activated");
+        spdlog::set_level(spdlog::level::debug);
+        enable_debug_outputs();
+    } else {
+        spdlog::info("Debug mode disabled - normal logging restored");
+        spdlog::set_level(spdlog::level::info);
+        disable_debug_outputs();
+    }
+    // JINJA-END:debug-mode_parameter_implementation
+}
+```
+
+## Best Practices
+
+### Parameter Design
+
+1. **Use descriptive names**: Choose clear, unambiguous parameter names
+2. **Document constraints**: Specify valid ranges, formats, and units
+3. **Provide sensible defaults**: Parameters should work out-of-the-box
+4. **Group related parameters**: Use consistent naming conventions
+5. **Consider parameter dependencies**: Some parameters may affect others
+
+### Validation
+
+1. **Always validate inputs**: Never trust parameter values without checking
+2. **Handle invalid gracefully**: Log errors and maintain previous valid state
+3. **Provide clear error messages**: Help users understand what went wrong
+4. **Use appropriate data types**: Match parameter types to their usage
+5. **Consider performance**: Validation should be fast for frequently changed parameters
+
+### State Management
+
+1. **Update atomically**: Change all related state consistently
+2. **Notify dependent systems**: Propagate changes to affected components
+3. **Log changes**: Track parameter modifications for debugging
+4. **Persist critical parameters**: Save important settings across restarts
+5. **Handle initialization order**: Ensure dependencies are met during startup
+
+## Testing Parameters
+
+### Runtime Parameter Changes
+
+```bash
+# Test parameter setting
+ros2 param set /my_node max_speed 5.0
+
+# Test parameter getting
+ros2 param get /my_node max_speed
+
+# Test parameter listing
+ros2 param list /my_node
+
+# Test invalid values
+ros2 param set /my_node max_speed -1.0  # Should be rejected
+```
+
+### Parameter File Testing
+
+```bash
+# Load parameters from file
+ros2 param load /my_node config/test_params.yaml
+
+# Dump current parameters to file
+ros2 param dump /my_node --output-dir ./dump/
+
+# Compare parameter files
+ros2 param dump /my_node --output-dir ./before/
+# Make changes...
+ros2 param dump /my_node --output-dir ./after/
+diff ./before/my_node.yaml ./after/my_node.yaml
+```
+
+### Launch File Parameter Testing
+
+```python
+# In launch file
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(
+            package='{{args.package.name}}',
+            executable='{{args.package.name}}_node',
+            parameters=[{
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'parameter' %}
+                '{{interface.name}}': 
+                {%- if 'string' in interface.msgs.lower() %}
+                'test_value',
+                {%- elif 'int' in interface.msgs.lower() %}
+                123,
+                {%- elif 'float' in interface.msgs.lower() %}
+                2.718,
+                {%- elif 'bool' in interface.msgs.lower() %}
+                False,
+                {%- else %}
+                'test_value',
+                {%- endif %}
+{%- endif %}
+{%- endfor %}
+            }]
+        )
+    ])
+```
+
+## Debugging Parameters
+
+### Common Issues
+
+1. **Parameter not found**: Check parameter name spelling and node name
+2. **Type mismatch**: Ensure parameter type matches expected type
+3. **Validation failures**: Check parameter constraints and valid ranges
+4. **Changes not applied**: Verify callback is called and implemented correctly
+5. **Default values wrong**: Check parameter declaration and initialization
+
+### Useful Commands
+
+```bash
+# Debug parameter issues
+ros2 param list /my_node
+ros2 param describe /my_node parameter_name
+ros2 param get /my_node parameter_name
+
+# Monitor parameter changes
+ros2 topic echo /parameter_events
+
+# Check node parameter info
+ros2 node info /my_node
+
+# Test parameter types
+ros2 interface show rcl_interfaces/msg/ParameterDescriptor
+```
+
+### Logging Parameter Events
+
+```cpp
+void LogicModule::log_parameter_event(const std::string& name, 
+                                    const std::string& old_value,
+                                    const std::string& new_value) {
+    spdlog::info("Parameter '{}' changed: '{}' -> '{}'", name, old_value, new_value);
+    
+    // Optional: Log to file for audit trail
+    auto logger = spdlog::get("parameter_audit");
+    if (logger) {
+        logger->info("{}: {} -> {}", name, old_value, new_value);
+    }
+}
+```
+
+## Advanced Parameter Patterns
+
+### Parameter Groups
+
+```cpp
+struct MotionParameters {
+    double max_speed;
+    double max_acceleration;
+    double max_jerk;
+};
+
+void LogicModule::update_motion_parameters() {
+    MotionParameters params{
+        current_max_speed_,
+        current_max_acceleration_,
+        current_max_jerk_
+    };
+    
+    if (motion_controller_) {
+        motion_controller_->update_parameters(params);
+    }
+}
+```
+
+### Conditional Parameter Updates
+
+```cpp
+void LogicModule::interface_control_mode(const std::string & value) {
+    // JINJA-BEGIN:control-mode_parameter_implementation
+    if (value == "manual") {
+        disable_autonomous_features();
+        enable_manual_control();
+    } else if (value == "autonomous") {
+        if (!safety_systems_ready()) {
+            spdlog::error("Cannot switch to autonomous mode: safety systems not ready");
+            return;
+        }
+        enable_autonomous_features();
+        disable_manual_control();
+    } else {
+        spdlog::error("Unknown control mode: {}", value);
+        return;
+    }
+    
+    current_control_mode_ = value;
+    spdlog::info("Control mode changed to: {}", value);
+    // JINJA-END:control-mode_parameter_implementation
+}
+```
+
+---
+
+*This guide is automatically generated based on your package configuration. Modify the parameter interfaces in your setup assistant configuration to update this documentation.*

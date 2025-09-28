@@ -1,0 +1,275 @@
+msgs:
+  std_msgs/msg/empty:
+    include: std_msgs/msg/empty
+    ros_data_type: std_msgs::msg::Empty
+    cpp_data_type:
+      - name: data
+        type: ''
+  std_msgs/msg/string:
+    include: std_msgs/msg/string
+    ros_data_type: std_msgs::msg::String
+    cpp_data_type:
+      - name: data
+        type: std::string
+  std_msgs/msg/byte:
+    include: std_msgs/msg/byte
+    ros_data_type: std_msgs::msg::Byte
+    cpp_data_type:
+      - name: data
+        type: std::uint8_t
+  std_msgs/msg/int8:
+    include: std_msgs/msg/int8
+    ros_data_type: std_msgs::msg::Int8
+    cpp_data_type:
+      - name: data
+        type: std::int8_t
+  std_msgs/msg/uint8:
+    include: std_msgs/msg/uint8
+    ros_data_type: std_msgs::msg::UInt8
+    cpp_data_type:
+      - name: data
+        type: std::uint8_t
+  std_msgs/msg/int16:
+    include: std_msgs/msg/int16
+    ros_data_type: std_msgs::msg::Int16
+    cpp_data_type:
+      - name: data
+        type: std::int16_t
+  std_msgs/msg/uint16:
+    include: std_msgs/msg/uint16
+    ros_data_type: std_msgs::msg::UInt16
+    cpp_data_type:
+      - name: data
+        type: std::uint16_t
+  std_msgs/msg/int32:
+    include: std_msgs/msg/int32
+    ros_data_type: std_msgs::msg::Int32
+    cpp_data_type:
+      - name: data
+        type: std::int32_t
+  std_msgs/msg/uint32:
+    include: std_msgs/msg/uint32
+    ros_data_type: std_msgs::msg::UInt32
+    cpp_data_type:
+      - name: data
+        type: std::uint32_t
+  std_msgs/msg/int64:
+    include: std_msgs/msg/int64
+    ros_data_type: std_msgs::msg::Int64
+    cpp_data_type:
+      - name: data
+        type: std::int64_t
+  std_msgs/msg/uint64:
+    include: std_msgs/msg/uint64
+    ros_data_type: std_msgs::msg::UInt64
+    cpp_data_type:
+      - name: data
+        type: std::uint64_t
+  std_msgs/msg/float32:
+    include: std_msgs/msg/float32
+    ros_data_type: std_msgs::msg::Float32
+    cpp_data_type:
+      - name: data
+        type: float
+  std_msgs/msg/float64:
+    include: std_msgs/msg/float64
+    ros_data_type: std_msgs::msg::Float64
+    cpp_data_type:
+      - name: data
+        type: double
+  std_srvs/srv/empty:
+    include: std_srvs/srv/empty
+    ros_data_type: std_srvs::srv::Empty
+    cpp_data_type:
+      req: []
+      res: []
+  std_srvs/srv/set_bool: 
+    include: std_srvs/srv/set_bool
+    ros_data_type: std_srvs::srv::SetBool
+    cpp_data_type:
+      req: 
+        - name: data
+          type: bool
+      res:
+        - name: success
+          type: bool
+        - name: message
+          type: std::string
+  std_srvs/srv/trigger:
+    include: std_srvs/srv/trigger
+    ros_data_type: std_srvs::srv::Trigger
+    cpp_data_type: 
+      req: []
+      res: 
+        - name: success
+          type: bool
+        - name: message
+          type: std::string
+
+  # Action interfaces
+  example_interfaces/action/Fibonacci:
+    include: example_interfaces/action/fibonacci
+    ros_data_type: example_interfaces::action::Fibonacci
+    cpp_data_type:
+      goal:
+        - name: order
+          type: std::int32_t
+      result:
+        - name: sequence
+          type: std::vector<std::int32_t>
+      feedback:
+        - name: partial_sequence
+          type: std::vector<std::int32_t>
+
+  turtlesim/action/RotateAbsolute:
+    include: turtlesim/action/rotate_absolute
+    ros_data_type: turtlesim::action::RotateAbsolute
+    cpp_data_type:
+      goal:
+        - name: theta
+          type: float
+      result:
+        - name: delta
+          type: float
+      feedback:
+        - name: remaining
+          type: float
+
+  # Control msgs actions - commonly used for robot control
+  control_msgs/action/FollowJointTrajectory:
+    include: control_msgs/action/follow_joint_trajectory
+    ros_data_type: control_msgs::action::FollowJointTrajectory
+    cpp_data_type:
+      goal:
+        - name: trajectory
+          type: trajectory_msgs::msg::JointTrajectory
+        - name: path_tolerance
+          type: std::vector<control_msgs::msg::JointTolerance>
+        - name: goal_tolerance
+          type: std::vector<control_msgs::msg::JointTolerance>
+        - name: goal_time_tolerance
+          type: builtin_interfaces::msg::Duration
+      result:
+        - name: error_code
+          type: std::int32_t
+        - name: error_string
+          type: std::string
+      feedback:
+        - name: header
+          type: std_msgs::msg::Header
+        - name: joint_names
+          type: std::vector<std::string>
+        - name: desired
+          type: trajectory_msgs::msg::JointTrajectoryPoint
+        - name: actual
+          type: trajectory_msgs::msg::JointTrajectoryPoint
+        - name: error
+          type: trajectory_msgs::msg::JointTrajectoryPoint
+
+  control_msgs/action/GripperCommand:
+    include: control_msgs/action/gripper_command
+    ros_data_type: control_msgs::action::GripperCommand
+    cpp_data_type:
+      goal:
+        - name: command
+          type: control_msgs::msg::GripperCommand
+      result:
+        - name: position
+          type: double
+        - name: effort
+          type: double
+        - name: stalled
+          type: bool
+        - name: reached_goal
+          type: bool
+      feedback:
+        - name: position
+          type: double
+        - name: effort
+          type: double
+        - name: stalled
+          type: bool
+        - name: reached_goal
+          type: bool
+
+  control_msgs/action/SingleJointPosition:
+    include: control_msgs/action/single_joint_position
+    ros_data_type: control_msgs::action::SingleJointPosition
+    cpp_data_type:
+      goal:
+        - name: position
+          type: double
+        - name: max_velocity
+          type: double
+      result: []
+      feedback:
+        - name: position
+          type: double
+        - name: velocity
+          type: double
+
+  # TF2 actions - for transform lookups
+  tf2_msgs/action/LookupTransform:
+    include: tf2_msgs/action/lookup_transform
+    ros_data_type: tf2_msgs::action::LookupTransform
+    cpp_data_type:
+      goal:
+        - name: target_frame
+          type: std::string
+        - name: source_frame
+          type: std::string
+        - name: source_time
+          type: builtin_interfaces::msg::Time
+        - name: timeout
+          type: builtin_interfaces::msg::Duration
+        - name: target_time
+          type: builtin_interfaces::msg::Time
+        - name: fixed_frame
+          type: std::string
+        - name: advanced
+          type: bool
+      result:
+        - name: transform
+          type: geometry_msgs::msg::TransformStamped
+        - name: error
+          type: tf2_msgs::msg::TF2Error
+      feedback: []
+
+  # MoveIt actions - for motion planning
+  moveit_msgs/action/MoveGroup:
+    include: moveit_msgs/action/move_group
+    ros_data_type: moveit_msgs::action::MoveGroup
+    cpp_data_type:
+      goal:
+        - name: request
+          type: moveit_msgs::msg::MotionPlanRequest
+        - name: planning_options
+          type: moveit_msgs::msg::PlanningOptions
+      result:
+        - name: error_code
+          type: moveit_msgs::msg::MoveItErrorCodes
+        - name: trajectory_start
+          type: moveit_msgs::msg::RobotState
+        - name: planned_trajectory
+          type: moveit_msgs::msg::RobotTrajectory
+        - name: executed_trajectory
+          type: moveit_msgs::msg::RobotTrajectory
+        - name: planning_time
+          type: double
+      feedback:
+        - name: state
+          type: std::string
+
+  moveit_msgs/action/ExecuteTrajectory:
+    include: moveit_msgs/action/execute_trajectory
+    ros_data_type: moveit_msgs::action::ExecuteTrajectory
+    cpp_data_type:
+      goal:
+        - name: trajectory
+          type: moveit_msgs::msg::RobotTrajectory
+      result:
+        - name: error_code
+          type: moveit_msgs::msg::MoveItErrorCodes
+      feedback:
+        - name: state
+          type: std::string

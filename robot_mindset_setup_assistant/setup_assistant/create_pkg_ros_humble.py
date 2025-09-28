@@ -1,4 +1,3 @@
-
 from subprocess import run, CalledProcessError
 from loguru import logger
 

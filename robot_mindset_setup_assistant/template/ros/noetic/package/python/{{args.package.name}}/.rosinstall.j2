@@ -1,0 +1,8 @@
+{% if args.package.dependencies.git  -%}
+repositories:
+{%- for dep in args.package.dependencies.git %}
+  {{ dep.name }}:
+    type: git
+    url: {{dep.url}}
+    version: {{dep.version}}
+{%- endfor %}{% endif %}

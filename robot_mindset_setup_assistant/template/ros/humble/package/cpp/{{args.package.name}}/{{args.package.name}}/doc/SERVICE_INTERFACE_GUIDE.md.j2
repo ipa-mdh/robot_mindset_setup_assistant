@@ -1,0 +1,423 @@
+# ROS Service Server & Client Interface Guide
+
+This document describes how to implement and use ROS service servers and clients in the {{args.package.name}} package.
+
+## Architecture Overview
+
+This package follows a clean architecture pattern that separates ROS infrastructure from business logic:
+
+- **ROS Node** (`ros_node.cpp`): Handles ROS-specific concerns (service registration, request/response handling)
+- **LogicModule** (`{{args.package.name}}.cpp`): Contains business logic for service processing and client calls
+
+## Service Servers (Provide Services)
+
+Service servers provide synchronous request-response services to other nodes in the ROS network.
+
+### Available Service Servers
+
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'service' and interface.direction == 'out' %}
+
+#### {{interface.name}}
+- **Description**: {{interface.description}}
+- **Service Type**: `{{interface.msgs}}`
+- **Service**: `/{{args.package.name}}/{{interface.name}}`
+- **Handler Method**: `LogicModule::interface_{{interface.name | replace('/', '_') | replace('-', '_')}}()`
+{%- endif %}
+{%- endfor %}
+
+### Implementing Service Handlers
+
+Override the virtual service handler methods in your `LogicModule` class:
+
+```cpp
+// In your LogicModule class
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'service' and interface.direction == 'out' %}
+
+/**
+ * @brief Service handler for {{interface.name}}
+ * @param request Service request from client
+ * @param response Service response to populate
+ * @return true if service executed successfully, false otherwise
+ * 
+ * {{interface.description}}
+ */
+bool interface_{{interface.name | replace('/', '_') | replace('-', '_')}}(
+    const std::shared_ptr<{{interface.msgs | replace('/', '::') | replace('srv::', 'srv::')}}::Request> request,
+    std::shared_ptr<{{interface.msgs | replace('/', '::') | replace('srv::', 'srv::')}}::Response> response) override {
+    
+    {%- if 'set_bool' in interface.msgs.lower() %}
+    spdlog::info("{{interface.name}} service called with data: {}", request->data);
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_implementation
+    // Process the request
+    bool success = true;  // Your logic here
+    
+    // Set response
+    response->success = success;
+    response->message = success ? "Operation completed successfully" : "Operation failed";
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_implementation
+    
+    return success;
+    {%- elif 'empty' in interface.msgs.lower() %}
+    spdlog::info("{{interface.name}} service called");
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_implementation
+    // Perform operation (no request parameters)
+    bool success = true;  // Your logic here
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_implementation
+    
+    return success;
+    {%- else %}
+    spdlog::info("{{interface.name}} service called");
+    
+    // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_implementation
+    // Extract request parameters
+    // auto param1 = request->param1;
+    
+    // Process the request
+    bool success = true;  // Your processing logic here
+    
+    // Set response fields
+    // response->result = computed_result;
+    // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_implementation
+    
+    return success;
+    {%- endif %}
+}
+{%- endif %}
+{%- endfor %}
+```
+
+### Service Implementation Guidelines
+
+1. **Validate input parameters**: Check request data before processing
+2. **Handle errors gracefully**: Return false and set error messages
+3. **Use JINJA preservation tags** to maintain custom code during regeneration
+4. **Set meaningful response data**: Provide useful information to clients
+5. **Log service calls** for debugging and monitoring
+6. **Keep processing reasonably fast**: Services should respond promptly
+
+### Example Implementation
+
+```cpp
+bool LogicModule::interface_calculate_sum(
+    const std::shared_ptr<math_service::srv::AddTwoInts::Request> request,
+    std::shared_ptr<math_service::srv::AddTwoInts::Response> response) {
+    
+    // JINJA-BEGIN:calculate-sum_service_implementation
+    // Validate inputs (example: check for overflow)
+    if (request->a > INT_MAX - request->b) {
+        spdlog::error("Integer overflow detected: {} + {}", request->a, request->b);
+        return false;
+    }
+    
+    // Perform calculation
+    int64_t result = request->a + request->b;
+    
+    // Set response
+    response->sum = result;
+    
+    spdlog::info("Calculated sum: {} + {} = {}", request->a, request->b, result);
+    // JINJA-END:calculate-sum_service_implementation
+    
+    return true;
+}
+```
+
+## Service Clients (Call Services)
+
+Service clients allow your node to call services provided by other nodes.
+
+### Available Service Clients
+
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'service' and interface.direction == 'in' %}
+
+#### {{interface.name}}
+- **Description**: {{interface.description}}
+- **Service Type**: `{{interface.msgs}}`
+- **Service**: `/{{interface.name}}`
+- **Client Method**: `LogicModule::interface_srv_{{interface.name | replace('/', '_') | replace('-', '_')}}_call()`
+- **Callback Method**: `LogicModule::interface_srv_{{interface.name | replace('/', '_') | replace('-', '_')}}_callback()`
+{%- endif %}
+{%- endfor %}
+
+### Calling Services
+
+Use the client interface methods from your business logic:
+
+```cpp
+// In your LogicModule business logic
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'service' and interface.direction == 'in' %}
+
+// Call {{interface.name}} service
+auto request = std::make_shared<{{interface.msgs | replace('/', '::') | replace('srv::', 'srv::')}}::Request>();
+{%- if 'set_bool' in interface.msgs.lower() %}
+request->data = true;  // Set your desired value
+{%- elif 'empty' in interface.msgs.lower() %}
+// No request parameters needed
+{%- else %}
+// Set request parameters according to {{interface.msgs}} definition
+{%- endif %}
+interface_srv_{{interface.name | replace('/', '_') | replace('-', '_')}}_call(request);
+{%- endif %}
+{%- endfor %}
+```
+
+### Implementing Service Response Callbacks
+
+Override the virtual callback methods to handle service responses:
+
+```cpp
+// In your LogicModule class
+{%- for interface in args.ros.interfaces %}
+{%- if interface.type == 'service' and interface.direction == 'in' %}
+
+/**
+ * @brief Callback for {{interface.name}} service response
+ * @param response Service response from server
+ * 
+ * {{interface.description}}
+ */
+void interface_srv_{{interface.name | replace('/', '_') | replace('-', '_')}}_callback(
+    rclcpp::Client<{{interface.msgs | replace('/', '::') | replace('srv::', 'srv::')}}>::SharedFuture response) override {
+    
+    {%- if 'set_bool' in interface.msgs.lower() %}
+    if (response.valid()) {
+        auto result = response.get();
+        if (result->success) {
+            spdlog::info("{{interface.name}} service succeeded: {}", result->message);
+        } else {
+            spdlog::error("{{interface.name}} service failed: {}", result->message);
+        }
+        
+        // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_response_implementation
+        // Handle the service response
+        // Update internal state based on success/failure
+        // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_response_implementation
+    } else {
+        spdlog::error("{{interface.name}} service call failed - invalid response");
+    }
+    {%- elif 'empty' in interface.msgs.lower() %}
+    if (response.valid()) {
+        auto result = response.get();
+        spdlog::info("{{interface.name}} service completed successfully");
+        
+        // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_response_implementation
+        // Handle the service response
+        // Perform follow-up actions
+        // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_response_implementation
+    } else {
+        spdlog::error("{{interface.name}} service call failed - invalid response");
+    }
+    {%- else %}
+    if (response.valid()) {
+        auto result = response.get();
+        spdlog::info("{{interface.name}} service response received");
+        
+        // JINJA-BEGIN:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_response_implementation
+        // Extract response data
+        // auto data = result->some_field;
+        
+        // Handle the response
+        // Update internal state based on response
+        // JINJA-END:{{interface.name | replace('/', '-') | replace('_', '-')}}_service_response_implementation
+    } else {
+        spdlog::error("{{interface.name}} service call failed - invalid response");
+    }
+    {%- endif %}
+}
+{%- endif %}
+{%- endfor %}
+```
+
+## Best Practices
+
+### Service Servers
+
+1. **Validate all inputs**: Check request parameters before processing
+2. **Handle errors gracefully**: Return false and provide error messages
+3. **Keep responses fast**: Services should respond within reasonable time
+4. **Use meaningful error messages**: Help clients understand failures
+5. **Log service calls**: Track usage and debug issues
+6. **Be stateless when possible**: Don't rely on previous service calls
+7. **Document service contracts**: Clearly specify expected inputs/outputs
+
+### Service Clients
+
+1. **Handle timeouts**: Services may not respond immediately
+2. **Check response validity**: Always verify response before using data
+3. **Implement retry logic**: Handle temporary service failures
+4. **Don't block in callbacks**: Keep response handling fast
+5. **Store state for coordination**: Use member variables if needed
+6. **Log service outcomes**: Track success/failure for debugging
+
+### General
+
+1. **Separate concerns**: Keep ROS infrastructure separate from business logic
+2. **Use spdlog for logging** in LogicModule instead of ROS logging
+3. **Make methods testable** by avoiding direct ROS dependencies in LogicModule
+4. **Handle network failures**: Services may be temporarily unavailable
+5. **Version service interfaces** carefully to maintain compatibility
+
+## Testing Services
+
+### Testing Service Servers
+
+Call services from command line:
+
+```bash
+# List available services
+ros2 service list
+
+# Call a service
+ros2 service call /{{args.package.name}}/my_service std_srvs/srv/SetBool "data: true"
+
+# Get service info
+ros2 service info /{{args.package.name}}/my_service
+
+# Check service type
+ros2 service type /{{args.package.name}}/my_service
+```
+
+### Testing Service Clients
+
+1. Start an external service server that provides the service your client needs
+2. Trigger your service client through your business logic
+3. Monitor logs to see the callback responses
+
+### Example Test Commands
+
+```bash
+# Test SetBool service
+ros2 service call /my_node/enable_feature std_srvs/srv/SetBool "data: true"
+
+# Test Empty service
+ros2 service call /my_node/reset std_srvs/srv/Empty "{}"
+
+# Test custom service
+ros2 service call /my_node/calculate math_service/srv/AddTwoInts "a: 5, b: 3"
+```
+
+## Common Service Types
+
+### Standard Services
+
+- `std_srvs/srv/SetBool`: Enable/disable functionality
+- `std_srvs/srv/Empty`: Trigger actions without parameters
+- `std_srvs/srv/Trigger`: Trigger with success/message response
+
+### Navigation Services
+
+- `nav2_msgs/srv/SetInitialPose`: Set robot initial position
+- `nav2_msgs/srv/ClearEntireCostmap`: Clear navigation costmap
+
+### Control Services
+
+- `controller_manager_msgs/srv/LoadController`: Load robot controllers
+- `controller_manager_msgs/srv/SwitchController`: Switch active controllers
+
+## Error Handling
+
+### Server-Side Errors
+
+```cpp
+bool MyService::handle_request(Request request, Response response) {
+    try {
+        // Validate input
+        if (request.value < 0) {
+            spdlog::error("Invalid input: negative value {}", request.value);
+            return false;
+        }
+        
+        // Process request
+        auto result = process_data(request.value);
+        
+        // Set response
+        response.result = result;
+        return true;
+        
+    } catch (const std::exception& e) {
+        spdlog::error("Service processing failed: {}", e.what());
+        return false;
+    }
+}
+```
+
+### Client-Side Errors
+
+```cpp
+void MyService::call_external_service() {
+    auto request = std::make_shared<MyService::Request>();
+    request->value = 42;
+    
+    // Set timeout
+    auto future = client_->async_send_request(request);
+    
+    // Check if service is available
+    if (!client_->wait_for_service(std::chrono::seconds(5))) {
+        spdlog::error("Service not available after waiting");
+        return;
+    }
+    
+    // Handle response in callback
+    interface_srv_my_service_call(request);
+}
+```
+
+## Debugging
+
+### Common Issues
+
+1. **Service not found**: Check service name and server availability
+2. **Request timeout**: Server may be slow or unresponsive
+3. **Type mismatch**: Verify request/response message definitions
+4. **Server returns false**: Check server logs for error messages
+5. **Callback not called**: Verify client setup and service availability
+
+### Useful Commands
+
+```bash
+# Debug service connections
+ros2 service list -t
+ros2 service info /my_service --verbose
+
+# Check node services
+ros2 node info /my_node
+
+# Monitor service calls
+ros2 topic echo /my_service
+
+# Test service availability
+ros2 service find std_srvs/srv/SetBool
+
+# Inspect service structure
+ros2 interface show std_srvs/srv/SetBool
+```
+
+## Performance Considerations
+
+### Latency
+
+- **Minimize processing time** in service handlers
+- **Use appropriate timeout values** for clients
+- **Consider async patterns** for long-running operations
+
+### Reliability
+
+- **Implement retry mechanisms** for critical service calls
+- **Handle service unavailability** gracefully
+- **Use heartbeat services** to monitor system health
+
+### Scalability
+
+- **Avoid blocking operations** in service handlers
+- **Consider load balancing** for high-traffic services
+- **Use appropriate QoS settings** for service reliability
+
+---
+
+*This guide is automatically generated based on your package configuration. Modify the service interfaces in your setup assistant configuration to update this documentation.*

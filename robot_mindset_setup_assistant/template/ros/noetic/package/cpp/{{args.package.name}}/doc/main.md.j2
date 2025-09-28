@@ -1,0 +1,233 @@
+@mainpage {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+# {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}
+
+{{ args.package.description }}
+
+---
+
+## 📦 Package Overview
+
+- **Version**: {{ args.package.version }}
+- **Maintainer**: {{ args.package.maintainer }} ({{ args.package.maintainer_email }})
+- **License**: {{ args.package.license.value }}
+- **Language**: {{ args.package.language }}
+- **Environment**: {{ args.package.environment }}
+
+This package was generated using [`robot_mindset_setup_assistant`](https://github.com/robot-mindset/robot_mindset_setup_assistant), ensuring a consistent structure and development workflow across robotics projects.
+
+---
+
+## 🚀 Features
+
+@todo Add your feature description!
+
+---
+
+## 🤖 Generated Features
+
+- Modular design supporting **{{ args.package.language }}**
+- ROS interfaces defined in a centralized configuration
+- Standardized **launch files** and **instance configuration**
+- Auto-generated **Doxygen documentation** (see [Documentation](#-documentation))
+- Designed for integration with Docker, CI/CD, and project composers
+
+### Overview of Inheritance Structure
+
+The diagram illustrates the separation between **ROS-specific nodes** and **internal logic modules**, each inheriting from corresponding interface classes to promote modularity and testability.
+
+@dot
+digraph InheritanceDiagram {
+    rankdir="LR";
+    node [shape=box];
+    
+    ROSNode [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::ROSNode"]
+    LogicModule [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModule"]
+
+    node [style=filled, fillcolor="#eeeeee"]
+    RosOutputInterface [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosOutputInterface"]
+    RosInputInterface [label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosInputInterface"]
+
+    LogicModuleInputInterface[label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleInputInterface"]
+    LogicModuleOutputInterface[label="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleOutputInterface"]
+    
+    // Inheritance arrows
+    edge [fillcolor="white", style="filled"]
+
+    ROSNode -> RosInputInterface
+    ROSNode -> RosOutputInterface
+    LogicModule -> LogicModuleInputInterface
+    LogicModule -> LogicModuleOutputInterface
+}
+@enddot
+
+#### ROS Layer
+- `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::ROSNode` inherits from:
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosInputInterface`
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::RosOutputInterface`
+- These interfaces abstract the input/output mechanisms related to ROS topics, services, or actions. This design isolates ROS dependencies, enabling cleaner unit testing and improved maintainability.
+
+#### Logic Layer (Non-ROS)
+- `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModule` inherits from:
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleInputInterface`
+  - `{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}::LogicModuleOutputInterface`
+- These interfaces define contracts for core business logic or decision-making independent of ROS. They can be reused or tested without requiring a ROS runtime.
+
+---
+
+### ROS vs. Non-ROS Separation
+- **ROS code** is encapsulated in the `ROSNode`, which acts as the bridge between the robotic system and the logic layer.
+- **Non-ROS code** resides in the `LogicModule`, making it portable and agnostic of the middleware, such as ROS.
+- The use of clearly defined interfaces enforces a clean boundary between both layers, enabling:
+  - Easier simulation or mocking of components
+  - More focused unit tests
+  - Better reuse of logic across different projects or robotic platforms
+
+---
+
+## 🔌 ROS Interfaces
+
+### Topics
+
+| Name                           | Direction | Message Type         | Description                              |
+|--------------------------------|-----------|----------------------|------------------------------------------|
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for iface in args.ros.interfaces if iface.type == 'topic' %}
+| {{ ("`" ~ iface.name ~ "`").ljust(30) }} | {{ iface.direction.ljust(9) }} | {{ ("`" ~ iface.msgs ~ "`").ljust(20) }} | {{ iface.description.ljust(40) }} |
+{%- else %}
+|                                |           |                      |                      |
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+
+### Services
+
+| Name                           | Direction | Message Type         | Description                              |
+|--------------------------------|-----------|----------------------|------------------------------------------|
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for iface in args.ros.interfaces if iface.type == 'service' %}
+| {{ ("`" ~ iface.name ~ "`").ljust(30) }} | {{ iface.direction.ljust(9) }} | {{ ("`" ~ iface.msgs ~ "`").ljust(20) }} | {{ iface.description.ljust(40) }} |
+{%- else %}
+|                                |           |                      |                      |
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+### Actions
+
+| Name                           | Direction | Message Type         | Description                              |
+|--------------------------------|-----------|----------------------|------------------------------------------|
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for iface in args.ros.interfaces if iface.type == 'action' %}
+| {{ ("`" ~ iface.name ~ "`").ljust(30) }} | {{ iface.direction.ljust(9) }} | {{ ("`" ~ iface.msgs ~ "`").ljust(20) }} | {{ iface.description.ljust(40) }} |
+{%- else %}
+|                                |           |                      |                      |
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+---
+
+## 🛠️ Development
+
+Install all necessary dependencies via:
+
+```bash
+rosdep install --from-paths src --ignore-src -r -y
+```
+
+---
+
+## 🐳 Docker Usage
+
+Build the Docker image:
+
+```bash
+bash .dev-setup/docker/build-image.sh
+```
+
+Or use the provided `.devcontainer` for seamless VS Code integration.
+
+Push optionally the images to the registry:
+
+```bash
+bash .dev-setup/docker/push-image.sh
+```
+
+---
+
+## 🚀 Launch
+
+To run the main launch file:
+
+```bash
+roslaunch {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.launch
+```
+
+To test package integration (from another project):
+
+```bash
+roslaunch {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/example/main.launch
+```
+
+---
+
+## 📄 Documentation
+
+Doxygen documentation is auto-generated and can be found in:
+
+```
+doxygen/documentation/html/index.html
+```
+
+or as a gitlab page built by the CI/CD pipeline.
+
+To regenerate docs:
+
+```bash
+doxygen doxygen/Doxyfile
+```
+
+---
+
+## 🧪 Testing
+
+Tests are defined in `test/` and can be executed via:
+
+```bash
+catkin_make run_tests
+```
+
+---
+
+## 📎 Notes
+
+- Some files are auto-generated and **should not be edited manually**.
+- Launch file structure (`main`, `link`, `multi`, `single`) follows the assistant's conventions and should remain intact unless explicitly documented otherwise.
+
+---
+
+## 🤖 Project Tools
+
+This package is part of a larger composed system, integrated using:
+
+- `dev-setup` (development environment setup)
+- `robot_composer` (hardware abstraction)
+- `service_composer` (data/service chaining)
+
+---
+
+## 📥 Contributing
+
+Please follow the established style conventions and use the assistant to scaffold new components to ensure project consistency.
+
+---
+
+## 🧑‍💻 Maintainer
+
+**{{ args.package.maintainer }}**  
+📧 {{ args.package.maintainer_email }}
+```

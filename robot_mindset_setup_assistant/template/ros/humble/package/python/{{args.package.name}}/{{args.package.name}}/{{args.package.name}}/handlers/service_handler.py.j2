@@ -1,0 +1,174 @@
+"""Service handler implementing request/response business logic."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Dict, Optional
+
+from loguru import logger
+
+
+class ServiceHandler:
+    """Encapsulates service server and client logic independent from ROS."""
+
+    def __init__(self) -> None:
+        logger.debug("ServiceHandler initialised")
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._service_call_callback_{{ identifier }}: Optional[Callable[..., Any]] = None
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+        self._service_handler_callback_{{ identifier }}: Optional[Callable[[Dict[str, Any], Dict[str, Any]], Optional[Dict[str, Any]]]] = None
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Service servers (incoming requests)
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_service_handler_callback_{{ identifier }}(
+        self,
+        callback: Callable[[Dict[str, Any], Dict[str, Any]], Optional[Dict[str, Any]]],
+    ) -> None:
+        """Register delegate invoked after processing incoming requests.
+
+        Args:
+            callback: Callable receiving the request/response dictionaries.
+                The first argument is a dictionary of request fields, the
+                second the mutable response dictionary. Returning a dictionary
+                allows overriding or extending the response payload.
+        """
+        self._service_handler_callback_{{ identifier }} = callback
+        logger.debug("ServiceHandler: registered handler callback for {{ interface.name }}")
+
+    def process_service_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type.req %}
+        req_{{ field.name }}: Any,
+{%- endfor %}
+    ) -> Dict[str, Any]:
+        """Handle incoming service request for {{ interface.name }}.
+
+        Args:
+{%- for field in lu.cpp_data_type.req %}
+            req_{{ field.name }}: Request field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+
+        Returns:
+            Dict[str, Any]: Dictionary of response fields keyed by message attribute
+            names.
+        """
+        logger.info("ServiceHandler: Received service request {{ interface.name }}")
+        request_data = {
+{%- for field in lu.cpp_data_type.req %}
+            "{{ field.name }}": req_{{ field.name }},
+{%- endfor %}
+        }
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
+{%- for field in lu.cpp_data_type.req %}
+        logger.debug("\treq_{{ field.name }} = {}", req_{{ field.name }})
+{%- endfor %}
+        response: Dict[str, Any] = {}
+{%- for field in lu.cpp_data_type.res %}
+{%- set field_type = field.type | lower %}
+{%- if "bool" in field_type %}
+        response["{{ field.name }}"] = True
+{%- elif "string" in field_type %}
+        response["{{ field.name }}"] = ""
+{%- elif "float" in field_type or "double" in field_type %}
+        response["{{ field.name }}"] = 0.0
+{%- elif "int" in field_type %}
+        response["{{ field.name }}"] = 0
+{%- elif "vector" in field_type or "[]" in field_type %}
+        response["{{ field.name }}"] = []
+{%- else %}
+        response["{{ field.name }}"] = None
+{%- endif %}
+{%- endfor %}
+        # TODO: Modify response based on business rules
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-server
+        callback = self._service_handler_callback_{{ identifier }}
+        if callback is None:
+            logger.debug("ServiceHandler: No handler callback registered for {{ interface.name }}")
+            return response
+
+        try:
+            override = callback(request_data, response)
+            if isinstance(override, dict):
+                response.update(override)
+        except Exception as exc:  # pragma: no cover - user callback safety
+            logger.error("ServiceHandler: Handler callback for {{ interface.name }} raised exception: {}", exc)
+        return response
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Service clients (outgoing requests)
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|regex_replace('[^A-Za-z0-9]', '_') %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_service_call_callback_{{ identifier }}(self, caller: Callable[[
+{%- for field in lu.cpp_data_type.req %}
+            Any,
+{%- endfor %}
+        ], Any]) -> None:
+        """Register ROS layer callback to perform the client call.
+
+        Args:
+            caller: Callable used by the logic module to delegate ROS service
+                requests. Signature::
+
+                    caller(
+{%- for field in lu.cpp_data_type.req %}
+                        {{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{%- endif %}
+{%- endfor %}
+                    ) -> Any
+        """
+        self._service_call_callback_{{ identifier }} = caller
+        logger.debug("ServiceHandler: registered client callback for {{ interface.name }}")
+
+    def call_service_{{ identifier }}(
+        self,
+{%- for field in lu.cpp_data_type.req %}
+        {{ field.name }}: Any,
+{%- endfor %}
+    ) -> Any:
+        """Trigger outbound service request for {{ interface.name }}.
+
+        Args:
+{%- for field in lu.cpp_data_type.req %}
+            {{ field.name }}: Value for request field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+
+        Returns:
+            Any: Result provided by the registered ROS client callback.
+        """
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client
+        logger.info("ServiceHandler: Calling service {{ interface.name }}")
+{%- for field in lu.cpp_data_type.req %}
+        logger.debug("\t{{ field.name }} = {}", {{ field.name }})
+{%- endfor %}
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-client
+
+        if self._service_call_callback_{{ identifier }} is None:
+            logger.warning("ServiceHandler: No client callback registered for {{ interface.name }}")
+            return None
+
+        return self._service_call_callback_{{ identifier }}(
+{%- for field in lu.cpp_data_type.req %}
+            {{ field.name }},
+{%- endfor %}
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}

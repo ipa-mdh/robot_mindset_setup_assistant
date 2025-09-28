@@ -1,0 +1,2 @@
+{% if args.package.dependencies.apt  %}{% for dep in args.package.dependencies.apt %}
+{{ dep }}{% endfor %}{% endif %}

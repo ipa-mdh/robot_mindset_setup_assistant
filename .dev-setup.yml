@@ -1,36 +1,40 @@
-package_name: robot_mindset_setup_assistant
-environment: debian
+# User configuration - Independent variables only
+# This file contains only variables that are not computed from other variables
+# In combination with the .dev-setup/.dev-setup.computed.yml file, it will serve as the context for the template files.
 
-dockerfile:
-    base:
-        from: "debian:12"
-        tag: "robot_mindset_setup_assistant_base:1.0"
-        cmd: ["bash"]
-        build: True
-        build_arguments:
-            secret: id=gitcreds,src=$HOME/.git-credentials
-    devcontainer:
-        from: "robot_mindset_setup_assistant_base:1.0"
-        tag: "robot_mindset_setup_assistant_devcontainer:1.0"
-        cmd: ["bash"]
-        build: False
-    run:
-        from: "robot_mindset_setup_assistant_base:1.0"
-        tag: "robot_mindset_setup_assistant_run:1.0"
-        cmd: ["bash", "-c", "roslaunch robot_mindset_setup_assistant node"]
-        build: True
-        build_arguments:
-            secret: id=gitcreds,src=$HOME/.git-credentials
+package_name: "robot_mindset_setup_assistant"
+environment: "debian"
+version: "1.0"
 
+# Docker registry configuration
+docker:
+    registry: "container-registry.gitlab.cc-asp.fraunhofer.de/multirobot/robot_mindset_setup_assistant"
+#   -- example for additional docker run arguments
+#    runArgs:
+#        - "--cap-add=sys_nice"
+#        - "--ulimit=rtprio=99"
+#        - "--ulimit=memlock=-1"
+#        - "--publish=15000:15000/udp"
+#        - "--publish=15000:15000"
+
+# Development container features
 devcontainer:
-    vscode:
-        extensions: ["ms-python.python",
-                    "ms-vscode.cpptools-extension-pack",
-                    "ms-vscode.cmake-tools",
-                    "redhat.vscode-xml",
-                    "mhutchie.git-graph",
-                    "ms-azuretools.vscode-docker",
-                    "mtsmfm.vscode-stl-viewer"]
     feature:
         packages: "ssh,curl,nano,python3-pip,git"
         desktop_lite: False
+    vscode:
+        extensions: 
+            - "ms-python.python"
+            - "ms-vscode.cpptools-extension-pack"
+            - "ms-vscode.cmake-tools"
+            - "redhat.vscode-xml"
+            - "mhutchie.git-graph"
+            - "ms-azuretools.vscode-docker"
+            - "mtsmfm.vscode-stl-viewer"
+            - "cschlosser.doxdocgen"
+            - "samuelcolvin.jinjahtml"
+            
+
+entrypoint:
+    source: []
+    

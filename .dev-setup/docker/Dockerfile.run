@@ -4,7 +4,7 @@
 # -----------------------------------------------------------------------------
 
 # Use the image from the first file
-FROM robot_mindset_setup_assistant_base:1.0
+FROM robot_mindset_setup_assistant:base-1.0 AS build
 
 # Set the working directory
 WORKDIR /workspace/src
@@ -16,23 +16,23 @@ COPY . /workspace/src/robot_mindset_setup_assistant
 WORKDIR /workspace
 
 # Make sure the install and setup scripts are executable
-RUN chmod +x /workspace/src/robot_mindset_setup_assistant/dev-setup/install.sh
-RUN chmod +x /workspace/src/robot_mindset_setup_assistant/dev-setup/setup_git_credentials.sh
+RUN chmod +x /workspace/src/robot_mindset_setup_assistant/.dev-setup/install.sh
+RUN chmod +x /workspace/src/robot_mindset_setup_assistant/.dev-setup/setup_git_credentials.sh
 
 # Run the installation script
 RUN --mount=type=secret,id=gitcreds,dst=/tmp/.git-credentials \
-    ./src/robot_mindset_setup_assistant/dev-setup/setup_git_credentials.sh --git-credentials-file /tmp/.git-credentials
-RUN ./src/robot_mindset_setup_assistant/dev-setup/install.sh
+    ./src/robot_mindset_setup_assistant/.dev-setup/setup_git_credentials.sh --git-credentials-file /tmp/.git-credentials
+RUN ./src/robot_mindset_setup_assistant/.dev-setup/install.sh
 RUN rm -rf ~/.git-credentials
 
-# Source the ROS 2 setup and build the workspace
-RUN source /opt/ros/humble/setup.bash && colcon build
+# Build the workspace
+RUN 
 
-# Clean up apt cache and reduce image size
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Delete the workspace folder after installation, except for the install folder, to clean up
-RUN rm -rf /workspace/src /workspace/build /workspace/log
+# -----------------------------------------------------------------------------
+FROM robot_mindset_setup_assistant:base-1.0
+COPY --from=build /root/.conan2 /root/.conan2
+COPY --from=build /opt/dev-setup /opt/dev-setup
+# -----------------------------------------------------------------------------
 
 # Run the main launch file
-CMD ['bash', '-c', 'roslaunch robot_mindset_setup_assistant node']
+CMD ["bash", "-c", "echo hi"]

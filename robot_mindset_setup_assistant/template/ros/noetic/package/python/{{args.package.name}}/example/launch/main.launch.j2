@@ -1,0 +1,45 @@
+<launch>
+    <!-- Default arguments -->
+    <arg  name="namespace}}"
+        default="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}"
+            doc="Namespace for the {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} nodes." />
+    <arg  name="simulation"
+        default="true"
+            doc="Flag to start the application as a simulation or not." />
+    <arg  name="simulation_with_gazebo"
+        default="true"
+            doc="Flag to start the application with Gazebo simulation. If simulation is false, this will be ignored." />
+
+    {%- if args.single_serve  %}{%- if args.single_serve.launch  %}{%- if args.single_serve.launch.arguements  %}
+    <!-- Specific arguments: single serve -->
+    {%- for arg in args.single_serve.launch.arguements %}
+    <arg   name="{{ arg.name }}"
+    default="{{ arg.default }}"
+    doc="{{ arg.description }}" />
+    {% endfor %}{% endif %}{% endif %}{% endif %}
+    
+    {%- if args.link_serve %}{%- if args.link_serve.launch %}{%- if args.link_serve.launch.arguements %}
+    <!-- Specific arguments: link serve -->
+    {%- for arg in args.link_serve.launch.arguements %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+    {% endfor %}{% endif %}{% endif %}{% endif %}
+    
+    {%- if args.multi_serve  %}{%- if args.multi_serve.launch  %}{%- if args.multi_serve.launch.arguements  %}
+    <!-- Specific arguments: multi serve -->
+    {%- for arg in args.multi_serve.launch.arguements %}
+    <arg   name="{{ arg.name }}"
+        default="{{ arg.default }}"
+            doc="{{ arg.description }}" />
+    {% endfor %}{% endif %}{% endif %}{% endif %}
+
+    <!-- call all the launch files -->
+
+    <include file="$(find {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})/example/launch/single_serve.launch" pass_all_args="true"/>
+
+    <include file="$(find {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})/example/launch/link_serve.launch" pass_all_args="true"/>
+
+    <include file="$(find {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})/launch/multi_serve.launch" pass_all_args="true"/>
+
+</launch>

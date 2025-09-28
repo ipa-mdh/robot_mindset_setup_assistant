@@ -1,0 +1,8 @@
+from setuptools import setup, find_packages
+
+setup(
+    name='{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}',
+    version='{{args.package.version}}',
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
+)

@@ -1,5 +1,0 @@
-pathlib==1.0.1
-loguru==0.7.3
-nicegui==2.1.0
-catkin_pkg==1.0.0
-ros2-pkg-create==1.1.0
