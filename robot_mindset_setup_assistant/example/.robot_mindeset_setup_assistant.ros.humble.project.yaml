@@ -101,4 +101,10 @@ multi_serve:
 #     connecting to the service name.
 # ========================================================================
 ros:
-  interface_connections: []
+  interface_connections:
+    - interface_out:
+        package_name: test_humble_cpp_pkg
+        topic: interface_topic_string_out
+      interface_in:
+        package_name: test_humble_python_pkg
+        topic: interface/topic_string_in

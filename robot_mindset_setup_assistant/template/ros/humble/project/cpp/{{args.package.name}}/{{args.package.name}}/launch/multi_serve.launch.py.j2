@@ -134,6 +134,29 @@ def generate_custom_launch_description(context, *args, **kwargs):
         actions=[
             # push-ros-namespace to set namespace of included nodes
             launch_ros.actions.PushRosNamespace('{{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}'),
+{%- if args.ros is defined and args.ros.interface_connections is defined %}
+{%- for connection in args.ros.interface_connections %}
+{%- if connection.interface_in.package_name == multi.package and connection.interface_in.topic is defined and connection.interface_out.topic is defined %}
+{%- set input_topic = connection.interface_in.topic | regex_replace('^/', '') %}
+{%- set output_topic = connection.interface_out.topic | regex_replace('^/', '') %}
+{%- set out_ns_tmp = namespace(value='') %}
+{%- if args.multi_serve is defined %}
+{%- for candidate in args.multi_serve %}
+{%- if candidate.package == connection.interface_out.package_name %}
+{%- set out_ns_tmp.value = candidate.name | lower | replace(' ', '_') | replace('-', '_') %}
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- if out_ns_tmp.value == '' %}
+{%- set out_ns_tmp.value = connection.interface_out.package_name | lower | replace(' ', '_') | replace('-', '_') %}
+{%- endif %}
+            launch_ros.actions.SetRemap(
+                src='{{ input_topic }}',
+                dst='/' + '{{ out_ns_tmp.value }}' + '/' + '{{ output_topic }}'
+            ),
+{%- endif %}
+{%- endfor %}
+{%- endif %}
             {{ multi.name | lower | replace(' ', '_') | replace('-', '_') }}
         ]
     ))
