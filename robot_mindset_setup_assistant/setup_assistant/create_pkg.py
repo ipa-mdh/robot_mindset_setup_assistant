@@ -225,8 +225,11 @@ class RosNoeticPackage(GitFlowRepo):
         """
         Initialize the package by creating the necessary directories and files.
         """
+
+        package_type = self.context["package"].get("type", "package")
+
         # Get the template folder based on the environment
-        env = Path(self.context["package"]["environment"]) / "package" / self.context["package"]["language"]
+        env = Path(self.context["package"]["environment"]) / package_type / self.context["package"]["language"]
         template_root = get_template_folder(env)
         
         # Render the template folder

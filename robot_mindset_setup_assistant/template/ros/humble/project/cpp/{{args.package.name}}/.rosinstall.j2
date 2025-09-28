@@ -1,0 +1,16 @@
+repositories:
+{%- if args.package is defined and args.package.dependencies is defined and args.package.dependencies.git %}
+{%- for repo in args.package.dependencies.git %}
+  {{ repo.name }}:
+    type: {{ repo.type | default('git') }}
+    url: {{ repo.url }}
+    {%- if repo.version is defined and repo.version %}
+    version: {{ repo.version }}
+    {%- endif %}
+    {%- if repo.path is defined and repo.path %}
+    path: {{ repo.path }}
+    {%- endif %}
+{%- endfor %}
+{%- else %}
+  {}
+{%- endif %}

@@ -1,0 +1,33 @@
+{%- set parameter_entries = [] -%}
+{%- if args.ros is defined and args.ros.interfaces is defined -%}
+{%-   for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" -%}
+{%-     set _ = parameter_entries.append({
+            'name': interface.name,
+            'value': interface.value if interface.value is defined else none,
+            'description': interface.description if interface.description is defined else none
+        }) -%}
+{%-   endfor -%}
+{%- endif -%}
+
+parameters:
+  # JINJA-BEGIN:parameters
+{%- if parameter_entries %}
+{%-   for param in parameter_entries %}
+{%-     set value = param.value -%}
+{%-     if value is boolean or value is number %}
+  {{ param.name }}: {{ value }}
+{%-     elif value is not none %}
+  {{ param.name }}: "{{ value }}"
+{%-     else %}
+  {{ param.name }}: null
+{%-     endif -%}{% if param.description %}  # {{ param.description }}{% endif %}
+{%-   endfor %}
+{%- else %}
+  # No ROS parameters defined in setup assistant configuration.
+{%- endif %}
+  # JINJA-END:parameters
+
+# JINJA-BEGIN:additional-config
+# Here you can add additional configuration entries.
+
+# JINJA-END:additional-config
