@@ -138,7 +138,7 @@ void ROSNode::init_logic_module()
     {%- endif %}
 {%- endfor %}
     
-    {# // 2. SERVICE HANDLERS: Set up bidirectional service communication
+    // 2. SERVICE HANDLERS: Set up bidirectional service communication
     
     // Service Servers: ROS network -> ROS handlers -> LogicModule
 {%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
@@ -206,7 +206,7 @@ void ROSNode::init_logic_module()
             return false;
         });
     {%- endif %}
-{%- endfor %} #}
+{%- endfor %}
     
     {# // 3. ACTION HANDLERS: Set up bidirectional action communication
     
