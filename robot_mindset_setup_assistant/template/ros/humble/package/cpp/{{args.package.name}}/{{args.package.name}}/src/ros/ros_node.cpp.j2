@@ -207,42 +207,43 @@ void ROSNode::init_logic_module()
     // Connect {{ interface.name }} action server from ROS to LogicModule
     if (action_handler_) {
         action_handler_->set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_callbacks(
-            // Goal callback
-            [this](const rclcpp_action::GoalUUID & uuid, 
-                   std::shared_ptr<const {{ lu.ros_data_type }}::Goal> goal) -> rclcpp_action::GoalResponse {
-                // Delegate goal acceptance decision to LogicModule
-                bool accept = logic_module_.action_handler().should_accept_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(goal);
-                return accept ? rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE 
-                              : rclcpp_action::GoalResponse::REJECT;
+            // Goal callback (accept by default)
+            [this](const rclcpp_action::GoalUUID & /*uuid*/, 
+                   std::shared_ptr<const {{ lu.ros_data_type }}::Goal> /*goal*/) -> rclcpp_action::GoalResponse {
+                return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
             },
-            // Cancel callback  
-            [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) -> rclcpp_action::CancelResponse {
-                logic_module_.action_handler().cancel_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(goal_handle);
+            // Cancel callback (acknowledge cancel requests)
+            [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> /*goal_handle*/) -> rclcpp_action::CancelResponse {
                 return rclcpp_action::CancelResponse::ACCEPT;
             },
             // Accepted callback
             [this](const std::shared_ptr<rclcpp_action::ServerGoalHandle<{{ lu.ros_data_type }}>> goal_handle) {
-                // Execute action in LogicModule
+                if (!goal_handle) {
+                    RCLCPP_WARN(this->get_logger(), "Received null goal handle for {{ interface.name }}");
+                    return;
+                }
+                // Execute action in LogicModule on a background thread
                 std::thread([this, goal_handle]() {
-                    logic_module_.action_handler().execute_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+                    auto feedback = std::make_shared<{{ lu.ros_data_type }}::Feedback>();
+                    auto result = std::make_shared<{{ lu.ros_data_type }}::Result>();
+
+                    logic_module_.action_handler().execute_action_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
                         goal_handle->get_goal(),
-                        // Feedback callback
-                        [goal_handle](const std::shared_ptr<{{ lu.ros_data_type }}::Feedback> feedback) {
-                            goal_handle->publish_feedback(feedback);
-                        },
-                        // Result callback
-                        [goal_handle](const std::shared_ptr<{{ lu.ros_data_type }}::Result> result, bool success) {
-                            if (success) {
-                                goal_handle->succeed(result);
-                            } else {
-                                goal_handle->abort(result);
+                        feedback,
+                        result,
+                        [goal_handle]() -> bool { return goal_handle->is_canceling(); },
+                        [goal_handle](std::shared_ptr<{{ lu.ros_data_type }}::Feedback> feedback_msg) {
+                            if (!goal_handle->is_canceling() && feedback_msg) {
+                                goal_handle->publish_feedback(feedback_msg);
                             }
                         },
-                        // Is cancelled check
-                        [goal_handle]() -> bool {
-                            return goal_handle->is_canceling();
-                        }
-                    );
+                        [this]() -> bool { return rclcpp::ok(); });
+
+                    if (goal_handle->is_canceling()) {
+                        goal_handle->canceled(result);
+                    } else {
+                        goal_handle->succeed(result);
+                    }
                 }).detach();
             });
     }
@@ -252,25 +253,30 @@ void ROSNode::init_logic_module()
     // Action Clients: LogicModule -> ROS handlers -> ROS network
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
     {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
-    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    {%- set lu = namespace(
+            cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type,
+            ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    {%- if lu.cpp_data_type.goal is defined %}
     // Connect {{ interface.name }} action client from LogicModule to ROS
-    logic_module_.action_handler().set_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}_client_callback(
+    logic_module_.action_handler().set_action_callback_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
         [this](
-        {%- if lu.cpp_data_type.goal is defined %}
         {%- for field in lu.cpp_data_type.goal %}
         const {{ field.type }} &goal_{{ field.name }}{% if not loop.last %}, {% endif %}
-        {%- endfor %}
-        {%- endif %}) -> bool {
-            if (action_handler_) {
-                return action_handler_->send_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
-                {%- if lu.cpp_data_type.goal is defined %}
-                {%- for field in lu.cpp_data_type.goal %}
-                goal_{{ field.name }}{% if not loop.last %}, {% endif %}
-                {%- endfor %}
-                {%- endif %});
+        {%- endfor %}) {
+            if (!action_handler_) {
+                RCLCPP_WARN(this->get_logger(), "Action handler not initialized for {{ interface.name }}");
+                return;
             }
-            return false;
+            bool dispatched = action_handler_->send_goal_{{ interface.name|regex_replace('[^A-Za-z0-9]', '_') }}(
+            {%- for field in lu.cpp_data_type.goal %}
+                goal_{{ field.name }}{% if not loop.last %}, {% endif %}
+            {%- endfor %}
+            );
+            if (!dispatched) {
+                RCLCPP_WARN(this->get_logger(), "Failed to dispatch action goal for {{ interface.name }}");
+            }
         });
+    {%- endif %}
     {%- endif %}
 {%- endfor %}
     
