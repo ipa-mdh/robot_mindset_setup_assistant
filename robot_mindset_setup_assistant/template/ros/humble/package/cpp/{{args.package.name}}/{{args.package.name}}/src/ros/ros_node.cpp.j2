@@ -198,7 +198,7 @@ void ROSNode::init_logic_module()
     {%- endif %}
 {%- endfor %}
     
-    {# // 3. ACTION HANDLERS: Set up bidirectional action communication
+    // 3. ACTION HANDLERS: Set up bidirectional action communication
     
     // Action Servers: ROS network -> ROS handlers -> LogicModule
 {%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
@@ -272,7 +272,7 @@ void ROSNode::init_logic_module()
             return false;
         });
     {%- endif %}
-{%- endfor %} #}
+{%- endfor %}
     
     // 4. PARAMETER HANDLERS: Set up parameter synchronization
 {%- set parameter_ns = namespace(items=[]) %}
