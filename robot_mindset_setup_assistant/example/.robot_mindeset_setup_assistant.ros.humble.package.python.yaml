@@ -179,7 +179,4 @@ ros:
       msgs: std_msgs/msg/string
       type: parameter
       description: A log level interface for the robot.
-
-spark:
-  capabilities:
-    - type: data_processing
+      value: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL
