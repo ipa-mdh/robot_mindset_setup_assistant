@@ -57,4 +57,5 @@ def create_template_environment(*, loader: FileSystemLoader | None = None) -> En
     env.filters["to_pascal_case"] = to_pascal_case
     env.filters["to_snake_case"] = to_snake_case
     env.filters["default_output_placeholder"] = default_output_placeholder
+    env.globals.setdefault("default_output_placeholder", default_output_placeholder)
     return env

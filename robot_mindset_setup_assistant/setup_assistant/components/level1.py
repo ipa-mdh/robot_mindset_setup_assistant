@@ -68,6 +68,18 @@ class Level1TemplateComponent:
 
             feature_context = copy.deepcopy(context)
             feature_context.setdefault("level_1_selected_feature", {})[feature_name] = copy.deepcopy(feature_cfg)
+            node_cfg = feature_cfg.get("node")
+            if node_cfg:
+                node_cfg.setdefault("name", feature_name)
+                node_cfg.setdefault("id", node_cfg.get("name"))
+                feature_context["node"] = node_cfg
+                if node_cfg.get("type", "action") == "action":
+                    feature_context["action"] = node_cfg
+            else:
+                logger.debug(
+                    "Level 1 feature '%s' does not define a 'node' configuration.",
+                    feature_name,
+                )
             self._render_feature_contents(
                 feature_template_root,
                 destination,
@@ -88,6 +100,13 @@ class Level1TemplateComponent:
         directories = [entry for entry in entries if entry.is_dir()]
         files = [entry for entry in entries if entry.is_file()]
 
+        node_cfg = feature_cfg.get("node")
+        extra_kwargs: dict[str, Any] = {
+            "feature": feature_cfg,
+            "node": node_cfg,
+            "action": node_cfg,  # backward compatibility with action-node templates
+        }
+
         if directories:
             for directory in directories:
                 self._renderer.render_folder(
@@ -95,7 +114,7 @@ class Level1TemplateComponent:
                     destination,
                     context,
                     preserve_customizations=preserve_customizations,
-                    feature=feature_cfg,
+                    **extra_kwargs,
                 )
 
         if files:
@@ -112,7 +131,7 @@ class Level1TemplateComponent:
                 destination,
                 context,
                 preserve_customizations=preserve_customizations,
-                feature=feature_cfg,
+                **extra_kwargs,
             )
 
     def _migrate_legacy_factory_layout(self, destination: Path, package_name: str) -> None:
