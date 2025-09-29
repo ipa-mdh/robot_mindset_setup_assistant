@@ -51,67 +51,6 @@ def default_output_placeholder(port_type: str) -> str:
     return mapping.get(simple, f"{port_type}{{}}")
 
 
-def build_bt_action_metadata(action_cfg: dict) -> dict:
-    if not isinstance(action_cfg, dict):
-        raise ValueError("BehaviourTree action configuration must be a dictionary")
-
-    data = copy.deepcopy(action_cfg)
-
-    identifier_source = data.get("id") or data.get("name") or data.get("class_name")
-    if not identifier_source:
-        raise ValueError("BehaviourTree action configuration requires an 'id', 'name', or 'class_name'")
-
-    identifier_snake = to_snake_case(identifier_source)
-    class_name = data.get("class_name") or to_pascal_case(identifier_source)
-
-    registration_id = data.get("registration_id") or to_pascal_case(identifier_source)
-    base_class = data.get("base_class", "SyncActionNode")
-
-    ports_cfg = data.get("ports", {}) or {}
-    input_ports = []
-    for port in ports_cfg.get("inputs", []) or []:
-        if "name" not in port:
-            raise ValueError("BehaviourTree input ports require a 'name'")
-        port_name = port["name"]
-        variable = to_snake_case(port_name) or f"{to_snake_case(class_name)}_{len(input_ports)}"
-        normalized = {
-            "name": port_name,
-            "type": port.get("type", "double"),
-            "description": port.get("description", "Input port"),
-            "variable": variable,
-        }
-        if "default" in port:
-            normalized["default"] = port["default"]
-        input_ports.append(normalized)
-
-    output_ports = []
-    for port in ports_cfg.get("outputs", []) or []:
-        if "name" not in port:
-            raise ValueError("BehaviourTree output ports require a 'name'")
-        port_name = port["name"]
-        placeholder = port.get("placeholder", default_output_placeholder(port.get("type", "double")))
-        output_ports.append({
-            "name": port_name,
-            "type": port.get("type", "double"),
-            "description": port.get("description", "Output port"),
-            "placeholder_value": placeholder,
-        })
-
-    result = {
-        "id": identifier_snake,
-        "class_name": class_name,
-        "registration_id": registration_id,
-        "base_class": base_class,
-        "ports": {
-            "inputs": input_ports,
-            "outputs": output_ports,
-        },
-        "tick_behavior": data.get("tick_behavior"),
-        "file_stem": to_snake_case(data.get("file_name", identifier_source)) or identifier_snake,
-    }
-
-    return result
-
 def extract_custom_section(file_content,
                            start_marker=CUSTOM_SECTION_START_MARKER,
                            end_marker=CUSTOM_SECTION_END_MARKER):
@@ -206,61 +145,111 @@ def preserve_user_content(file_path: Path, new_rendered_output, preserve: bool =
 
     return merged_output
 
+def create_template_environment(*, loader: FileSystemLoader | None = None) -> Environment:
+    env = Environment(loader=loader)
+    env.filters['regex_replace'] = regex_replace
+    env.filters['to_pascal_case'] = to_pascal_case
+    env.filters['to_snake_case'] = to_snake_case
+    env.filters['default_output_placeholder'] = default_output_placeholder
+    return env
+
 def render_path(path: Path, context: dict) -> Path:
     """Render each part of the path as a Jinja2 template."""
+    env = create_template_environment()
     parts = []
+    render_kwargs = {**context}
+    render_kwargs.setdefault("args", context)
     for part in path.parts:
-        rendered = Template(part).render(args=context)
+        rendered = env.from_string(part).render(**render_kwargs)
         parts.append(rendered)
         
     logger.debug(f"Rendering path: {path} -> {parts}")
     return Path(*parts)
 
+LOOP_DIR_PATTERN = re.compile(r"\[\[\s*loop\s*:\s*(?P<path>[^:\]]+)\s*:\s*(?P<alias>[^\]]+)\s*\]\]")
+
+
+def resolve_context_path(context: dict, dotted_path: str):
+    value = context
+    for part in dotted_path.split('.'):
+        if isinstance(value, dict):
+            value = value.get(part)
+        elif isinstance(value, (list, tuple)):
+            try:
+                index = int(part)
+            except ValueError as exc:
+                raise ValueError(f"Expected integer index to access list element in path '{dotted_path}', got '{part}'") from exc
+            try:
+                value = value[index]
+            except IndexError as exc:
+                raise ValueError(f"Index {index} out of range while resolving '{dotted_path}'") from exc
+        else:
+            raise ValueError(f"Cannot resolve '{part}' on non-container object while resolving '{dotted_path}'")
+        if value is None:
+            break
+    return value
+
+
 def render_template_folder(template_root: Path, destination_root: Path, context: dict, *, preserve_customizations: bool = True, **extra_render_kwargs):
     """Render the template folder and copy files to the destination."""
-    for file in template_root.rglob("*"):
-        logger.info(f"Processing file: {file}")
-        
-        rel_path = file.relative_to(template_root)
-        dest_path = destination_root / render_path(rel_path, context)
-        logger.debug(f"Destination path: {dest_path}")
 
-        if dest_path.is_dir():
-            dest_path.mkdir(parents=True, exist_ok=True)
-            
-        elif file.suffix == ".j2":
-            # with open(file) as f:
-            #     template = Template(f.read())
-            #     rendered = template.render(args=context)
+    string_env = create_template_environment()
 
-            env = Environment(loader=FileSystemLoader(file.parent))
-            # env = Environment()
-            # Register the regex_replace filter
-            env.filters['regex_replace'] = regex_replace
-            # Load the template by filename (e.g., 'template.jinja2')
-            template = env.get_template(file.name)
-            # Render the template with your context
-            render_kwargs = {"args": context}
-            render_kwargs.update(extra_render_kwargs)
-            rendered = template.render(**render_kwargs)
+    def _render_directory(src_dir: Path, dest_dir: Path, ctx: dict):
+        for entry in sorted(src_dir.iterdir()):
+            loop_match = LOOP_DIR_PATTERN.fullmatch(entry.name)
+            if loop_match:
+                data_path = loop_match.group('path').strip()
+                alias = loop_match.group('alias').strip()
+                sequence = resolve_context_path(ctx, data_path)
+                if not isinstance(sequence, (list, tuple)):
+                    raise ValueError(f"Loop directory '{entry}' expects iterable at '{data_path}', got {type(sequence)}")
+                for index, item in enumerate(sequence):
+                    loop_ctx = copy.deepcopy(ctx)
+                    loop_ctx[alias] = item
+                    loop_ctx[f"{alias}_index"] = index
+                    _render_directory(entry, dest_dir, loop_ctx)
+                continue
 
-            dest_path = dest_path.with_suffix("")  # Remove .j2 extension
-            rendered = preserve_user_content(dest_path, rendered, preserve=preserve_customizations)
-            # create parent directories if they don't exist
-            dest_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(dest_path, "w") as f:
-                f.write(rendered)
-        else:
-            if file.is_file():
-                logger.debug(f"Copying file: {file} to {dest_path}")
-                # create parent directories if they don't exist
+            if entry.is_dir():
+                dir_render_kwargs = {**ctx}
+                dir_render_kwargs.setdefault("args", ctx)
+                rendered_dir_name = string_env.from_string(entry.name).render(**dir_render_kwargs)
+                next_dest_dir = dest_dir / rendered_dir_name
+                next_dest_dir.mkdir(parents=True, exist_ok=True)
+                _render_directory(entry, next_dest_dir, ctx)
+                continue
+
+            file_render_kwargs = {**ctx}
+            file_render_kwargs.setdefault("args", ctx)
+            rendered_file_name = string_env.from_string(entry.name).render(**file_render_kwargs)
+            dest_path = dest_dir / rendered_file_name
+
+            if entry.suffix == ".j2":
+                env = create_template_environment(loader=FileSystemLoader(entry.parent))
+
+                template = env.get_template(entry.name)
+                render_kwargs = {**ctx}
+                render_kwargs.setdefault("args", ctx)
+                render_kwargs.update(extra_render_kwargs)
+                rendered_content = template.render(**render_kwargs)
+
+                actual_dest_path = dest_path.with_suffix("")
+                rendered_content = preserve_user_content(actual_dest_path, rendered_content, preserve=preserve_customizations)
+                actual_dest_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(actual_dest_path, "w") as f:
+                    f.write(rendered_content)
+            else:
+                logger.debug(f"Copying file: {entry} to {dest_path}")
                 dest_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(file) as f:
+                with open(entry) as f:
                     content = f.read()
                 content = preserve_user_content(dest_path, content, preserve=preserve_customizations)
                 with open(dest_path, "w") as f:
                     f.write(content)
-                # shutil.copy(src=file, dst=dest_path)
+
+    destination_root.mkdir(parents=True, exist_ok=True)
+    _render_directory(template_root, destination_root, context)
 
 def get_template_folder(environment: str):
     """
@@ -296,7 +285,7 @@ def get_template_folder(environment: str):
     return template_root
 
 
-def get_level1_template_folder(environment: str, language: str, feature: str) -> Path:
+def get_level1_template_root(environment: str, language: str) -> Path:
     current_file_path = Path(__file__).resolve()
     parent_dir = current_file_path.parent.parent
 
@@ -305,7 +294,12 @@ def get_level1_template_folder(environment: str, language: str, feature: str) ->
             string = str(string)
         return string.replace(".", "/")
 
-    template_root = parent_dir / Path("template") / dot_to_forward_slash(environment) / language / "level_1" / feature
+    root = parent_dir / Path("template") / dot_to_forward_slash(environment) / language / "level_1"
+    return root
+
+
+def get_level1_template_folder(environment: str, language: str, feature: str) -> Path:
+    template_root = get_level1_template_root(environment, language) / feature
     if not template_root.exists():
         logger.error(f"Level 1 template directory {template_root} does not exist.")
         raise ValueError(f"Unknown level 1 feature: {feature}")
@@ -372,73 +366,39 @@ class RosNoeticPackage(GitFlowRepo):
         """
         apply_doxygen_awesome(self)
 
-    def render_level1_template(self, template_path: Path, destination_path: Path, args_context: dict, **extra):
-        env = Environment(loader=FileSystemLoader(template_path.parent))
-        env.filters['regex_replace'] = regex_replace
-        template = env.get_template(template_path.name)
-        render_kwargs = {"args": args_context}
-        render_kwargs.update(extra)
-        rendered = template.render(**render_kwargs)
-
-        destination_path.parent.mkdir(parents=True, exist_ok=True)
-        rendered = preserve_user_content(destination_path, rendered, preserve=self.preserve_customizations)
-        with open(destination_path, "w") as f:
-            f.write(rendered)
-
     def generate_level1_features(self):
-        try:
-            self.generate_behaviour_tree_actions()
-        except ValueError as exc:
-            logger.error(f"Failed to generate level 1 overlays: {exc}")
-            raise
-
-    def generate_behaviour_tree_actions(self):
         package_info = self.context.get("package", {})
-        if package_info.get("language") != "cpp":
-            return
-
         level1_cfg = self.context.get("level_1", {}) or {}
-        behaviour_tree_cfg = level1_cfg.get("behaviour_tree", {}) or {}
-        action_nodes = behaviour_tree_cfg.get("action_nodes", []) or []
-        if not action_nodes:
+        if not level1_cfg:
             return
 
-        template_root = get_level1_template_folder(
-            package_info.get("environment", "ros.humble"),
-            package_info.get("language", "cpp"),
-            "behaviour_tree",
-        )
+        environment = package_info.get("environment", "ros.humble")
+        language = package_info.get("language")
+        if not language:
+            logger.warning("Skipping level 1 overlays because package language is not specified.")
+            return
 
-        actions_metadata = []
-        for idx, action_cfg in enumerate(action_nodes):
+        level1_root = get_level1_template_root(environment, language)
+        if not level1_root.exists():
+            logger.info(f"No level 1 template folder found at {level1_root}; skipping overlays.")
+            return
+
+        for feature_name, feature_cfg in level1_cfg.items():
+            feature_template_root = level1_root / feature_name
+            if not feature_template_root.exists():
+                logger.warning(f"Level 1 feature '{feature_name}' ignored because template folder {feature_template_root} is missing.")
+                continue
+
             try:
-                actions_metadata.append(build_bt_action_metadata(action_cfg))
-            except ValueError as exc:
-                raise ValueError(f"Invalid behaviour tree action node definition at index {idx}: {exc}") from exc
-
-        args_context = copy.deepcopy(self.context)
-        args_context.setdefault("level_1_generated", {}).setdefault("behaviour_tree", {})["actions"] = copy.deepcopy(actions_metadata)
-
-        factory_template_root = template_root / "factory"
-        if factory_template_root.exists():
-            render_template_folder(
-                factory_template_root,
-                self.working_dir,
-                args_context,
-                preserve_customizations=self.preserve_customizations,
-                actions=actions_metadata,
-            )
-
-        action_template_root = template_root / "action_node"
-        for action_metadata in actions_metadata:
-            action_args_context = copy.deepcopy(args_context)
-            action_args_context.setdefault("level_1_generated", {}).setdefault("behaviour_tree", {})["current_action"] = copy.deepcopy(action_metadata)
-            action_args_context["action"] = copy.deepcopy(action_metadata)
-            if action_template_root.exists():
+                feature_context = copy.deepcopy(self.context)
+                feature_context.setdefault("level_1_selected_feature", {})[feature_name] = copy.deepcopy(feature_cfg)
                 render_template_folder(
-                    action_template_root,
+                    feature_template_root,
                     self.working_dir,
-                    action_args_context,
+                    feature_context,
                     preserve_customizations=self.preserve_customizations,
-                    action=action_metadata,
+                    feature=feature_cfg,
                 )
+            except ValueError as exc:
+                logger.error(f"Failed to generate level 1 feature '{feature_name}': {exc}")
+                raise
