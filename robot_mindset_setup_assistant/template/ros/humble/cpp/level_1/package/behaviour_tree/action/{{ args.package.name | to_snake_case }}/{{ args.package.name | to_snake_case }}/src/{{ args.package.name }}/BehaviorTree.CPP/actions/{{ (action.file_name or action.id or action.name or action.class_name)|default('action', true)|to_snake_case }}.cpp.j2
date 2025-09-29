@@ -1,10 +1,11 @@
-{% set identifier = (action.id or action.name or action.class_name) | default('ActionNode', true) %}
+{% set identifier = (action.file_name or action.id or action.name or action.class_name) | default('ActionNode', true) %}
 {% set class_name = action.class_name | default(identifier | to_pascal_case) %}
 {% set base_class = action.base_class | default('SyncActionNode') %}
 {% set input_ports = action.ports.inputs | default([], true) %}
 {% set output_ports = action.ports.outputs | default([], true) %}
+{% set file_stem = identifier | to_snake_case %}
 
-#include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/actions/{{ args.action.name | to_snake_case }}.hpp"
+#include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/actions/{{ file_stem }}.hpp"
 
 
 namespace {{ args.package.name | to_snake_case }}::bt::actions {

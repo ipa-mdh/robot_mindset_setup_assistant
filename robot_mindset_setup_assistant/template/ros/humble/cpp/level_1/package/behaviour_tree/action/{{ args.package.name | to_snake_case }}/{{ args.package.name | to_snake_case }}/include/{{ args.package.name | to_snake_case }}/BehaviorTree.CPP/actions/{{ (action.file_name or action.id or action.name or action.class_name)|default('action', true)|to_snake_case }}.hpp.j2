@@ -1,6 +1,7 @@
-{% set identifier = (action.id or action.name or action.class_name) | default('ActionNode', true) %}
+{% set identifier = (action.file_name or action.id or action.name or action.class_name) | default('ActionNode', true) %}
 {% set class_name = action.class_name | default(identifier | to_pascal_case) %}
 {% set base_class = action.base_class | default('SyncActionNode') %}
+{% set file_stem = identifier | to_snake_case %}
 
 #pragma once
 

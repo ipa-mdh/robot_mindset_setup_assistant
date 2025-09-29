@@ -1,14 +1,14 @@
-#include "{{ args.package.name }}/BehaviorTree.CPP/register_nodes.hpp"
+#include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/register_nodes.hpp"
 
 {% set action_nodes = feature.action_nodes | default([], true) %}
 {%- for action in action_nodes %}
 {% set identifier = (action.file_name or action.id or action.name or action.class_name) | default('ActionNode', true) %}
 {% set class_name = action.class_name | default(identifier | to_pascal_case) %}
 {% set file_stem = identifier | to_snake_case %}
-#include "{{ args.package.name }}/BehaviorTree.CPP/actions/{{ file_stem }}.hpp"
+#include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/actions/{{ file_stem }}.hpp"
 {%- endfor %}
 
-namespace {{ args.package.name | to_snake_case }}::bt {
+namespace {{ args.package.name | regex_replace('[^A-Za-z0-9]', '_') }}::bt {
 
 void register_behavior_tree_nodes(BT::BehaviorTreeFactory &factory)
 {
@@ -24,5 +24,5 @@ void register_behavior_tree_nodes(BT::BehaviorTreeFactory &factory)
 {%- endif %}
 }
 
-}  // namespace {{ args.package.name | to_snake_case }}::bt
+}  // namespace {{ args.package.name | regex_replace('[^A-Za-z0-9]', '_') }}::bt
 
