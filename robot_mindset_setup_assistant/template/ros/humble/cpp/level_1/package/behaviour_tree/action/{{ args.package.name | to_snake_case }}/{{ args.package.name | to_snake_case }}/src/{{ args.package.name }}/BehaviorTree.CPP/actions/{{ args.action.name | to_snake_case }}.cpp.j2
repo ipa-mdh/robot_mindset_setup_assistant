@@ -1,8 +1,8 @@
-{% set identifier = (action.file_name or action.id or action.name or action.class_name) | default('ActionNode', true) %}
-{% set class_name = action.class_name | default(identifier | to_pascal_case) %}
-{% set base_class = action.base_class | default('SyncActionNode') %}
-{% set input_ports = action.ports.inputs | default([], true) %}
-{% set output_ports = action.ports.outputs | default([], true) %}
+{% set identifier = args.action.name | default('ActionNode', true) %}
+{% set class_name = args.action.class_name | default(identifier | to_pascal_case) %}
+{% set base_class = args.action.base_class | default('SyncActionNode') %}
+{% set input_ports = args.action.ports.inputs | default([], true) %}
+{% set output_ports = args.action.ports.outputs | default([], true) %}
 {% set file_stem = identifier | to_snake_case %}
 
 #include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/actions/{{ file_stem }}.hpp"

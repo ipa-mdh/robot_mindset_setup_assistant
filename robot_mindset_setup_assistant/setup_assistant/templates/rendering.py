@@ -40,6 +40,38 @@ class TemplateRenderer:
         **extra_render_kwargs: Any,
     ) -> None:
         destination_root.mkdir(parents=True, exist_ok=True)
+        root_loop_meta = template_root / LOOP_METADATA_FILENAME
+        if root_loop_meta.exists():
+            with open(root_loop_meta) as meta_file:
+                loop_meta = yaml.safe_load(meta_file) or {}
+
+            data_path = loop_meta.get("path")
+            alias = loop_meta.get("alias")
+            if not data_path or not alias:
+                raise ValueError(f"Loop metadata in '{template_root}' must define 'path' and 'alias'")
+
+            sequence = self._resolve_context_path(context, data_path)
+            if sequence is None:
+                return
+            if not isinstance(sequence, (list, tuple)):
+                raise ValueError(
+                    f"Loop directory '{template_root}' expects iterable at '{data_path}', got {type(sequence)}"
+                )
+
+            for index, item in enumerate(sequence):
+                loop_ctx = copy.deepcopy(context)
+                loop_ctx[alias] = item
+                loop_ctx[f"{alias}_index"] = index
+                loop_ctx.setdefault("loop", {})[alias] = {"index": index, "value": item}
+                self._render_directory(
+                    template_root,
+                    destination_root,
+                    loop_ctx,
+                    preserve_customizations=preserve_customizations,
+                    extra_render_kwargs=extra_render_kwargs,
+                )
+            return
+
         self._render_directory(
             template_root,
             destination_root,

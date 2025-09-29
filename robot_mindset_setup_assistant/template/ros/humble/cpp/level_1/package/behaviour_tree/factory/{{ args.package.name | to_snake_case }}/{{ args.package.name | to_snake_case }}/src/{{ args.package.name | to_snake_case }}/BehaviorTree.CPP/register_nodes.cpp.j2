@@ -2,7 +2,7 @@
 
 {% set action_nodes = feature.action_nodes | default([], true) %}
 {%- for action in action_nodes %}
-{% set identifier = (action.file_name or action.id or action.name or action.class_name) | default('ActionNode', true) %}
+{% set identifier = action.name | default('ActionNode', true) %}
 {% set class_name = action.class_name | default(identifier | to_pascal_case) %}
 {% set file_stem = identifier | to_snake_case %}
 #include "{{ args.package.name }}/BehaviorTree.CPP/actions/{{ file_stem }}.hpp"
@@ -14,7 +14,7 @@ void register_behavior_tree_nodes(BT::BehaviorTreeFactory &factory)
 {
 {%- if action_nodes %}
 {%- for action in action_nodes %}
-{% set identifier = (action.file_name or action.id or action.name or action.class_name) | default('ActionNode', true) %}
+{% set identifier = action.name | default('ActionNode', true) %}
 {% set class_name = action.class_name | default(identifier | to_pascal_case) %}
 {% set registration_id = action.registration_id | default(action.id or action.name or class_name, true) %}
   factory.registerNodeType<actions::{{ class_name }}>("{{ registration_id }}");
