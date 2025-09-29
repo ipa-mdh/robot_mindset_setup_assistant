@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project({{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})
+project({{ args.package.name |to_snake_case}})
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)

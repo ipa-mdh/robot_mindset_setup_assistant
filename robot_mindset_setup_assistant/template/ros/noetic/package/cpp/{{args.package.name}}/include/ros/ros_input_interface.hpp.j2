@@ -32,7 +32,7 @@
 #include "{{ msgs }}.h"
 {%- endfor %}
 
-namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+namespace {{ args.package.name |to_snake_case}} {
 
 // Interface for the inbound direction (receiving messages)
 class RosInputInterface {

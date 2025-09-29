@@ -1,0 +1,86 @@
+/*
+* This file is auto-generated using Jinja2.
+* It creates a ROS node with the specified topics, services, and actions.
+*/
+
+#pragma once
+#include <string>
+#include <vector>
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+
+#include "ros/handlers/ros_topic_handler.hpp"
+#include "ros/handlers/ros_service_handler.hpp"
+#include "ros/handlers/ros_action_handler.hpp"
+#include "ros/handlers/ros_parameter_handler.hpp"
+
+#include "{{ args.package.name |to_snake_case}}/{{ args.package.name |to_snake_case}}.hpp"
+
+namespace {{ args.package.name |to_snake_case}} {
+
+/*  ROS and non-ROS module interface
+ *
+ * out: Something that the node provides to other nodes.
+ *      Normally, only one topic, service or action can be published
+ *      under the service name.
+ * in: Something the node can consume from other nodes.
+ *     One of multiple topic/service/action subscribers/clients
+ *     connecting to the service name.
+ *
+ *
+ *  topic
+ *  ----       
+ *  other           -----------------------------------       ----------------------------------- 
+ *  ROS Nodes      |ROSNode |                          |     | Logic Module |                    |
+ *              in |--------                           |     |--------------                     |
+ *   publisher  -->| sub_xyz calls callback_sub_xyz()  | --> | process_sub_xyz()                 |
+ *              out|                                   |     |                                   |
+ *   subscriber <--| pub_abc                           | <-- | interface_pub_abc()               |
+ *                  -----------------------------------       ----------------------------------- 
+ *
+ *  service
+ *  ----
+ *  other           ---------------------------------------       ----------------------------------- 
+ *  ROS Nodes      |ROSNode |                              |     | Logic Module |                    |
+ *              in |--------                               |     |--------------                     |
+ *   service    -->| client_xyz                            | <-- | interface_srv()                   |
+ *              out|                                       |     |                                   |
+ *   client     <--| service_abc calls callback_srv_abc()  | --> | process_pub_abc()                 |
+ *                  ---------------------------------------       ----------------------------------- 
+ */
+
+class ROSNode : public rclcpp::Node
+{
+public:
+  ROSNode();
+  ~ROSNode();
+
+  std::vector<RosParam> get_private_parameters();
+  bool set_private_parameter(const std::string& param_name, const std::string& param_value);
+
+  // === Logic Module Access ===
+  LogicModule& logic_module() { return logic_module_; }
+  const LogicModule& logic_module() const { return logic_module_; }
+
+private:
+  // === Handler composition ===
+  std::unique_ptr<RosTopicHandler> topic_handler_;
+  std::unique_ptr<RosServiceHandler> service_handler_;
+  std::unique_ptr<RosActionHandler> action_handler_;
+  std::unique_ptr<RosParameterHandler> parameter_handler_;
+
+  // === Logic module instance ===
+  LogicModule logic_module_;
+
+  // === Initialization methods ===
+  void init_parameters();
+  void init_ros_interface_subscribers();
+  void init_ros_interface_publishers();
+  void init_ros_interface_services();
+  void init_ros_interface_clients();
+  void init_ros_interface_action_services();
+  void init_ros_interface_action_clients();
+  void init_logic_module();
+};
+
+} // namespace {{ args.package.name |to_snake_case}}

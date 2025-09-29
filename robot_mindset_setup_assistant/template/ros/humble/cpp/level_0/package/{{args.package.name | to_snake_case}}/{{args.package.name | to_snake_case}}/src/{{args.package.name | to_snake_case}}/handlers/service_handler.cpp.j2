@@ -1,0 +1,171 @@
+#include "{{ args.package.name |to_snake_case}}/handlers/service_handler.hpp"
+
+/**
+ * @file service_handler.cpp
+ * @brief Implementation of service handler for server/client operations
+ */
+
+namespace {{ args.package.name |to_snake_case}} {
+
+ServiceHandler::ServiceHandler() {
+    spdlog::debug("ServiceHandler initialized");
+}
+
+// =============================================================================
+// SERVICE SERVER METHODS
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+void ServiceHandler::process_service_{{ interface.name|to_snake_case }}(
+    const std::shared_ptr<{{ lu.ros_data_type }}::Request> request,
+    std::shared_ptr<{{ lu.ros_data_type }}::Response> response) {
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-implementation
+    spdlog::info("ServiceHandler: Processing service request {{ interface.name }}");
+    // TODO: Implement the core business logic for service server: {{ interface.name }}
+    // 
+    // This method should:
+    // 1. Validate the incoming request parameters
+    // 2. Perform the required business logic
+    // 3. Populate the response with results
+    // 4. Handle any errors appropriately
+    
+    // Example implementation:
+    // // Validate request
+    // if (!validate_request(request)) {
+    //     response->success = false;
+    //     response->message = "Invalid request parameters";
+    //     spdlog::warn("Service {{ interface.name }}: Invalid request received");
+    //     return;
+    // }
+    // 
+    // try {
+    //     // Perform business logic
+    //     auto result = perform_service_operation(request);
+    //     
+    //     // Populate response
+    //     response->success = true;
+    //     response->result = result;
+    //     response->message = "Service completed successfully";
+    //     
+    //     spdlog::info("Service {{ interface.name }} completed successfully");
+    // } catch (const std::exception& e) {
+    //     response->success = false;
+    //     response->message = "Service execution failed: " + std::string(e.what());
+    //     spdlog::error("Service {{ interface.name }} failed: {}", e.what());
+    // }
+    
+    // Default implementation - replace with your business logic
+    response->success = true;
+    spdlog::info("ServiceHandler: Service {{ interface.name }} completed (default implementation)");
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-implementation
+
+    if (srv_handler_callback_{{ interface.name|to_snake_case }}_) {
+        srv_handler_callback_{{ interface.name|to_snake_case }}_(request, response);
+    } else {
+        spdlog::debug("ServiceHandler: No delegate registered for service {{ interface.name }}");
+    }
+}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+// =============================================================================
+// SERVICE CLIENT METHODS
+// =============================================================================
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+void ServiceHandler::call_service_{{ interface.name|to_snake_case }}(
+    const std::shared_ptr<{{ lu.ros_data_type }}::Request> request) {
+    
+    spdlog::info("ServiceHandler: Calling external service {{ interface.name }}");
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-call-implementation
+    // TODO: Add your business logic for preparing service calls
+    // This method is called when you want to call an external service
+    
+    // Example logic:
+    // // Validate request parameters
+    // if (validate_service_request(request)) {
+    //     prepare_service_call(request);
+    //     log_service_call_attempt(request);
+    // } else {
+    //     spdlog::warn("Invalid service request for {{ interface.name }}");
+    //     return;
+    // }
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-call-implementation
+    
+    // Delegate to ROS layer for actual service call
+    if (srv_callback_{{ interface.name|to_snake_case }}_) {
+        srv_callback_{{ interface.name|to_snake_case }}_(request);
+    } else {
+        spdlog::warn("ServiceHandler: No service callback registered for {{ interface.name }}");
+    }
+}
+
+void ServiceHandler::handle_service_response_{{ interface.name|to_snake_case }}(
+    const std::shared_ptr<{{ lu.ros_data_type }}::Response> response) {
+    
+    spdlog::info("ServiceHandler: Received response from service {{ interface.name }}");
+    
+    // JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-response-implementation
+    // TODO: Process response from external service call
+    // Update internal state, trigger follow-up actions, etc.
+    
+    // Example processing:
+    // if (response->success) {
+    //     spdlog::info("Service {{ interface.name }} call succeeded");
+    //     process_successful_response(response);
+    //     update_internal_state_from_response(response);
+    // } else {
+    //     spdlog::warn("Service {{ interface.name }} call failed: {}", response->message);
+    //     handle_service_failure(response);
+    // }
+    // JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-service-response-implementation
+
+    if (srv_response_callback_{{ interface.name|to_snake_case }}_) {
+        srv_response_callback_{{ interface.name|to_snake_case }}_(response);
+    } else {
+        spdlog::debug("ServiceHandler: No response callback registered for {{ interface.name }}");
+    }
+}
+
+void ServiceHandler::set_service_call_callback_{{ interface.name|to_snake_case }}(
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>)> callback) {
+    srv_callback_{{ interface.name|to_snake_case }}_ = callback;
+    spdlog::debug("ServiceHandler: Service callback registered for {{ interface.name }}");
+}
+
+void ServiceHandler::set_service_response_callback_{{ interface.name|to_snake_case }}(
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) {
+    srv_response_callback_{{ interface.name|to_snake_case }}_ = std::move(callback);
+    spdlog::debug("ServiceHandler: Response callback registered for {{ interface.name }}");
+}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+void ServiceHandler::set_service_handler_callback_{{ interface.name|to_snake_case }}(
+    std::function<void(const std::shared_ptr<{{ lu.ros_data_type }}::Request>&,
+                       std::shared_ptr<{{ lu.ros_data_type }}::Response>)> callback) {
+    srv_handler_callback_{{ interface.name|to_snake_case }}_ = std::move(callback);
+    spdlog::debug("ServiceHandler: Handler delegate registered for {{ interface.name }}");
+}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+}  // namespace {{ args.package.name |to_snake_case}}

@@ -1,8 +1,8 @@
 <launch>
     <!-- Default arguments -->
     <arg  name="namespace}}"
-        default="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}"
-            doc="Namespace for the {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} nodes." />
+        default="{{ args.package.name |to_snake_case}}"
+            doc="Namespace for the {{ args.package.name |to_snake_case}} nodes." />
     <arg  name="simulation"
         default="true"
             doc="Flag to start the application as a simulation or not." />
@@ -12,7 +12,7 @@
 
     <!-- Specific arguments -->
     <arg name="instance_config_folder"
-    default="$(find {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}})/example/instance_config/$(arg namespace)"
+    default="$(find {{ args.package.name |to_snake_case}})/example/instance_config/$(arg namespace)"
         doc="Location of the instance config folder." />
 
 {%- if args.multi_serve  %}{%- if args.multi_serve.launch  %}{%- if args.multi_serve.launch.arguements  %}
@@ -23,8 +23,8 @@
 {% endfor %}{% endif %}{% endif %}{% endif %}
 
     <!-- Place your launch file conetent here. -->
-    <node name="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}_node"
-        pkg="{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}"
+    <node name="{{ args.package.name |to_snake_case}}_node"
+        pkg="{{ args.package.name |to_snake_case}}"
         type="node"
         output="screen">
         <rosparam command="load" file="$(arg instance_config_folder)/config.yaml"/>
