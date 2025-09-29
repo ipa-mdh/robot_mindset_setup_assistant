@@ -1,0 +1,182 @@
+"""ROS 2 node bridging {{ args.package.name |to_snake_case}} logic with rclpy."""
+
+from __future__ import annotations
+
+from typing import Optional
+
+import rclpy
+from loguru import logger
+from rclpy.node import Node
+
+from {{ args.package.name |to_snake_case}}.logic_module import LogicModule
+from {{ args.package.name |to_snake_case}}.ros import (
+    RosActionHandler,
+    RosParameterHandler,
+    RosServiceHandler,
+    RosTopicHandler,
+)
+
+
+class ROSNode(Node):
+    """ROS-aware adapter around the LogicModule using handler composition."""
+
+    def __init__(self) -> None:
+        super().__init__('{{ args.package.name |to_snake_case}}')
+
+        # Compose logic and ROS handlers
+        self.logic_module = LogicModule()
+        self._topic_handler = RosTopicHandler(self)
+        self._service_handler = RosServiceHandler(self)
+        self._action_handler = RosActionHandler(self)
+        self._parameter_handler = RosParameterHandler(self)
+
+        # Initialise ROS resources
+        self._topic_handler.initialize()
+        self._service_handler.initialize()
+        self._action_handler.initialize()
+        self._parameter_handler.initialize()
+
+        # Wire logic module with ROS handlers
+        self._wire_topic_handlers()
+        self._wire_service_handlers()
+        self._wire_action_handlers()
+        self._wire_parameter_handlers()
+
+    # ==================================================================
+    # Wiring helpers
+    # ==================================================================
+    def _wire_topic_handlers(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|to_snake_case %}
+        self.logic_module.topic_handler.set_publish_callback_{{ identifier }}(
+            self._topic_handler.publish_{{ identifier }}
+        )
+{%- endif %}
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|to_snake_case %}
+        self._topic_handler.set_{{ identifier }}_callback(
+            lambda *args, handler=self.logic_module.topic_handler: handler.process_subscription_{{ identifier }}(*args)
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _wire_service_handlers(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "out" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|to_snake_case %}
+        self._service_handler.set_service_callback_{{ identifier }}(
+            lambda *args, handler=self.logic_module.service_handler: handler.process_service_{{ identifier }}(*args)
+        )
+{%- endif %}
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|to_snake_case %}
+        self.logic_module.service_handler.set_service_call_callback_{{ identifier }}(
+            self._service_handler.call_service_{{ identifier }}
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _wire_action_handlers(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- set identifier = interface.name|to_snake_case %}
+        self._action_handler.set_action_server_callbacks_{{ identifier }}(
+            self.logic_module.action_handler.execute_action_{{ identifier }},
+            getattr(self.logic_module.action_handler, "should_accept_{{ identifier }}", None),
+            getattr(self.logic_module.action_handler, "cancel_{{ identifier }}", None),
+        )
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|to_snake_case %}
+        self.logic_module.action_handler.set_action_client_callback_{{ identifier }}(
+            self._action_handler.send_goal_{{ identifier }}
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    def _wire_parameter_handlers(self) -> None:
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set identifier = interface.name|to_snake_case %}
+        self._parameter_handler.register_delegate(
+            "{{ interface.name }}",
+            self.logic_module.parameter_handler.process_parameter_{{ identifier }},
+        )
+{%- endif %}
+{%- endfor %}
+{%- else %}
+        self._parameter_handler.register_delegate(
+            "log_level",
+            self.logic_module.parameter_handler.process_parameter_log_level,
+        )
+{%- endif %}
+
+        self._parameter_handler.set_parameter_change_callback(
+            lambda name, value: logger.debug("Parameter {} changed to {}", name, value)
+        )
+        self._parameter_handler.set_apply_callback(self._apply_parameters_to_logic_module)
+        self._parameter_handler.apply_parameters()
+
+    # ==================================================================
+    # Parameter helpers
+    # ==================================================================
+    def _apply_parameters_to_logic_module(self) -> None:
+        """Apply current parameter values to the logic module."""
+        # JINJA-BEGIN:parameter-application-logic
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "parameter" and interface.direction == "in" %}
+        current = self._parameter_handler.get_current_value("{{ interface.name }}")
+{%- if interface.name == "log_level" %}
+        if current is not None:
+            self.logic_module.set_logger_level(str(current))
+{%- else %}
+        # TODO: propagate {{ interface.name }} to your logic module
+        # self.logic_module.parameter_handler().set_{{ interface.name|to_snake_case }}(current)
+{%- endif %}
+{%- endfor %}
+{%- else %}
+        current = self._parameter_handler.get_current_value("log_level")
+        if current is not None:
+            self.logic_module.set_logger_level(str(current))
+{%- endif %}
+        # JINJA-END:parameter-application-logic
+
+
+def main(args: Optional[list[str]] = None) -> None:
+    """Entry point for console_scripts."""
+    rclpy.init(args=args)
+    node = None
+    try:
+        node = ROSNode()
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        logger.info("Shutting down {{ args.package.name |to_snake_case}} node")
+    except Exception as exc:  # pragma: no cover - runtime safety
+        logger.error("Unexpected error in {{ args.package.name |to_snake_case}} node: {}", exc)
+    finally:
+        if node is not None:
+            try:
+                node.destroy_node()
+            except Exception as exc:  # pragma: no cover - cleanup safety
+                logger.warning("Error during node cleanup: {}", exc)
+
+        try:
+            rclpy.shutdown()
+        except Exception as exc:  # pragma: no cover - shutdown safety
+            logger.warning("Error during ROS shutdown: {}", exc)
+
+
+if __name__ == '__main__':
+    main()

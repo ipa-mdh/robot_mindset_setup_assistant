@@ -10,9 +10,9 @@
  #include "ros/ros_input_interface.hpp"
  #include "ros/ros_output_interface.hpp"
  
- #include "{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}/{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}.hpp"
+ #include "{{ args.package.name |to_snake_case}}/{{ args.package.name |to_snake_case}}.hpp"
  
- namespace {{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}} {
+ namespace {{ args.package.name |to_snake_case}} {
  
   struct RosParam {
     std::string name;

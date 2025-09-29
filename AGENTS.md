@@ -37,7 +37,7 @@ main.py → RosNoeticPackage → create_pkg.RosNoeticPackage.configure() → ren
 - **Spark hooks**: `sparks.yaml` is reserved for plug-in style extensions. Current file is a placeholder for future event-driven tasks.
 
 ## Working with templates
-- Use Jinja2 expressions in file paths (`{{ args.package.name |regex_replace('[^A-Za-z0-9]', '_')}}`) and contents.
+- Use Jinja2 expressions in file paths (`{{ args.package.name |to_snake_case}}`) and contents.
 - Register new filters inside `create_pkg.py` if templates need additional transformations.
 - Avoid manual edits in generated files unless wrapped in the `JINJA-BEGIN/JINJA-END` markers; otherwise they will be overwritten on the next run.
 - Add new environments by creating a folder under `template/` and updating `get_template_folder()` to support the selector.

@@ -1,0 +1,192 @@
+#pragma once
+/**
+ * @file topic_handler.hpp
+ * @brief Topic interface handler for publish/subscribe operations
+ * 
+ * This class handles all topic-related business logic, including:
+ * - Processing incoming topic messages (subscribers)
+ * - Publishing outgoing topic messages (publishers)
+ * - Data transformation and validation
+ */
+
+#include <string>
+#include <functional>
+#include <memory>
+#include <spdlog/spdlog.h>
+
+{#- Initialize an empty list to collect unique message types #}
+{%- set unique_msgs = [] %}
+{%- set ns = namespace(add_actionlib=false) -%}
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" %}
+{#- Check if the message type is already in the list #}
+{%- if interface.msgs not in unique_msgs -%}
+{#- If not, add it to the list #}
+{%- set unique_msgs = unique_msgs.append(interface.msgs) -%}
+{%- endif -%}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+{%- for msgs in unique_msgs|sort %}
+{%- if msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(include=args.lookup.interfaces.msgs[msgs].include) %}
+#include "{{ lu.include }}.hpp"
+{%- else %}
+// implementation is required for msgs: {{ msgs }}
+{%- endif %}
+{%- endfor %}
+
+namespace {{ args.package.name |to_snake_case}} {
+
+/**
+ * @class TopicHandler
+ * @brief Handles all topic-related business logic
+ * 
+ * This class encapsulates topic-specific operations, providing a clean
+ * interface for publish/subscribe functionality while maintaining
+ * separation from ROS infrastructure concerns.
+ */
+class TopicHandler {
+public:
+    TopicHandler();
+    virtual ~TopicHandler() = default;
+
+    // =============================================================================
+    // PUBLISHER METHODS
+    // =============================================================================
+    // These methods handle outgoing topic publications
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    /**
+     * @brief Publish data to topic: {{ interface.name }}
+    {%- for field in lu.cpp_data_type %}
+     * @param {{ field.name }} The data to publish
+    {%- endfor %}
+     * 
+     * Description: {{ interface.description }}
+     * Topic Type: {{ lu.ros_data_type }}
+     */
+    void publish_{{ interface.name|to_snake_case }}(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %});
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // SUBSCRIBER CALLBACK METHODS
+    // =============================================================================
+    // These methods process incoming topic messages
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    /**
+     * @brief Process incoming message from topic: {{ interface.name }}
+    {%- for field in lu.cpp_data_type %}
+     * @param {{ field.name }} The received message data
+    {%- endfor %}
+     * 
+     * Description: {{ interface.description }}
+     * Topic Type: {{ lu.ros_data_type }}
+     */
+    void process_subscription_{{ interface.name|to_snake_case }}(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %});
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // =============================================================================
+    // CALLBACK REGISTRATION
+    // =============================================================================
+    // Methods to register ROS-layer callbacks for publishing
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    void set_publish_callback_{{ interface.name|to_snake_case }}(
+        std::function<void(
+        {%- for field in lu.cpp_data_type %}
+            const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor %})> callback);
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Methods to register logic-layer callbacks for subscribers
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    void set_subscription_callback_{{ interface.name|to_snake_case }}(
+        std::function<void(
+        {%- for field in lu.cpp_data_type %}
+            const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+        {%- endfor %})> callback);
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+private:
+    // =============================================================================
+    // PUBLISHER CALLBACK FUNCTIONS
+    // =============================================================================
+    // These callbacks are provided by the ROS layer for actual publishing
+    
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    std::function<void(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> pub_callback_{{ interface.name|to_snake_case }}_;
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+
+    // Logic-layer subscription callbacks
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+{%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+{%- set lu = args.lookup.interfaces.msgs[interface.msgs] %}
+{%- if lu.cpp_data_type and lu.cpp_data_type|length > 0 %}
+    std::function<void(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }}& {{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> sub_callback_{{ interface.name|to_snake_case }}_;
+{%- endif %}
+
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+};
+
+}  // namespace {{ args.package.name |to_snake_case}}

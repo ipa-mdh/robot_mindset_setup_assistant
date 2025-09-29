@@ -1,0 +1,131 @@
+"""Logic module for {{ args.package.name |to_snake_case}} built with composition + delegation."""
+
+from __future__ import annotations
+
+import sys
+from typing import Any
+
+from loguru import logger
+
+from {{ args.package.name |to_snake_case}}.handlers import (
+        ActionHandler,
+        ParameterHandler,
+        ServiceHandler,
+        TopicHandler,
+)
+
+
+class LogicModule:
+        """Core business logic composed of specialised interface handlers."""
+
+        def __init__(self) -> None:
+                self._configure_logger("INFO")
+                self._topic_handler = TopicHandler()
+                self._service_handler = ServiceHandler()
+                self._action_handler = ActionHandler()
+                self._parameter_handler = ParameterHandler()
+
+        # ==================================================================
+        # Logger configuration
+        # ==================================================================
+        def _configure_logger(self, level: str) -> None:
+                """Reset loguru sinks and apply the requested level."""
+                logger.remove()
+                logger.add(sys.stderr, level=level.upper())
+
+        def set_logger_level(self, level: str) -> None:
+                """Update runtime logging verbosity."""
+                self._configure_logger(level)
+                logger.info("Log level set to {}", level.upper())
+
+        # ==================================================================
+        # Handler accessors (composition interface)
+        # ==================================================================
+        @property
+        def topic_handler(self) -> TopicHandler:
+                return self._topic_handler
+
+        @property
+        def service_handler(self) -> ServiceHandler:
+                return self._service_handler
+
+        @property
+        def action_handler(self) -> ActionHandler:
+                return self._action_handler
+
+        @property
+        def parameter_handler(self) -> ParameterHandler:
+                return self._parameter_handler
+
+        # ==================================================================
+        # Sample convenience functions
+        # ==================================================================
+        def greet(self, name: str) -> str:
+                """Return a friendly greeting."""
+                message = f"Hello, {name}! This is a non-ROS module."
+                logger.info(message)
+                return message
+
+        def spdlog_test(self, number: float) -> None:
+                """Emit a couple of formatted log statements for demonstration."""
+                logger.info("Python logic module reporting number: {:.2f}", number)
+                logger.warning("Zero padded integer: {:08d}", 12)
+                logger.success("Binary output: {:b}", 42)
+
+        def example_business_logic(self) -> None:
+                """Example method showing how to use the interface handlers."""
+                # JINJA-BEGIN:business-logic-example
+                logger.info("Executing business logic...")
+
+                # Example: publish to all output topics
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+{%- set identifier = interface.name|to_snake_case %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+                self.topic_handler.publish_{{ identifier }}(
+{%- for field in lu.cpp_data_type %}
+{%- if field.type in ['std::string', 'string'] %}
+                        {{ field.name }}="Hello from business logic!",
+{%- elif field.type in ['double', 'float64'] %}
+                        {{ field.name }}=42.0,
+{%- elif field.type in ['int', 'int32', 'int64'] %}
+                        {{ field.name }}=42,
+{%- elif field.type in ['bool', 'boolean'] %}
+                        {{ field.name }}=True,
+{%- else %}
+                        {{ field.name }}="default_value",
+{%- endif %}
+{%- endfor %}
+                )
+{%- endif %}
+{%- endfor %}
+
+                # Example: call all service clients
+{%- for interface in args.ros.interfaces if interface.type == "service" and interface.direction == "in" %}
+{%- set identifier = interface.name|to_snake_case %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+                result = self.service_handler.call_service_{{ identifier }}(
+{%- for field in lu.cpp_data_type.req %}
+{%- if field.type in ['std::string', 'string'] %}
+                        {{ field.name }}="service_request",
+{%- elif field.type in ['double', 'float64'] %}
+                        {{ field.name }}=1.0,
+{%- elif field.type in ['int', 'int32', 'int64'] %}
+                        {{ field.name }}=1,
+{%- elif field.type in ['bool', 'boolean'] %}
+                        {{ field.name }}=True,
+{%- else %}
+                        {{ field.name }}="default",
+{%- endif %}
+{%- endfor %}
+                )
+                logger.info("Service {{ interface.name }} result: {}", result)
+{%- endif %}
+{%- endfor %}
+{%- else %}
+                logger.info("No interfaces defined - pure business logic only")
+{%- endif %}
+                # JINJA-END:business-logic-example
+

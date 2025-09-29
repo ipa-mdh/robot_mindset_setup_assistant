@@ -1,0 +1,169 @@
+"""Action handler encapsulating goal execution and client logic."""
+
+from __future__ import annotations
+
+from typing import Any, Callable, Optional
+
+from loguru import logger
+
+
+class ActionHandler:
+    """Provides action server/client hooks independent from ROS."""
+
+    def __init__(self) -> None:
+        logger.debug("ActionHandler initialised")
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- set identifier = interface.name|to_snake_case %}
+        self._action_client_callback_{{ identifier }}: Optional[Callable[..., Any]] = None
+{%- endfor %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- set identifier = interface.name|to_snake_case %}
+        self._action_execute_callback_{{ identifier }}: Optional[
+            Callable[[Any, Callable[[Any], None], Callable[[Any], None], Callable[[Any], None], Callable[[], bool]], None]
+        ] = None
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Action server execution logic
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+{%- set identifier = interface.name|to_snake_case %}
+    def execute_action_{{ identifier }}(
+        self,
+        goal: Any,
+        publish_feedback: Callable[[Any], None],
+        succeed: Callable[[Any], None],
+        abort: Callable[[Any], None],
+        is_cancelled: Callable[[], bool],
+    ) -> None:
+        """Execute action goal for {{ interface.name }}.
+
+        Args:
+            goal: Incoming goal message from the ROS action server.
+            publish_feedback: Delegate used to stream feedback messages back to ROS.
+            succeed: Delegate that marks the goal as succeeded with a result payload.
+            abort: Delegate that aborts the goal with an error payload.
+            is_cancelled: Callable returning ``True`` when the goal has been cancelled.
+        """
+        logger.info("ActionHandler: Executing action {{ interface.name }}")
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-server
+        if is_cancelled():
+            logger.warning("Action {{ interface.name }} cancelled before execution")
+            abort(None)
+            return
+
+        # TODO: Implement feedback/result handling using publish_feedback/succeed
+        publish_feedback({})
+        succeed({})
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-server
+
+        callback = self._action_execute_callback_{{ identifier }}
+        if callback is None:
+            logger.debug("ActionHandler: No execute callback registered for {{ interface.name }}")
+            return
+
+        try:
+            callback(goal, publish_feedback, succeed, abort, is_cancelled)
+        except Exception as exc:  # pragma: no cover - user callback safety
+            logger.error("ActionHandler: Execute callback for {{ interface.name }} raised exception: {}", exc)
+{%- endfor %}
+{%- endif %}
+
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "out" %}
+    def set_action_execute_callback_{{ interface.name|to_snake_case }}(
+        self,
+        callback: Callable[[Any, Callable[[Any], None], Callable[[Any], None], Callable[[Any], None], Callable[[], bool]], None],
+    ) -> None:
+        """Register delegate invoked after default server processing.
+
+        Args:
+            callback: Callable receiving ``goal``, ``publish_feedback``,
+                ``succeed``, ``abort`` and ``is_cancelled`` delegates. Use it to
+                bridge business logic outside ROS.
+        """
+        self._action_execute_callback_{{ interface.name|to_snake_case }} = callback
+        logger.debug("ActionHandler: registered execute callback for {{ interface.name }}")
+{%- endfor %}
+{%- endif %}
+
+    # ==================================================================
+    # Action client triggers
+    # ==================================================================
+{%- if args.ros is defined and args.ros.interfaces is defined %}
+{%- for interface in args.ros.interfaces if interface.type == "action" and interface.direction == "in" %}
+{%- if interface.msgs in args.lookup.interfaces.msgs %}
+{%- set identifier = interface.name|to_snake_case %}
+{%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type) %}
+    def set_action_client_callback_{{ identifier }}(self, callback: Callable[[
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+            Any,
+{%- endfor %}
+{%- else %}
+            Any,
+{%- endif %}
+        ], Any]) -> None:
+        """Register ROS layer goal sender for {{ interface.name }}.
+
+        Args:
+            callback: Callable used by the logic module to dispatch goals through
+                ROS. Signature::
+
+                    callback(
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+                        goal_{{ field.name }}: {{ field.type | replace('std::', '') }}{% if not loop.last %},
+{%- endif %}
+{%- endfor %}
+{%- else %}
+                        goal: Any
+{%- endif %}
+                    ) -> Any
+        """
+        self._action_client_callback_{{ identifier }} = callback
+        logger.debug("ActionHandler: registered client callback for {{ interface.name }}")
+
+    def trigger_action_client_{{ identifier }}(
+        self,
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+        goal_{{ field.name }}: Any,
+{%- endfor %}
+{%- endif %}
+    ) -> Any:
+        """Send goal to external action server {{ interface.name }}.
+
+        Args:
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+            goal_{{ field.name }}: Value for goal field ``{{ field.name }}`` (type: {{ field.type | replace('std::', '') }}).
+{%- endfor %}
+{%- else %}
+            goal: Goal message accepted by the ROS action client.
+{%- endif %}
+
+        Returns:
+            Any: Whatever is returned by the registered ROS client callback.
+        """
+        # JINJA-BEGIN:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-client
+        logger.info("ActionHandler: Triggering action client {{ interface.name }}")
+        # JINJA-END:{{ interface.name|regex_replace('[^A-Za-z0-9]', '-') }}-action-client
+
+        if self._action_client_callback_{{ identifier }} is None:
+            logger.warning("ActionHandler: No action client callback registered for {{ interface.name }}")
+            return None
+
+        return self._action_client_callback_{{ identifier }}(
+{%- if lu.cpp_data_type.goal is defined %}
+{%- for field in lu.cpp_data_type.goal %}
+            goal_{{ field.name }},
+{%- endfor %}
+{%- endif %}
+        )
+{%- endif %}
+{%- endfor %}
+{%- endif %}

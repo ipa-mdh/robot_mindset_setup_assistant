@@ -1,0 +1,93 @@
+#pragma once
+
+#include <unordered_map>
+#include <functional>
+#include "../interfaces/topic_handler.hpp"
+
+namespace {{ args.package.name |to_snake_case}} {
+
+/**
+ * @brief Concrete implementation of InterfaceTopicHandler using ROS2 publishers and subscribers
+ * 
+ * This class manages all topic-related ROS2 communication through composition
+ */
+class RosTopicHandler : public InterfaceTopicHandler {
+public:
+    explicit RosTopicHandler(rclcpp::Node* node);
+    ~RosTopicHandler() override = default;
+
+    void initialize() override;
+    void shutdown() override;
+
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Publisher interface implementations ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(cpp_data_type = args.lookup.interfaces.msgs[interface.msgs].cpp_data_type,
+                           ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    void publish_{{ interface.name|to_snake_case }}(
+    {%- for field in lu.cpp_data_type %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %}) override;
+    {%- endif %}
+{%- endfor %}
+
+    // === Subscriber callback registration ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(data = args.lookup.interfaces.msgs[interface.msgs]) %}
+    void set_{{ interface.name|to_snake_case }}_callback(
+    {%- if lu.data.cpp_data_type and lu.data.cpp_data_type|length > 0 %}
+        std::function<void(
+    {%- for field in lu.data.cpp_data_type %}
+            const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> callback) override;
+    {%- else %}
+        std::function<void()> callback) override;
+    {%- endif %}
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+
+private:
+{%- if args.ros is defined %}
+{%- if args.ros.interfaces is defined %}
+    // === Publishers ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "out" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp::Publisher<{{ lu.ros_data_type }}>::SharedPtr pub_{{ interface.name|to_snake_case }}_;
+    {%- endif %}
+{%- endfor %}
+
+    // === Subscribers ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    rclcpp::Subscription<{{ lu.ros_data_type }}>::SharedPtr sub_{{ interface.name|to_snake_case }}_;
+    {%- set cb = namespace(data = args.lookup.interfaces.msgs[interface.msgs]) %}
+    {%- if cb.data.cpp_data_type and cb.data.cpp_data_type|length > 0 %}
+    std::function<void(
+    {%- for field in cb.data.cpp_data_type %}
+        const {{ field.type }} &{{ field.name }}{% if not loop.last %}, {% endif %}
+    {%- endfor %})> callback_{{ interface.name|to_snake_case }}_;
+    {%- else %}
+    std::function<void()> callback_{{ interface.name|to_snake_case }}_;
+    {%- endif %}
+    {%- endif %}
+{%- endfor %}
+
+    // === Internal callback methods ===
+{%- for interface in args.ros.interfaces if interface.type == "topic" and interface.direction == "in" %}
+    {%- if args.lookup.interfaces.msgs[interface.msgs] is defined %}
+    {%- set lu = namespace(ros_data_type = args.lookup.interfaces.msgs[interface.msgs].ros_data_type) %}
+    void internal_callback_{{ interface.name|to_snake_case }}(const {{ lu.ros_data_type }} & msg);
+    {%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+};
+
+} // namespace {{ args.package.name |to_snake_case}}
