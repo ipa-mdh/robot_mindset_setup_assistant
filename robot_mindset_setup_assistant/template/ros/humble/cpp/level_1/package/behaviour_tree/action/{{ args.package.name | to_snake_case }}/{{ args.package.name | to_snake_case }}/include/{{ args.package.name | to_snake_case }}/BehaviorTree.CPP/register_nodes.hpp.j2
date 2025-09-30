@@ -1,9 +1,9 @@
 #pragma once
 
-#include <behaviortree_cpp/bt_factory.h>
+#include <behaviortree_cpp /bt_factory.h>
 
-namespace {{ args.package.name | to_snake_case }}::bt {
+    namespace {{ args.package.name | to_snake_case }}::bt {
 
-void register_behavior_tree_nodes(BT::BehaviorTreeFactory &factory);
+    void register_behavior_tree_nodes(BT::BehaviorTreeFactory &factory);
 
-}  // namespace {{ args.package.name | to_snake_case }}::bt
+    } // namespace {{ args.package.name | to_snake_case }}::bt
