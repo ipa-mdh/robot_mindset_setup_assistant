@@ -1,0 +1,107 @@
+#include <chrono>
+#include <cstdlib>
+#include <filesystem>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include <ament_index_cpp/get_package_prefix.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <behaviortree_cpp/bt_factory.h>
+#include <behaviortree_cpp/loggers/bt_cout_logger.h>
+#include <rclcpp/rclcpp.hpp>
+
+{% set base_package = args.package.name | to_snake_case %}
+{% set runtime_package_name = feature.runtime_package_name | default(base_package ~ "_bt_runtime", true) %}
+{% set plugin_package_name = feature.plugin_package_name | default(base_package ~ "_bt_plugins", true) %}
+{% set tree_cfg = feature.tree | default({}, true) %}
+{% set tree_id = tree_cfg.id | default('MainTree', true) %}
+{% set tree_file_stem = tree_cfg.file_stem | default(tree_id | to_snake_case, true) %}
+{% set tree_filename = tree_cfg.filename | default(tree_file_stem ~ '.xml', true) %}
+{% set tick_rate = tree_cfg.tick_rate_hz | default(10.0, true) %}
+
+namespace {
+
+std::string plugin_library_filename()
+{
+#if defined(_WIN32)
+  constexpr const char *prefix = "";
+  constexpr const char *suffix = ".dll";
+#elif defined(__APPLE__)
+  constexpr const char *prefix = "lib";
+  constexpr const char *suffix = ".dylib";
+#else
+  constexpr const char *prefix = "lib";
+  constexpr const char *suffix = ".so";
+#endif
+  return std::string(prefix) + "{{ plugin_package_name }}" + suffix;
+}
+
+std::filesystem::path resolve_plugin_library()
+{
+  const auto package_prefix = ament_index_cpp::get_package_prefix("{{ plugin_package_name }}");
+  return std::filesystem::path(package_prefix) / "lib" / plugin_library_filename();
+}
+
+std::filesystem::path resolve_tree_file()
+{
+  const auto share_dir = ament_index_cpp::get_package_share_directory("{{ runtime_package_name }}");
+  return std::filesystem::path(share_dir) / "config" / "behavior_trees" / "{{ tree_filename }}";
+}
+
+}  // namespace
+
+int main(int argc, char **argv)
+{
+  rclcpp::init(argc, argv);
+  auto node = rclcpp::Node::make_shared("behavior_tree_runtime");
+
+  try
+  {
+    const auto plugin_library = resolve_plugin_library();
+    const auto tree_file = resolve_tree_file();
+
+    BT::BehaviorTreeFactory factory;
+    factory.registerFromPlugin(plugin_library.string());
+
+    BT::Tree tree = factory.createTreeFromFile(tree_file.string());
+    BT::StdCoutLogger cout_logger(tree);
+
+    rclcpp::Rate loop_rate({{ tick_rate }});
+    BT::NodeStatus status = BT::NodeStatus::IDLE;
+
+    while (rclcpp::ok())
+    {
+      status = tree.tickOnce();
+      if (status != BT::NodeStatus::RUNNING)
+      {
+        break;
+      }
+      loop_rate.sleep();
+    }
+
+    if (status == BT::NodeStatus::SUCCESS)
+    {
+      RCLCPP_INFO(node->get_logger(), "Behavior tree '%s' executed successfully.", "{{ tree_id }}");
+    }
+    else if (status == BT::NodeStatus::FAILURE)
+    {
+      RCLCPP_ERROR(node->get_logger(), "Behavior tree '%s' finished with FAILURE status.", "{{ tree_id }}");
+    }
+  }
+  catch (const std::exception &ex)
+  {
+    RCLCPP_FATAL(node->get_logger(), "BehaviorTree runtime exception: %s", ex.what());
+    rclcpp::shutdown();
+    return EXIT_FAILURE;
+  }
+  catch (...)
+  {
+    RCLCPP_FATAL(node->get_logger(), "BehaviorTree runtime encountered an unknown exception.");
+    rclcpp::shutdown();
+    return EXIT_FAILURE;
+  }
+
+  rclcpp::shutdown();
+  return EXIT_SUCCESS;
+}

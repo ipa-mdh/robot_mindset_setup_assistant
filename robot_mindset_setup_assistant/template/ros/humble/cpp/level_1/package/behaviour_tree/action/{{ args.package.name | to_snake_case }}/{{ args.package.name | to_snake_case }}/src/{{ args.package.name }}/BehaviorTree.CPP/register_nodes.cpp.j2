@@ -1,0 +1,39 @@
+{% set node_cfg_single = node | default(feature.node, true) %}
+{% set nodes_cfg = feature.nodes | default([], true) %}
+{% if nodes_cfg | length == 0 and node_cfg_single %}
+  {% set nodes_cfg = [node_cfg_single] %}
+{% endif %}
+
+#include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/register_nodes.hpp"
+
+#include <behaviortree_cpp/plugin.h>
+
+{% for cfg in nodes_cfg %}
+  {% set identifier = cfg.name | default(cfg.id | default('ActionNode', true), true) %}
+  {% set class_name = cfg.class_name | default(identifier | to_pascal_case) %}
+  {% set file_stem = identifier | to_snake_case %}
+#include "{{ args.package.name | to_snake_case }}/BehaviorTree.CPP/actions/{{ file_stem }}.hpp"
+{% endfor %}
+
+namespace {{ args.package.name | to_snake_case }}::bt {
+
+void register_behavior_tree_nodes(BT::BehaviorTreeFactory &factory)
+{
+{% if nodes_cfg | length > 0 %}
+  {% for cfg in nodes_cfg %}
+    {% set identifier = cfg.name | default(cfg.id | default('ActionNode', true), true) %}
+    {% set class_name = cfg.class_name | default(identifier | to_pascal_case) %}
+    {% set registration_id = cfg.registration_id | default(cfg.id or cfg.name or class_name, true) %}
+  factory.registerNodeType<actions::{{ class_name }}>("{{ registration_id }}");
+  {% endfor %}
+{% else %}
+  (void)factory;
+{% endif %}
+}
+
+}  // namespace {{ args.package.name | to_snake_case }}::bt
+
+BT_REGISTER_NODES(factory)
+{
+  {{ args.package.name | to_snake_case }}::bt::register_behavior_tree_nodes(factory);
+}

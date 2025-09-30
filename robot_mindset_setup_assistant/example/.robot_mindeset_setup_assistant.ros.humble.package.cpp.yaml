@@ -186,6 +186,13 @@ ros:
 
 level_1:
   behaviour_tree:
+    plugin_package_name: test_bt_plugins
+    runtime_package_name: test_bt_runtime
+    tree:
+      id: TestChirpTree
+      file_stem: test_chirp_tree
+      filename: test_chirp_tree.xml
+      tick_rate_hz: 10.0
     node:
       type: action
       name: chirp_generator
